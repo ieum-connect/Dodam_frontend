@@ -29,6 +29,7 @@ export const api = {
   logout: () => request('/logout', { method: 'POST' }),
   children: () => request('/api/children'),
   createChild: (body) => request('/api/children', { method: 'POST', body: JSON.stringify(body) }),
+  joinChild: (inviteCode) => request('/api/children/join', { method: 'POST', body: JSON.stringify({ inviteCode }) }),
   visits: (patientId) => request(`/api/visits${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
   createVisit: (body) => request('/api/visits', { method: 'POST', body: JSON.stringify(body) }),
   documents: (patientId) => request(`/api/documents${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
