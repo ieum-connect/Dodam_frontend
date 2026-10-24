@@ -35,5 +35,5 @@
   .app-shell{display:block;width:100%;min-width:0;}
   .desktop-rail{display:none;}
   .phone-frame{width:100%;min-width:0;height:100dvh;min-height:100dvh;}
-  .bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;height:84px;min-height:84px;}
+  .bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;max-width:none;height:84px;min-height:84px;transform:none;}
 }
