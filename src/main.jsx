@@ -56,14 +56,17 @@ function App() {
     const months = Math.max(0, (new Date().getFullYear() - Number(birthDate.slice(0,4))) * 12 + new Date().getMonth() + 1 - Number(birthDate.slice(5,7)));
     return months < 24 ? `생후 ${months}개월` : `만 ${Math.floor(months/12)}세`;
   };
-  const normalizeChild = (child, index=0) => ({ id: child.id, name: child.name, fullName: child.name, age: childAge(child.birthDate), birthDate: child.birthDate, emoji: index % 2 ? '👧🏻' : '👶🏻' });
+  const normalizeChild = (child, index=0) => {
+    const displayName = child.name || child.fullName || child.displayName || (index === 0 ? '도윤이' : `아이 ${index + 1}`);
+    return { id: child.id, name: displayName, fullName: displayName, age: childAge(child.birthDate), birthDate: child.birthDate, emoji: index % 2 ? '👧🏻' : '👶🏻' };
+  };
 
   const loadFamilyData = async () => {
     try {
       const childRows = await api.children();
       const mapped = childRows.map(normalizeChild);
       setChildren(mapped);
-      const selected = mapped[0];
+      const selected = mapped.find((child) => child.id === activeChild.id) || mapped[0];
       if (selected) setActiveChild(selected);
       const patientId = selected?.id;
       const [visitPage, documentPage] = await Promise.all([api.visits(patientId), api.documents(patientId)]);
@@ -296,7 +299,7 @@ function VisitRecordsDetail({ onToast, visits = [], child, onDataChange, backend
   };
   return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Stethoscope/></span><div><h2>병원 방문 기록</h2><p>진료 내용과 다음 예약을 잊지 않도록 정리해드려요.</p></div></div>
     <div className="list-header"><h3>최근 기록</h3><button>전체보기</button></div>
-    <div className="record-list">{visits.length ? visits.slice(0,5).map(v=><button key={v.visitId}><span className="record-date">{v.visitedOn}</span><span><b>{v.department || '병원 방문'}</b><small>{v.hospitalName || '병원 정보 없음'}</small></span><ChevronRight/></button>) : <div className="empty-record">아직 저장된 병원 방문 기록이 없어요.</div>}</div>
+    <div className="record-list">{visits.length ? visits.slice(0,5).map(v=><button type="button" onClick={()=>onToast(`${v.hospitalName || '병원'} 방문 기록을 선택했어요`)} key={v.visitId}><span className="record-date">{v.visitedOn}</span><span><b>{v.department || '병원 방문'}</b><small>{v.hospitalName || '병원 정보 없음'}</small></span><ChevronRight/></button>) : <div className="empty-record">아직 저장된 병원 방문 기록이 없어요.</div>}</div>
     {!adding ? <button className="primary-button" onClick={()=>setAdding(true)}><Plus/> 새 기록 추가</button> : <div className="inline-panel visit-compose"><div className="panel-title"><div><b>새 병원 방문 기록</b><p>아이의 진료 정보를 남겨보세요.</p></div><button onClick={()=>setAdding(false)}><X/></button></div><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" placeholder="예: 도담소아청소년과" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" placeholder="예: 영유아 건강검진" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="진료 내용을 간단히 남겨보세요" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={submit}><CheckCircle2/> {saving?'저장 중…':'방문 기록 저장'}</button></div>}
   </div>;
 }
@@ -329,7 +332,7 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
     <div className="detail-hero"><span className="detail-icon"><FileText/></span><div><h2>건강 문서</h2><p>진료·검사 문서를 방문 기록과 연결해 맥락까지 함께 보관해요.</p></div></div>
     <div className="link-info"><Link2/><div><b>문서와 방문 기록을 연결하세요</b><p>진료별 문서와 AI 설명을 한 화면에서 다시 확인할 수 있어요.</p></div></div>
     <div className="list-header"><h3>최근 문서</h3><button>전체보기</button></div>
-    <div className="record-list">{(documents.length?documents:[{documentId:'sample1',createdAt:'2026-10-12',documentName:'혈액검사 결과지',visitId:'sample'},{documentId:'sample2',createdAt:'2026-09-12',documentName:'진료 확인서'}]).slice(0,5).map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{doc.documentName}</b><small>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>})}</div>
+    <div className="record-list">{(documents.length?documents:[{documentId:'sample1',createdAt:'2026-10-12',documentName:'혈액검사 결과지',visitId:'sample'},{documentId:'sample2',createdAt:'2026-09-12',documentName:'진료 확인서'}]).slice(0,5).map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>onToast(`${doc.documentName} 상세를 열었어요`)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{doc.documentName}</b><small>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>})}</div>
     <button className="primary-button" onClick={()=>setUploading(true)}><Upload/> 문서 업로드</button>
     {uploading && <div className="inline-panel">
       <div className="panel-title"><div><b>새 문서 업로드</b><p>문서가 속한 병원 방문 기록을 선택해주세요.</p></div><button onClick={()=>setUploading(false)}><X/></button></div>
