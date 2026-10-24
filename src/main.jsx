@@ -262,6 +262,7 @@ function DetailScreen({ type, onToast, visits = [], documents = [], child, onDat
   if(type==='welfare') return <WelfareDetail/>;
   if(type==='memo') return <MemoDetail onToast={onToast}/>;
   if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline}/>;
+  if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} child={child} onDataChange={onDataChange} backendOnline={backendOnline}/>;
   const Icon = featureCards.find(x=>x.id===type)?.icon || FileText;
   const items = {
     vaccine: [['10월 24일','DTaP 4차','오늘 · 동네봄 소아청소년과'],['2027년 3월','일본뇌염 2차','접종 권장 시기']],
@@ -275,6 +276,28 @@ function DetailScreen({ type, onToast, visits = [], documents = [], child, onDat
     <div className="list-header"><h3>{type==='memo'?'최근 메모':'최근 기록'}</h3><button>전체보기</button></div>
     <div className="record-list">{items.map(([date,name,note],i)=><button key={i}><span className="record-date">{date}</span><span><b>{name}</b><small>{note}</small></span><ChevronRight/></button>)}</div>
     <button className="primary-button" onClick={()=>onToast(`${title}에 새 기록을 추가할게요`)}>{type==='documents'?<Upload/>:<Plus/>}{type==='documents'?' 문서 업로드':' 새 기록 추가'}</button>
+  </div>;
+}
+
+function VisitRecordsDetail({ onToast, visits = [], child, onDataChange, backendOnline }) {
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ visitedOn: '2026-10-24', hospitalName: '', department: '', memo: '' });
+  const submit = async () => {
+    if (!backendOnline) { onToast('백엔드에 연결된 뒤 방문 기록을 저장할 수 있어요'); return; }
+    if (!child?.id || !form.hospitalName.trim()) { onToast('병원명을 입력해주세요'); return; }
+    try {
+      setSaving(true);
+      await api.createVisit({ patientId: child.id, ...form, hospitalName: form.hospitalName.trim(), department: form.department.trim(), visitStatus: 'DONE', version: null });
+      setAdding(false); setForm({ visitedOn: '2026-10-24', hospitalName: '', department: '', memo: '' });
+      await onDataChange?.(); onToast('병원 방문 기록을 저장했어요');
+    } catch (error) { onToast(error.message || '방문 기록을 저장하지 못했어요'); }
+    finally { setSaving(false); }
+  };
+  return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Stethoscope/></span><div><h2>병원 방문 기록</h2><p>진료 내용과 다음 예약을 잊지 않도록 정리해드려요.</p></div></div>
+    <div className="list-header"><h3>최근 기록</h3><button>전체보기</button></div>
+    <div className="record-list">{visits.length ? visits.slice(0,5).map(v=><button key={v.visitId}><span className="record-date">{v.visitedOn}</span><span><b>{v.department || '병원 방문'}</b><small>{v.hospitalName || '병원 정보 없음'}</small></span><ChevronRight/></button>) : <div className="empty-record">아직 저장된 병원 방문 기록이 없어요.</div>}</div>
+    {!adding ? <button className="primary-button" onClick={()=>setAdding(true)}><Plus/> 새 기록 추가</button> : <div className="inline-panel visit-compose"><div className="panel-title"><div><b>새 병원 방문 기록</b><p>아이의 진료 정보를 남겨보세요.</p></div><button onClick={()=>setAdding(false)}><X/></button></div><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" placeholder="예: 도담소아청소년과" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" placeholder="예: 영유아 건강검진" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="진료 내용을 간단히 남겨보세요" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={submit}><CheckCircle2/> {saving?'저장 중…':'방문 기록 저장'}</button></div>}
   </div>;
 }
 
