@@ -84,9 +84,28 @@ function App() {
     try {
       await api.demoLogin(); setBackendOnline(true); setLoggedIn(true); await loadFamilyData(); showToast('도담에 오신 것을 환영해요');
     } catch (error) {
-      if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
-        setLoggedIn(true); showToast('백엔드 데모 로그인이 꺼져 있어 체험 모드로 시작했어요');
-      } else { setLoggedIn(true); showToast('백엔드 연결 전이라 체험 모드로 시작했어요'); }
+      setLoggedIn(false);
+      setBackendOnline(false);
+      showToast(error instanceof ApiError ? '로그인에 실패했어요. 백엔드 연결을 확인해주세요.' : '서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (backendOnline) await api.logout();
+    } catch (error) {
+      // Clear local state even if the server session has already expired.
+    } finally {
+      setLoggedIn(false);
+      setProfileOpen(false);
+      setChildOpen(false);
+      setTab('home');
+      setDetail(null);
+      setChildren([]);
+      setVisits([]);
+      setDocuments([]);
+      setChat([]);
+      setActiveChild({ name: '도윤이', fullName: '김도윤', age: '생후 18개월', emoji: '👶🏻' });
     }
   };
 
@@ -142,7 +161,7 @@ function App() {
         </>}
       </main>
 
-      {profileOpen && <ProfileSheet onClose={() => setProfileOpen(false)} onToast={showToast} />}
+      {profileOpen && <ProfileSheet onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} />}
       {childOpen && <ChildSheet active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { setActiveChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => setChildOpen(false)} onToast={showToast} onCreated={loadFamilyData} />}
       {toast && <div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
     </div>
@@ -274,7 +293,7 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
       setSaving(true); let visitId = visit;
       if (newVisit) {
         const inputs = document.querySelectorAll('.new-visit-form input');
-        const created = await api.createVisit({ patientId: child?.id, visitedOn: inputs[0]?.value, hospitalName: inputs[1]?.value, department: inputs[2]?.value, memo: '', visitStatus: 'COMPLETED', version: null });
+        const created = await api.createVisit({ patientId: child?.id, visitedOn: inputs[0]?.value, hospitalName: inputs[1]?.value, department: inputs[2]?.value, memo: '', visitStatus: 'DONE', version: null });
         visitId = created.visitId;
       }
       if (!visitId) { onToast('연결할 방문 기록을 선택해주세요'); return; }
@@ -325,7 +344,7 @@ function WelfareDetail() { const services=[['아이돌봄 서비스','맞벌이 
 
 function MoreScreen({onOpen}) { return <div className="page padded"><div className="page-title"><span className="eyebrow">ALL SERVICES</span><h2>도담의 모든 기능</h2><p>아이의 건강과 가족의 일상을 한곳에서 관리하세요.</p></div><div className="all-list">{featureCards.map(({id,title,subtitle,icon:Icon,tone})=><button onClick={()=>onOpen(id)}><span className={`feature-icon ${tone}`}><Icon/></span><span><b>{title}</b><small>{subtitle}</small></span><ChevronRight/></button>)}</div></div> }
 
-function ProfileSheet({onClose,onToast}) { return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button><div className="profile-head"><span className="big-avatar">도</span><div><h3>김도윤</h3><p>2025년 4월 12일생 · 남아</p></div></div><div className="family-row"><span>보호자</span><b>엄마 김다정</b><button>전환</button></div><button className="outline-button" onClick={()=>onToast('새 아이 프로필 추가를 시작할게요')}><Plus/> 아이 프로필 추가</button></div></div> }
+function ProfileSheet({onClose,onToast,onLogout}) { return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button><div className="profile-head"><span className="big-avatar">도</span><div><h3>김도윤</h3><p>2025년 4월 12일생 · 남아</p></div></div><div className="family-row"><span>보호자</span><b>엄마 김다정</b><button>전환</button></div><button className="outline-button" onClick={()=>onToast('새 아이 프로필 추가를 시작할게요')}><Plus/> 아이 프로필 추가</button><button className="logout-button" onClick={onLogout}>로그아웃</button></div></div> }
 
 function ChildSheet({ active, children: apiChildren, backendOnline, onSelect, onClose, onToast, onCreated }) {
   const fallback = [{ name:'도윤이', fullName:'김도윤', age:'생후 18개월', emoji:'👶🏻' },{ name:'서윤이', fullName:'김서윤', age:'만 5세', emoji:'👧🏻' }];
