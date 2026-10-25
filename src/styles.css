@@ -7,6 +7,7 @@
 .bottom-nav{min-height:84px;flex-shrink:0}
 .bottom-nav button{min-height:62px}
 .empty-record{padding:24px 16px;text-align:center;color:#9b8f93;font-size:12px}
+.child-required{padding:34px 20px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:24px}.child-required>svg{width:42px;height:42px;padding:10px;border-radius:15px;background:#fff0f4;color:#d76082}.child-required h3{margin:14px 0 7px;font-size:16px}.child-required p{margin:0;color:#95888d;font-size:11px;line-height:1.7}.child-required .primary-button{margin-top:20px}
 .visit-compose .field-label{display:grid;gap:7px}
 .visit-memo{width:100%;min-height:78px;border:1px solid #ebdde1;border-radius:13px;background:#fff;padding:11px;font:inherit;font-size:12px;resize:vertical;outline:none}
 

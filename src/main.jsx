@@ -40,7 +40,7 @@ function App() {
   const [detail, setDetail] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [childOpen, setChildOpen] = useState(false);
-  const [activeChild, setActiveChild] = useState({ name: '박도윤', fullName: '박도윤', age: '생후 18개월', emoji: '👶🏻' });
+  const [activeChild, setActiveChild] = useState(null);
   const [children, setChildren] = useState([]);
   const [me, setMe] = useState(null);
   const [notis, setNotis] = useState({ items: [], unreadCount: 0 });
@@ -82,13 +82,14 @@ function App() {
       const mapped = childRows.map(normalizeChild);
       const ordered = [...mapped].sort((a, b) => Number(isCompleteChild(b)) - Number(isCompleteChild(a)));
       setChildren(ordered);
-      const current = ordered.find((child) => child.id === activeChild.id);
+      const current = ordered.find((child) => child.id === activeChild?.id);
       const selected = (current && isCompleteChild(current))
         ? current
         : ordered.find(isCompleteChild) || current || ordered[0];
-      if (selected) setActiveChild(selected);
+      setActiveChild(selected || null);
       const patientId = selected?.id;
       api.notifications().then(p => setNotis({ items: p?.items || [], unreadCount: p?.unreadCount || 0 })).catch(()=>{});
+      if (!patientId) { setVisits([]); setDocuments([]); return; }
       const [visitPage, documentPage] = await Promise.all([api.visits(patientId), api.documents(patientId)]);
       setVisits(visitPage?.items || []);
       setDocuments(documentPage?.items || []);
@@ -129,14 +130,14 @@ function App() {
       setVisits([]);
       setDocuments([]);
       setChat([]);
-      setActiveChild({ name: '박도윤', fullName: '박도윤', age: '생후 18개월', emoji: '👶🏻' });
+      setActiveChild(null);
     }
   };
 
   React.useEffect(() => {
     if (!loggedIn || !backendOnline || !activeChild.id) return;
     Promise.all([api.visits(activeChild.id), api.documents(activeChild.id)]).then(([v,d]) => { setVisits(v?.items||[]); setDocuments(d?.items||[]); }).catch(()=>{});
-  }, [activeChild.id]);
+  }, [activeChild?.id]);
 
   const MEDICAL_IDS = ['records','meds','vaccine','documents'];
   const navigate = (id) => {
@@ -179,13 +180,13 @@ function App() {
         </header>
 
         <div className="screen-content" ref={screenRef}>
-          {detail ? <DetailScreen type={detail} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} /> : tab === 'home' ? (
+          {detail ? <DetailScreen type={detail} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
             : tab === 'calendar' ? <CalendarScreen onToast={showToast} />
             : tab === 'chat' ? <ChatScreen chat={chat} setChat={setChat} child={activeChild} documents={documents} backendOnline={backendOnline} onToast={showToast} />
-            : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} />
-            : tab === 'documents' ? <DetailScreen type="documents" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} />
+            : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
+            : tab === 'documents' ? <DetailScreen type="documents" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
             : <MoreScreen onOpen={openFeature} me={me} child={activeChild} onProfile={()=>setProfileOpen(true)} onChild={()=>setChildOpen(true)} onLogout={logout} />}
         </div>
 
@@ -234,6 +235,7 @@ function Logo({ compact = false }) {
 
 function HomeScreen({ onOpen, child, onChildOpen }) {
   const todayLabel = new Intl.DateTimeFormat('ko-KR', { month:'long', day:'numeric', weekday:'long' }).format(new Date());
+  if (!child?.id) return <div className="page padded"><div className="page-title"><p>{todayLabel}</p><h2>도담에 오신 것을 환영해요</h2><p>아이 프로필을 등록하면 건강 기록 관리를 시작할 수 있어요.</p></div><div className="child-required"><Baby/><h3>첫 아이를 등록해 주세요</h3><p>방문 기록, 건강 문서, AI 상담을<br/>아이별로 안전하게 관리할 수 있어요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 등록하기</button></div></div>;
   return <>
     <section className="welcome">
       <div className="welcome-copy"><p className="muted">{todayLabel}</p><h2><strong>{child.name}</strong>와 오늘도<br/>건강한 하루 보내세요 <span>♡</span></h2></div>
@@ -342,13 +344,13 @@ function ChatScreen({ chat, setChat, child, documents, backendOnline, onToast })
   </div>;
 }
 
-function DetailScreen({ type, onToast, visits = [], documents = [], child, onDataChange, backendOnline }) {
+function DetailScreen({ type, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen }) {
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthDetail onToast={onToast}/>;
   if(type==='welfare') return <WelfareDetail/>;
   if(type==='memo') return <MemoDetail onToast={onToast} child={child} backendOnline={backendOnline}/>;
-  if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline}/>;
-  if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline}/>;
+  if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
+  if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
   const Icon = featureCards.find(x=>x.id===type)?.icon || FileText;
   const items = {
     vaccine: [['10월 24일','DTaP 4차','오늘 · 동네봄 소아청소년과'],['2027년 3월','일본뇌염 2차','접종 권장 시기']],
@@ -365,7 +367,7 @@ function DetailScreen({ type, onToast, visits = [], documents = [], child, onDat
   </div>;
 }
 
-function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline }) {
+function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen }) {
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState(null);
@@ -374,7 +376,8 @@ function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDat
   const [form, setForm] = useState({ visitedOn: '2026-10-24', hospitalName: '', department: '', memo: '' });
   const submit = async () => {
     if (!backendOnline) { onToast('백엔드에 연결된 뒤 방문 기록을 저장할 수 있어요'); return; }
-    if (!child?.id || !form.hospitalName.trim()) { onToast('병원명을 입력해주세요'); return; }
+    if (!child?.id) { onToast('아이를 먼저 등록해 주세요'); return; }
+    if (!form.hospitalName.trim()) { onToast('병원명을 입력해주세요'); return; }
     try {
       setSaving(true);
       await api.createVisit({ patientId: child.id, ...form, hospitalName: form.hospitalName.trim(), department: form.department.trim(), visitStatus: 'DONE', version: null });
@@ -383,6 +386,7 @@ function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDat
     } catch (error) { onToast(error.message || '방문 기록을 저장하지 못했어요'); }
     finally { setSaving(false); }
   };
+  if (!child?.id) return <ChildRequiredState icon={Stethoscope} title="병원 방문 기록" onChildOpen={onChildOpen}/>;
   if (selectedVisit) return <VisitItemDetail visit={selectedVisit} child={child} documents={documents} backendOnline={backendOnline} onBack={()=>setSelectedVisit(null)} onSaved={async(updated)=>{await onDataChange?.();setSelectedVisit(updated)}} onToast={onToast}/>;
   const visibleVisits = selectedDate ? visits.filter(v=>v.visitedOn===selectedDate) : visits;
   return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Stethoscope/></span><div><h2>병원 방문 기록</h2><p>진료 내용과 다음 예약을 잊지 않도록 정리해드려요.</p></div></div>
@@ -427,7 +431,11 @@ const DOC_STATUS = { UPLOADED:'업로드 완료', READY:'분석 준비 완료', 
 
 function InfoRow({label,value}) { return <div className="info-row"><span>{label}</span><p>{value}</p></div>; }
 
-function DocumentDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline }) {
+function ChildRequiredState({ icon: Icon, title, onChildOpen }) {
+  return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Icon/></span><div><h2>{title}</h2><p>아이별로 건강 기록을 안전하게 관리해요.</p></div></div><div className="child-required"><Baby/><h3>아이를 먼저 등록해 주세요</h3><p>방문 기록을 만들거나 건강 문서를 업로드하려면<br/>먼저 관리할 아이의 프로필이 필요해요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 등록하기</button></div></div>;
+}
+
+function DocumentDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen }) {
   const [uploading, setUploading] = useState(false);
   const [visit, setVisit] = useState('');
   const [newVisit, setNewVisit] = useState(false);
@@ -437,6 +445,7 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
   const [selectedDocument, setSelectedDocument] = useState(null);
   React.useEffect(()=>{ if(visits.length && !visit) setVisit(visits[0].visitId); },[visits]);
   const complete = async () => {
+    if (!child?.id) { onToast('아이를 먼저 등록해 주세요'); return; }
     if (!file) { onToast('먼저 업로드할 문서를 선택해주세요'); return; }
     if (!backendOnline) { onToast('체험 모드에서는 업로드 흐름만 확인할 수 있어요'); return; }
     try {
@@ -452,12 +461,13 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
     } catch (error) { onToast(error.message || '문서를 업로드하지 못했어요'); }
     finally { setSaving(false); }
   };
+  if (!child?.id) return <ChildRequiredState icon={FileText} title="건강 문서" onChildOpen={onChildOpen}/>;
   if(selectedDocument) return <DocumentItemDetail document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast}/>;
   return <div className="page padded detail-page">
     <div className="detail-hero"><span className="detail-icon"><FileText/></span><div><h2>건강 문서</h2><p>진료·검사 문서를 방문 기록과 연결해 맥락까지 함께 보관해요.</p></div></div>
     <div className="link-info"><Link2/><div><b>문서와 방문 기록을 연결하세요</b><p>진료별 문서와 AI 설명을 한 화면에서 다시 확인할 수 있어요.</p></div></div>
     <div className="list-header"><h3>최근 문서</h3><button>전체보기</button></div>
-    <div className="record-list">{(documents.length?documents:[{documentId:'sample1',createdAt:'2026-10-12',documentName:'혈액검사 결과지',visitId:'sample'},{documentId:'sample2',createdAt:'2026-09-12',documentName:'진료 확인서'}]).slice(0,5).map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{doc.documentName}</b><small>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>})}</div>
+    <div className="record-list">{documents.length ? documents.slice(0,5).map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{doc.documentName}</b><small>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>}) : <div className="empty-record">아직 등록된 건강 문서가 없어요.</div>}</div>
     <button className="primary-button" onClick={()=>setUploading(true)}><Upload/> 문서 업로드</button>
     {uploading && <div className="inline-panel">
       <div className="panel-title"><div><b>새 문서 업로드</b><p>문서가 속한 병원 방문 기록을 선택해주세요.</p></div><button onClick={()=>setUploading(false)}><X/></button></div>
@@ -683,12 +693,11 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
 }
 
 function ChildSheet({ active, children: apiChildren, backendOnline, onSelect, onClose, onToast, onCreated }) {
-  const fallback = [{ name:'박도윤', fullName:'박도윤', age:'생후 18개월', emoji:'👶🏻' },{ name:'박다연', fullName:'박다연', age:'만 3세', emoji:'👧🏻' }];
-  const children = apiChildren?.length ? apiChildren : fallback;
+  const children = apiChildren || [];
   const [adding,setAdding]=useState(false); const [joining,setJoining]=useState(false); const [name,setName]=useState(''); const [birthDate,setBirthDate]=useState(''); const [inviteCode,setInviteCode]=useState('');
   const create = async()=>{ if(!name||!birthDate){onToast('아이 이름과 생년월일을 입력해주세요');return;} if(!backendOnline){onToast('체험 모드에서는 추가 화면만 확인할 수 있어요');return;} try{await api.createChild({name,birthDate});onToast('아이 프로필을 추가했어요');await onCreated?.();setAdding(false);}catch(e){onToast(e.message||'아이 프로필을 추가하지 못했어요')}};
   const join = async()=>{ if(!inviteCode.trim()){onToast('공유 코드를 입력해주세요');return;} try{await api.joinChild(inviteCode.trim());onToast('아이 건강 기록에 연결했어요');await onCreated?.();setJoining(false);setInviteCode('');}catch(e){onToast(e.message||'공유 코드가 올바르지 않아요')}};
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button><div className="sheet-heading"><UsersRound/><div><h3>아이 선택</h3><p>부모·조부모·보호자와 함께 건강 기록을 관리해요.</p></div></div><div className="child-list">{children.map(child=><button className={active.fullName===child.fullName?'selected':''} onClick={()=>onSelect(child)} key={child.id||child.fullName}><span className="child-face">{child.emoji}</span><span><b>{child.fullName}</b><small>{child.age}</small></span>{active.fullName===child.fullName?<CheckCircle2/>:<ChevronRight/>}</button>)}</div>{adding&&<div className="new-child-form"><input placeholder="아이 이름" value={name} onChange={e=>setName(e.target.value)}/><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}/><button className="primary-button compact" onClick={create}>프로필 저장</button></div>}{joining&&<div className="new-child-form"><input placeholder="공유 코드 8자리" value={inviteCode} onChange={e=>setInviteCode(e.target.value.toUpperCase())}/><button className="primary-button compact" onClick={join}>공유 코드로 연결</button></div>}<button className="outline-button" onClick={()=>{setAdding(!adding);setJoining(false)}}><UserRoundPlus/> {adding?'추가 취소':'새 아이 프로필 추가'}</button><button className="outline-button" onClick={()=>{setJoining(!joining);setAdding(false)}}><Link2/> {joining?'코드 입력 취소':'가족 공유 코드 입력'}</button></div></div>;
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button><div className="sheet-heading"><UsersRound/><div><h3>아이 선택</h3><p>부모·조부모·보호자와 함께 건강 기록을 관리해요.</p></div></div><div className="child-list">{children.length ? children.map(child=><button className={active?.id===child.id?'selected':''} onClick={()=>onSelect(child)} key={child.id}><span className="child-face">{child.emoji}</span><span><b>{child.fullName}</b><small>{child.age}</small></span>{active?.id===child.id?<CheckCircle2/>:<ChevronRight/>}</button>) : <p className="family-empty">아직 등록된 아이가 없어요. 아래에서 첫 아이를 등록해 주세요.</p>}</div>{adding&&<div className="new-child-form"><input placeholder="아이 이름" value={name} onChange={e=>setName(e.target.value)}/><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}/><button className="primary-button compact" onClick={create}>프로필 저장</button></div>}{joining&&<div className="new-child-form"><input placeholder="공유 코드 8자리" value={inviteCode} onChange={e=>setInviteCode(e.target.value.toUpperCase())}/><button className="primary-button compact" onClick={join}>공유 코드로 연결</button></div>}<button className="outline-button" onClick={()=>{setAdding(!adding);setJoining(false)}}><UserRoundPlus/> {adding?'추가 취소':'새 아이 프로필 추가'}</button><button className="outline-button" onClick={()=>{setJoining(!joining);setAdding(false)}}><Link2/> {joining?'코드 입력 취소':'가족 공유 코드 입력'}</button></div></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
