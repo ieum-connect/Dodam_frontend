@@ -294,7 +294,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [docPicker, setDocPicker] = useState(false);
@@ -310,6 +310,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     setActiveSession(null);
     setMessages([]);
     setChatError(null);
+    setHistoryOpen(true);
     refreshSessions().catch(error => onToast(errorMessage(error, '이전 채팅을 불러오지 못했어요.')));
   }, [refreshSessions]);
 
