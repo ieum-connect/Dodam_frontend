@@ -78,5 +78,32 @@ export const api = {
   readNotification: (id) => request(`/api/notifications/${id}/read`, { method: 'PATCH' }),
   readAllNotifications: () => request('/api/notifications/read-all', { method: 'PATCH' }),
   aiDocument: (documentId) => request(`/api/ai-documents/${documentId}`),
+  aiResultDocument: (resultDocumentId) => request(`/api/ai-result-documents/${resultDocumentId}`),
   notifications: () => request('/api/notifications'),
+  // 가족 공유 및 돌봄 관계
+  careRelations: () => request('/api/care-relations'),
+  careRelation: (relationId) => request(`/api/care-relations/${relationId}`),
+  requestCareRelation: (inviteCode) => request('/api/care-relations', { method: 'POST', body: JSON.stringify({ inviteCode }) }),
+  acceptCareRelation: (relationId) => request(`/api/care-relations/${relationId}/accept`, { method: 'POST' }),
+  rejectCareRelation: (relationId) => request(`/api/care-relations/${relationId}/reject`, { method: 'POST' }),
+  cancelCareRelation: (relationId) => request(`/api/care-relations/${relationId}/request`, { method: 'DELETE' }),
+  revokeCareRelation: (relationId) => request(`/api/care-relations/${relationId}`, { method: 'DELETE' }),
+  updateChild: (childId, body) => request(`/api/children/${childId}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteVisit: (visitId) => request(`/api/visits/${visitId}`, { method: 'DELETE' }),
+  deleteDocument: (documentId) => request(`/api/documents/${documentId}`, { method: 'DELETE' }),
+  aiDocuments: (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value != null && value !== '')).toString();
+    return request(`/api/ai-documents${query ? `?${query}` : ''}`);
+  },
+  aiDocumentSections: (documentId, sectionType) => request(`/api/ai-documents/${documentId}/sections${sectionType ? `?sectionType=${encodeURIComponent(sectionType)}` : ''}`),
+  aiDocumentStatus: (documentId) => request(`/api/ai-documents/${documentId}/explanation-status`),
+  aiDocumentFacts: (documentId) => request(`/api/ai-documents/${documentId}/facts`),
+  aiDocumentCitations: (documentId, sectionId) => request(`/api/ai-documents/${documentId}/citations${sectionId ? `?sectionId=${encodeURIComponent(sectionId)}` : ''}`),
+  aiDocumentPage: (documentId, pageNo, anchorId) => request(`/api/ai-documents/${documentId}/pages/${pageNo}${anchorId ? `?anchorId=${encodeURIComponent(anchorId)}` : ''}`),
+  accounts: () => request('/api/accounts'),
+  switchAccount: (role) => request('/api/accounts/switch', { method: 'POST', body: JSON.stringify({ role }) }),
+  needsRole: () => request('/api/auth/needs-role'),
+  setRole: (role) => request('/api/role', { method: 'POST', body: JSON.stringify({ role }) }),
+  updateMyRole: (role) => request('/api/me/role', { method: 'PUT', body: JSON.stringify({ role }) }),
+  deleteMe: () => request('/api/me', { method: 'DELETE' }),
 };
