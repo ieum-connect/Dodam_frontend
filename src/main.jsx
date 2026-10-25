@@ -363,8 +363,23 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   };
 
   const dateLabel = value => value ? new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric' }).format(new Date(value)) : '';
-  return <div className="chat-page"><div className="chat-toolbar"><button className="chat-history-button" onClick={()=>setHistoryOpen(v=>!v)}><MessageCircleHeart/> 채팅 기록 {sessions.length ? `(${sessions.length})` : ''}</button><button className="new-chat-button" onClick={newChat}><Plus/> 새 채팅</button></div>
-    {historyOpen && <div className="chat-history-panel"><div className="chat-history-head"><b>이전 채팅</b><button onClick={()=>setHistoryOpen(false)} aria-label="닫기"><X/></button></div>{sessions.length ? <div className="chat-session-list">{sessions.map(session=><button key={session.sessionId} className={activeSession?.sessionId===session.sessionId?'active':''} onClick={()=>openSession(session)}><span><b>{session.title || '새 채팅'}</b><small>{dateLabel(session.createdAt)}</small></span><ChevronRight/></button>)}</div> : <p>아직 저장된 채팅이 없어요.<br/>새 채팅에서 궁금한 점을 물어보세요.</p>}</div>}
+  if (historyOpen) return <div className="chat-page chat-lobby">
+    <section className="chat-lobby-hero">
+      <div className="chat-lobby-copy"><span className="chat-lobby-badge"><Sparkles/> AI 도담</span><h2>{child?.name || '우리 아이'}의 기록,<br/><strong>도담이와 함께 살펴봐요</strong></h2><p>건강 문서를 바탕으로 어려운 표현은 쉽게,<br/>궁금한 내용은 차분하게 설명해드릴게요.</p></div>
+      <span className="chat-lobby-orb"><MessageCircleHeart/></span>
+      <button className="new-chat-cta" onClick={newChat}><span className="cta-icon"><Plus/></span><span className="cta-text"><b>새 채팅 시작하기</b><small>새로운 주제로 도담이에게 물어보세요</small></span><ChevronRight/></button>
+    </section>
+    <section className="chat-history-section">
+      <div className="chat-history-title"><div><span className="eyebrow">CHAT HISTORY</span><h3>이전 대화</h3></div>{sessions.length ? <span className="list-count">{sessions.length}</span> : null}</div>
+      {sessions.length ? <div className="chat-session-list">{sessions.map(session=>(
+        <button key={session.sessionId} onClick={()=>openSession(session)}><span className="session-icon"><MessageCircleHeart/></span><span className="session-text"><b>{session.title || '새 채팅'}</b><small><Clock3/>{dateLabel(session.createdAt)} · 대화 이어보기</small></span><ChevronRight/></button>
+      ))}</div> : <div className="chat-history-empty"><span><MessageCircleHeart/></span><b>아직 나눈 대화가 없어요</b><p>위의 새 채팅 버튼을 눌러<br/>도담이에게 첫 질문을 해보세요.</p></div>}
+    </section>
+    <p className="chat-lobby-note"><ShieldCheck/> 건강 기록은 안전하게 보호돼요</p>
+  </div>;
+
+  return <div className="chat-page chat-conversation">
+    <div className="chat-conversation-bar"><button onClick={()=>setHistoryOpen(true)}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
     <div className="chat-hero"><span className="ai-orb"><Sparkles/></span><div><span className="eyebrow">AI CARE ASSISTANT</span><h2>{activeSession?.title || '새 채팅'}</h2><p>{activeSession ? '이전 대화 내용을 이어서 질문할 수 있어요.' : '아이의 건강 기록을 바탕으로 궁금한 점을 쉽게 설명해드릴게요.'}</p></div></div>
     <div className="suggestions"><button onClick={()=>setInput('예방접종 일정을 알려줘')}>예방접종 일정</button><button onClick={()=>setInput('성장 발달이 잘 되고 있나요?')}>성장 발달 확인</button><button className={docPicker?'active':''} onClick={()=>setDocPicker(v=>!v)}>문서 설명</button></div>
     {docPicker && <div className="doc-picker"><div className="doc-picker-head"><b>어떤 문서를 설명해드릴까요?</b><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
