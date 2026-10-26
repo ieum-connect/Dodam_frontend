@@ -549,8 +549,16 @@ function DocumentItemDetail({ document, visits, onBack, onToast }) {
 }
 
 function MemoDetail({ onToast, child, backendOnline }) {
-  const today = new Date().toISOString().slice(0,10);
-  const [date, setDate] = useState(today);
+  const localDate = (value = new Date()) => {
+    const d = new Date(value);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+  const localTime = (value = new Date()) => {
+    const d = new Date(value);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  };
+  const [date, setDate] = useState(() => localDate());
+  const [time, setTime] = useState(() => localTime());
   const [body, setBody] = useState('');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -568,12 +576,14 @@ function MemoDetail({ onToast, child, backendOnline }) {
 
   const save = async () => {
     if (!body.trim()) { onToast('메모 내용을 입력해주세요'); return; }
+    if (!date || !time) { onToast('기록 날짜와 시간을 선택해주세요'); return; }
     if (!backendOnline || !child?.id) { onToast('아이를 선택하고 백엔드 연결을 확인해주세요'); return; }
     try {
       setSaving(true);
-      if (editing) { await api.updateHealthRecord(editing, { patientId: child.id, body: body.trim() }); onToast('메모를 수정했어요'); }
-      else { await api.createHealthRecord({ patientId: child.id, body: body.trim() }); onToast('메모를 저장했어요'); }
-      setBody(''); setEditing(null); await load();
+      const recordedAt = new Date(`${date}T${time}:00`).toISOString();
+      if (editing) { await api.updateHealthRecord(editing, { patientId: child.id, body: body.trim(), recordedAt }); onToast('메모를 수정했어요'); }
+      else { await api.createHealthRecord({ patientId: child.id, body: body.trim(), recordedAt }); onToast('메모를 저장했어요'); }
+      setBody(''); setEditing(null); setDate(localDate()); setTime(localTime()); await load();
     } catch (e) { onToast(e.message || '메모를 저장하지 못했어요'); }
     finally { setSaving(false); }
   };
@@ -597,10 +607,13 @@ function MemoDetail({ onToast, child, backendOnline }) {
 
   return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><NotebookPen/></span><div><h2>육아 메모</h2><p>{child?.fullName || '아이'}의 일상 속 작은 변화를 기록해보세요.</p></div></div>
     <div className="memo-compose">
-      <label className="date-picker"><CalendarDays/><span><small>기록 날짜</small><input type="date" value={date} onChange={e=>setDate(e.target.value)}/></span></label>
+      <div className="memo-datetime">
+        <label className="date-picker"><CalendarDays/><span><small>기록 날짜</small><input type="date" required value={date} onChange={e=>setDate(e.target.value)}/></span></label>
+        <label className="date-picker"><Clock3/><span><small>기록 시간</small><input type="time" required value={time} onChange={e=>setTime(e.target.value)}/></span></label>
+      </div>
       <textarea placeholder="오늘 아이에게 어떤 일이 있었나요?" value={body} onChange={e=>setBody(e.target.value)} maxLength={2000}/>
       <div className="memo-actions">
-        {editing && <button className="outline-button compact" onClick={()=>{setEditing(null);setBody('');}}>수정 취소</button>}
+        {editing && <button className="outline-button compact" onClick={()=>{setEditing(null);setBody('');setDate(localDate());setTime(localTime());}}>수정 취소</button>}
         <button className="primary-button compact" disabled={saving} onClick={save}>{saving ? '저장 중…' : editing ? '메모 수정' : '메모 저장'}</button>
       </div>
     </div>
@@ -622,7 +635,7 @@ function MemoDetail({ onToast, child, backendOnline }) {
                   <span className="timeline-card">
                     <span className="timeline-head"><b>{r.authorName || '보호자'}</b>
                       <span className="memo-row-actions">
-                        <button onClick={()=>{setEditing(r.recordId); setBody(r.body);}} aria-label="수정"><Pencil/></button>
+                        <button onClick={()=>{const recorded=r.recordedAt||r.createdAt;setEditing(r.recordId);setBody(r.body);setDate(localDate(recorded));setTime(localTime(recorded));}} aria-label="수정"><Pencil/></button>
                         <button onClick={()=>remove(r.recordId)} aria-label="삭제"><X/></button>
                       </span>
                     </span>
