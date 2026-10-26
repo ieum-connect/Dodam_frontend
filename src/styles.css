@@ -144,6 +144,10 @@
 .invite-code-box em{font-style:normal;font-weight:700;color:#7c6c72}
 
 .memo-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.memo-datetime{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-bottom:1px solid #f1e5e8}
+.memo-datetime .date-picker{border-bottom:0;min-width:0}
+.memo-datetime .date-picker span{min-width:0}
+.memo-datetime .date-picker input{width:100%}
 .memo-actions .outline-button.compact{width:auto;padding:0 14px;height:40px;font-size:12px}
 .memo-row{display:flex;align-items:flex-start;gap:10px;padding:12px 13px;border:1px solid #f0e2e6;border-radius:15px;background:#fff}
 .memo-body{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
