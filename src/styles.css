@@ -5,6 +5,8 @@
 
 /* Keep profile and other sheets as bottom sheets instead of covering the whole viewport. */
 .sheet{max-height:min(78dvh,680px);overflow-y:auto}
+.sheet-header{position:sticky;top:-28px;z-index:4;margin:-28px -24px 18px;padding:28px 24px 0;background:#fffafc}
+.sheet-header .profile-head{margin:10px 0 18px}
 @media(min-width:821px){html,body,#root{height:100%;overflow:hidden}.app-shell{height:100vh;min-height:0}.desktop-rail{height:100vh}.phone-frame{height:calc(100vh - 36px);min-height:0;margin:18px 18px 18px 0;border-radius:34px;border:1px solid #efe1e5}.screen-content{min-height:0;scrollbar-width:thin;scrollbar-color:#eadce1 transparent}.bottom-nav{border-radius:0 0 34px 34px}}
 @media(max-width:390px){.welcome{padding-inline:18px}.today-card,.growth-card,.tip-card{margin-inline:18px}.section-block,.page.padded{padding-inline:18px}.feature-card{padding:12px}.child-chip{display:none}}
 .bottom-nav{min-height:84px;flex-shrink:0}

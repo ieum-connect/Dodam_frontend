@@ -742,8 +742,9 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
     finally { setBusy(false); }
   };
 
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button>
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-header"><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button>
     <div className="profile-head"><span className="big-avatar">{(me?.name||'도').slice(0,1)}</span><div><h3>{me?.name || '내 프로필'}</h3><p>{relation} · {name}</p></div></div>
+  </div>
 
     {accounts.length > 1 && <div className="family-block"><div className="family-block-head"><b>내 계정 전환</b><span>{accounts.length}개</span></div>{accounts.map(account => <button className="outline-button" disabled={busy || account.current} key={account.role} onClick={() => switchAccount(account.role)}>{account.current ? '현재 계정' : `${account.name} · ${account.role === 'PATIENT' ? '아이 계정' : '보호자 계정'}로 전환`}</button>)}</div>}
 
