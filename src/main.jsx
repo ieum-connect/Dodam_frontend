@@ -702,6 +702,7 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
   const [accounts,setAccounts] = useState([]);
   const [relations,setRelations] = useState([]);
   const [relationBusy,setRelationBusy] = useState(null);
+  const pendingRelations = relations.filter(r => r.status === 'REQUESTED' || r.status === 'PENDING');
 
   React.useEffect(() => {
     if (!child?.id || !backendOnline) { setParents([]); return; }
@@ -755,9 +756,9 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
         : <p className="family-empty">아직 연결된 가족이 없어요.</p>}
     </div>
 
-    {relations.length > 0 && <div className="family-block relation-block">
-      <div className="family-block-head"><b>돌봄 연결 요청</b><span>{relations.length}건</span></div>
-      {relations.map(r => <div className="relation-row" key={r.id || r.relationId}>
+    {pendingRelations.length > 0 && <div className="family-block relation-block">
+      <div className="family-block-head"><b>돌봄 연결 요청</b><span>{pendingRelations.length}건</span></div>
+      {pendingRelations.map(r => <div className="relation-row" key={r.id || r.relationId}>
         <span><b>{r.counterpartName || r.caregiverName || r.patientName || r.userName || '가족 구성원'}</b><small>{r.statusLabel || r.status || '연결 요청'}</small></span>
         {(r.status === 'REQUESTED' || r.status === 'PENDING') && me?.role === 'PATIENT' && <span className="relation-actions">
           <button disabled={relationBusy === (r.id || r.relationId)} onClick={() => mutateRelation(r.id || r.relationId, api.acceptCareRelation, '가족 연결을 수락했어요')}>수락</button>
