@@ -96,6 +96,20 @@ export const api = {
   updateChild: (childId, body) => request(`/api/children/${childId}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVisit: (visitId) => request(`/api/visits/${visitId}`, { method: 'DELETE' }),
   deleteDocument: (documentId) => request(`/api/documents/${documentId}`, { method: 'DELETE' }),
+  welfarePrograms: (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value != null && value !== '')).toString();
+    return request(`/api/welfare-programs${query ? `?${query}` : ''}`);
+  },
+  welfareProgram: (programId) => request(`/api/welfare-programs/${programId}`),
+  welfareProfile: (patientId) => request(`/api/welfare-profiles?patientId=${encodeURIComponent(patientId)}`),
+  saveWelfareProfile: (patientId, body) => request(`/api/welfare-profiles/${patientId}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteWelfareProfile: (patientId) => request(`/api/welfare-profiles/${patientId}`, { method: 'DELETE' }),
+  welfareRecommendations: (patientId, type) => {
+    const query = new URLSearchParams({ patientId, ...(type ? { type } : {}) }).toString();
+    return request(`/api/welfare-recommendations?${query}`);
+  },
+  addWelfareFavorite: (patientId, programId) => request(`/api/welfare-favorites?patientId=${encodeURIComponent(patientId)}&programId=${encodeURIComponent(programId)}`, { method: 'POST' }),
+  removeWelfareFavorite: (patientId, programId) => request(`/api/welfare-favorites/${encodeURIComponent(programId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'DELETE' }),
   aiDocuments: (params = {}) => {
     const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value != null && value !== '')).toString();
     return request(`/api/ai-documents${query ? `?${query}` : ''}`);
