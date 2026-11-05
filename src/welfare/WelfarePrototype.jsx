@@ -32,6 +32,7 @@ export function WelfarePrototype({ child }) {
   const [selected,setSelected] = useState(null);
   const [query,setQuery] = useState('');
   const [favorites,setFavorites] = useState([]);
+  const [remotePrograms,setRemotePrograms] = useState(null);
   const [mode,setMode] = useState('PROACTIVE');
   const [sort,setSort] = useState('추천순');
   const profile = savedProfile || sessionProfile;
@@ -54,10 +55,26 @@ export function WelfarePrototype({ child }) {
     }).catch(() => {});
   }, [child?.id]);
 
-  const visible = useMemo(() => PROGRAMS
+  useEffect(() => {
+    if (!child?.id || String(child.id).startsWith('demo-')) return;
+    api.welfareRecommendations(child.id, mode).then((result) => {
+      const items = (result?.items || []).map((item) => ({
+        id: item.programId, type: mode, name: item.name, agency: '공공서비스',
+        deadline: '상세 확인', score: Math.round(item.score),
+        status: item.status === 'ELIGIBLE' ? '신청 가능성이 높아요' : '조건을 확인해 보세요',
+        summary: '행정안전부 공공서비스 정보에서 제공하는 복지 서비스입니다.',
+        matches: ['아이 연령·프로필 기준 추천'], checks: ['신청기관의 최종 자격 확인'],
+        target: '공식 상세 페이지에서 지원대상을 확인해 주세요.', benefit: '지원내용은 공공서비스 상세정보를 확인해 주세요.',
+        documents: '서비스별 구비서류 확인', method: '공식 신청 페이지 또는 주민센터 신청',
+      }));
+      if (items.length) setRemotePrograms(items);
+    }).catch(() => {});
+  }, [child?.id, mode]);
+
+  const visible = useMemo(() => (remotePrograms || PROGRAMS)
     .filter(item => (!persistent || item.type === mode) && `${item.name} ${item.summary} ${item.agency}`.includes(query.trim()))
     .sort((a,b) => sort === '추천순' ? b.score-a.score : a.name.localeCompare(b.name,'ko')),
-  [mode,persistent,query,sort]);
+  [mode,persistent,query,sort,remotePrograms]);
 
   const saveProfile = async () => {
     if (child?.id && !String(child.id).startsWith('demo-')) {
@@ -81,7 +98,14 @@ export function WelfarePrototype({ child }) {
     localStorage.removeItem('dodam-welfare-profile'); setSavedProfile(null); setSessionProfile(null);
     setDraft(EMPTY_PROFILE); setProfileOpen(false);
   };
-  const toggleFavorite = id => setFavorites(items => items.includes(id) ? items.filter(v=>v!==id) : [...items,id]);
+  const toggleFavorite = id => {
+    const exists = favorites.includes(id);
+    setFavorites(items => exists ? items.filter(v=>v!==id) : [...items,id]);
+    if (child?.id && !String(child.id).startsWith('demo-')) {
+      const call = exists ? api.removeWelfareFavorite(child.id, id) : api.addWelfareFavorite(child.id, id);
+      call.catch(() => {});
+    }
+  };
 
   if (selected) return <div className="page padded welfare-page welfare-detail-view">
     <button className="welfare-back" onClick={()=>setSelected(null)}><ChevronLeft/> 추천 목록</button>
