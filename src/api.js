@@ -47,6 +47,11 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  actionItems: (patientId) => request(`/api/action-items?patientId=${encodeURIComponent(patientId)}`),
+  approveAction: (id, startsAt) => request(`/api/action-items/${id}/approve`, { method: 'POST', body: JSON.stringify({ startsAt }) }),
+  rejectAction: (id) => request(`/api/action-items/${id}/reject`, { method: 'POST' }),
+  schedules: (patientId, from, to) => request(`/api/schedules?${new URLSearchParams({ patientId, from, to })}`),
+  createSchedule: (body) => request('/api/schedules', { method: 'POST', body: JSON.stringify(body) }),
   authConfig: () => request('/api/auth/config'),
   me: () => request('/api/me'),
   demoLogin: (account) => request('/api/demo/login', { method: 'POST', body: JSON.stringify(account ? { account } : { role: 'CAREGIVER' }) }),
