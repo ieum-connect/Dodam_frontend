@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Bell, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gift,
   HeartPulse, Link2, Save, Search, ShieldCheck, Sparkles, X,
 } from 'lucide-react';
 import './welfare.css';
+import { api } from '../api';
 
 const PROGRAMS = [
   { id:'childcare', type:'PROACTIVE', name:'아이돌봄 서비스', agency:'여성가족부', deadline:'상시 신청', score:92, status:'신청 가능성이 높아요', summary:'맞벌이 등 양육 공백이 있는 가정에 아이돌보미가 찾아갑니다.', matches:['만 7세 이하 연령 일치','서울 강서구 이용 가능','맞벌이 가구 조건 일치'], checks:['소득 구간에 따른 본인부담금 확인'], target:'생후 3개월 이상 만 12세 이하 아동 중 양육 공백이 발생한 가정', benefit:'아이돌보미가 가정으로 방문하여 임시보육, 놀이 활동, 등·하원 등을 지원합니다.', documents:'사회보장급여 신청서, 정부지원 자격 증빙서류', method:'복지로 또는 주소지 주민센터에서 신청' },
@@ -37,12 +38,38 @@ export function WelfarePrototype({ child }) {
   const persistent = Boolean(savedProfile);
   const childName = child?.fullName || child?.name || '도윤이';
 
+  useEffect(() => {
+    if (!child?.id || String(child.id).startsWith('demo-')) return;
+    api.welfareProfile(child.id).then((remote) => {
+      if (!remote?.storageConsent) return;
+      const next = {
+        region: remote.regionCode || EMPTY_PROFILE.region,
+        household: String(remote.householdSize || EMPTY_PROFILE.household),
+        income: remote.incomeBand || EMPTY_PROFILE.income,
+        dualIncome: Boolean(remote.dualIncome),
+        multiChild: Number(remote.childCount || 1) > 1,
+        childcare: remote.childcareStatus || EMPTY_PROFILE.childcare,
+      };
+      setSavedProfile(next); setDraft(next);
+    }).catch(() => {});
+  }, [child?.id]);
+
   const visible = useMemo(() => PROGRAMS
     .filter(item => (!persistent || item.type === mode) && `${item.name} ${item.summary} ${item.agency}`.includes(query.trim()))
     .sort((a,b) => sort === '추천순' ? b.score-a.score : a.name.localeCompare(b.name,'ko')),
   [mode,persistent,query,sort]);
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
+    if (child?.id && !String(child.id).startsWith('demo-')) {
+      try {
+        await api.saveWelfareProfile(child.id, {
+          regionCode: draft.region, householdSize: Number.parseInt(draft.household, 10) || null,
+          incomeBand: draft.income, childCount: draft.multiChild ? 2 : 1,
+          dualIncome: draft.dualIncome, childcareStatus: draft.childcare,
+          storageConsent: true, healthDataConsent: false,
+        });
+      } catch { /* local fallback keeps the prototype usable while the API is unavailable */ }
+    }
     localStorage.setItem('dodam-welfare-profile', JSON.stringify(draft));
     setSavedProfile(draft); setSessionProfile(null); setConfirmOpen(false); setProfileOpen(false);
   };
