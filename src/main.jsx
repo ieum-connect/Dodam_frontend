@@ -51,6 +51,7 @@ function App() {
   const [visits, setVisits] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [toast, setToast] = useState('');
+  const [welfareBackHandler, setWelfareBackHandler] = useState(null);
 
   React.useEffect(() => {
     const node = screenRef.current;
@@ -179,7 +180,7 @@ function App() {
         {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} /> : <>
         <header className="topbar">
           {detail ? (
-            <button className="icon-button" onClick={() => setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
+            <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
           ) : <Logo compact />}
           <div className="top-actions">
             <button className={`icon-button ${notis.unreadCount ? 'dot' : ''}`} onClick={() => setNotiOpen(true)} aria-label="알림"><Bell/></button>
@@ -189,7 +190,7 @@ function App() {
 
         <div className="screen-content" ref={screenRef}>
           {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
-          {detail ? <DetailScreen type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
+          {detail ? <DetailScreen type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} onWelfareBackChange={setWelfareBackHandler} /> : tab === 'home' ? (
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
             : tab === 'calendar' ? <LiveCalendarScreen key={activeChild?.id || 'none'} child={activeChild} onToast={showToast} />
@@ -395,10 +396,10 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   </div>;
 }
 
-function DetailScreen({ type, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar }) {
+function DetailScreen({ type, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar, onWelfareBackChange }) {
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthDetail onToast={onToast}/>;
-  if(type==='welfare') return <WelfarePrototype child={child}/>;
+  if(type==='welfare') return <WelfarePrototype child={child} onChildOpen={onChildOpen} onBackChange={onWelfareBackChange}/>;
   if(type==='memo') return <MemoDetail onToast={onToast} child={child} backendOnline={backendOnline}/>;
   if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
