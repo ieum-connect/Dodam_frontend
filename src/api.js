@@ -102,6 +102,7 @@ export const api = {
   },
   welfareProgram: (programId) => request(`/api/welfare-programs/${programId}`),
   welfareProfile: (patientId) => request(`/api/welfare-profiles?patientId=${encodeURIComponent(patientId)}`),
+  welfareProfileOptions: () => request('/api/welfare-profiles/options'),
   saveWelfareProfile: (patientId, body) => request(`/api/welfare-profiles/${patientId}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWelfareProfile: (patientId) => request(`/api/welfare-profiles/${patientId}`, { method: 'DELETE' }),
   welfareRecommendations: (patientId, type) => {
