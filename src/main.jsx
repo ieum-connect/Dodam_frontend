@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import { api, ApiError, errorMessage } from './api';
+import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 
 const featureCards = [
   { id: 'records', title: '병원 방문', subtitle: '진료 기록과 예약을 한곳에', icon: Stethoscope, tone: 'rose' },
@@ -179,10 +180,11 @@ function App() {
         </header>
 
         <div className="screen-content" ref={screenRef}>
-          {detail ? <DetailScreen type={detail} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
+          {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
+          {detail ? <DetailScreen type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
-            : tab === 'calendar' ? <CalendarScreen onToast={showToast} />
+            : tab === 'calendar' ? <LiveCalendarScreen key={activeChild?.id || 'none'} child={activeChild} onToast={showToast} />
             : tab === 'chat' ? <ChatScreen child={activeChild} documents={documents} backendOnline={backendOnline} onToast={showToast} />
             : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
             : tab === 'documents' ? <DetailScreen type="documents" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
@@ -241,11 +243,7 @@ function HomeScreen({ onOpen, child, onChildOpen }) {
       <button className="child-chip" onClick={onChildOpen}><span className="child-face">{child.emoji}</span><span className="child-chip-copy"><b>{child.fullName}</b><small>{child.age || '생년월일 미등록'} · 아이 전환</small></span><ChevronRight size={17}/></button>
     </section>
 
-    <section className="today-card">
-      <div className="section-heading"><div><span className="eyebrow">TODAY</span><h3>오늘의 건강 일정</h3></div><button>전체보기 <ChevronRight size={14}/></button></div>
-      <div className="timeline-item"><span className="time">08:30</span><span className="timeline-dot peach"/><div><b>비타민 D</b><small>1방울 · 아침 식후</small></div><button className="check-button"><CheckCircle2/></button></div>
-      <div className="timeline-item"><span className="time">14:00</span><span className="timeline-dot pink"/><div><b>소아과 예방접종</b><small>동네봄 소아청소년과 · DTaP</small></div><button className="more-button"><MoreHorizontal/></button></div>
-    </section>
+    <TodaySchedules child={child} onOpen={onOpen}/>
 
     <section className="section-block">
       <div className="section-heading"><div><h3>무엇을 도와드릴까요?</h3><p>필요한 건강 관리를 바로 시작해보세요</p></div></div>
@@ -276,15 +274,6 @@ function BottomNav({ tab, setTab }) {
     {id:'more',label:'전체',icon:MoreHorizontal},
   ];
   return <nav className="bottom-nav">{nav.map(({id,label,icon:Icon,primary}) => <button key={id} className={`${tab===id?'active':''} ${primary?'nav-primary':''}`} onClick={()=>setTab(id)}><span className="nav-icon"><Icon/></span><span>{label}</span></button>)}</nav>;
-}
-
-function CalendarScreen({ onToast }) {
-  return <div className="page padded"><div className="page-title"><span className="eyebrow">CARE CALENDAR</span><h2>가족 건강 일정</h2><p>복약, 진료, 접종 일정을 한눈에 관리해요.</p></div>
-    <div className="calendar-card"><div className="calendar-head"><button><ChevronLeft/></button><b>2026년 10월</b><button><ChevronRight/></button></div><div className="week-row">{['일','월','화','수','목','금','토'].map(d=><span key={d}>{d}</span>)}</div><div className="date-grid">{[18,19,20,21,22,23,24,25,26,27,28,29,30,31].map(n=><button key={n} className={n===24?'selected':n===27?'has-event':''}>{n}</button>)}</div></div>
-    <h3 className="subheading">10월 24일 토요일</h3>
-    <div className="schedule-list"><Schedule icon={Pill} time="08:30" title="비타민 D" note="아침 식후 · 1방울" color="peach"/><Schedule icon={Syringe} time="14:00" title="DTaP 추가 접종" note="동네봄 소아청소년과" color="lilac"/></div>
-    <button className="primary-button" onClick={()=>onToast('새 일정을 추가할 준비가 되었어요')}><Plus/> 일정 추가하기</button>
-  </div>;
 }
 
 function Schedule({icon:Icon,time,title,note,color}) { return <div className="schedule"><span className={`feature-icon ${color}`}><Icon/></span><div><small>{time}</small><b>{title}</b><p>{note}</p></div><ChevronRight/></div> }
@@ -398,12 +387,12 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   </div>;
 }
 
-function DetailScreen({ type, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen }) {
+function DetailScreen({ type, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar }) {
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthDetail onToast={onToast}/>;
   if(type==='welfare') return <WelfareDetail/>;
   if(type==='memo') return <MemoDetail onToast={onToast} child={child} backendOnline={backendOnline}/>;
-  if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
+  if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
   const Icon = featureCards.find(x=>x.id===type)?.icon || FileText;
   const items = {
@@ -482,7 +471,7 @@ function useScrollTop(dep) {
   }, [dep]);
 }
 
-const DOC_STATUS = { UPLOADED:'업로드 완료', READY:'분석 준비 완료', ANALYZING:'분석 중', DONE:'분석 완료', FAILED:'분석 실패' };
+const DOC_STATUS = { UPLOADED:'분석 대기', PROCESSING:'분석 중', READY:'분석 완료', NEEDS_REVIEW:'일부 분석 완료 · 확인 필요', ANALYZING:'분석 중', DONE:'분석 완료', FAILED:'분석 실패' };
 
 function InfoRow({label,value}) { return <div className="info-row"><span>{label}</span><p>{value}</p></div>; }
 
@@ -490,7 +479,7 @@ function ChildRequiredState({ icon: Icon, title, onChildOpen }) {
   return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Icon/></span><div><h2>{title}</h2><p>아이별로 건강 기록을 안전하게 관리해요.</p></div></div><div className="child-required"><Baby/><h3>아이를 먼저 등록해 주세요</h3><p>방문 기록을 만들거나 건강 문서를 업로드하려면<br/>먼저 관리할 아이의 프로필이 필요해요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 등록하기</button></div></div>;
 }
 
-function DocumentDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen }) {
+function DocumentDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar }) {
   const [uploading, setUploading] = useState(false);
   const [visit, setVisit] = useState('');
   const [newVisit, setNewVisit] = useState(false);
@@ -498,6 +487,28 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
+  const [tracked, setTracked] = useState(null);
+  const [analysisStatus, setAnalysisStatus] = useState('');
+  React.useEffect(()=>{
+    if (!tracked) return;
+    let canceled=false;
+    let timer;
+    let attempts=0;
+    const poll=async()=>{
+      try {
+        const doc=await api.document(tracked);
+        if(canceled) return;
+        setAnalysisStatus(doc.documentStatus);
+        if(['READY','NEEDS_REVIEW','FAILED','DELETED'].includes(doc.documentStatus)) {
+          await onDataChange?.(); return;
+        }
+      } catch { if(canceled) return; }
+      if(++attempts<80) timer=window.setTimeout(poll,3000);
+      else setAnalysisStatus('WAITING');
+    };
+    poll();
+    return ()=>{canceled=true;window.clearTimeout(timer);};
+  },[tracked]);
   React.useEffect(()=>{ if(visits.length && !visit) setVisit(visits[0].visitId); },[visits]);
   const complete = async () => {
     if (!child?.id) { onToast('아이를 먼저 등록해 주세요'); return; }
@@ -511,7 +522,8 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
         visitId = created.visitId;
       }
       if (!visitId) { onToast('연결할 방문 기록을 선택해주세요'); return; }
-      await api.uploadDocument(visitId, file);
+      const uploaded=await api.uploadDocument(visitId, file);
+      setTracked(uploaded.documentId); setAnalysisStatus(uploaded.documentStatus);
       onToast('문서를 방문 기록에 연결해 업로드했어요'); setUploading(false); setFileName(''); setFile(null); await onDataChange?.();
     } catch (error) { onToast(error.message || '문서를 업로드하지 못했어요'); }
     finally { setSaving(false); }
@@ -521,6 +533,8 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
   return <div className="page padded detail-page">
     <div className="detail-hero"><span className="detail-icon"><FileText/></span><div><h2>건강 문서</h2><p>진료·검사 문서를 방문 기록과 연결해 맥락까지 함께 보관해요.</p></div></div>
     <div className="link-info"><Link2/><div><b>문서와 방문 기록을 연결하세요</b><p>진료별 문서와 AI 설명을 한 화면에서 다시 확인할 수 있어요.</p></div></div>
+    {tracked && <div className="inline-panel" role="status"><b>문서 분석: {DOC_STATUS[analysisStatus] || '처리에 시간이 걸리고 있어요'}</b><p>{analysisStatus==='FAILED'?'문서를 분석하지 못했어요. 원본 파일과 처리 상태를 확인해주세요.':'분석한 문서에서 일정이나 복약 안내를 찾으면 할 일 후보로 보여드려요. 자동으로 일정을 등록하지는 않아요.'}</p></div>}
+    {onCalendar && <button className="create-link" onClick={onCalendar}><CalendarDays/> 할 일 후보와 캘린더 확인</button>}
     <div className="list-header"><h3>최근 문서</h3><button>전체보기</button></div>
     <div className="record-list">{documents.length ? documents.slice(0,5).map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{doc.documentName}</b><small>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>}) : <div className="empty-record">아직 등록된 건강 문서가 없어요.</div>}</div>
     <button className="primary-button" onClick={()=>setUploading(true)}><Upload/> 문서 업로드</button>
