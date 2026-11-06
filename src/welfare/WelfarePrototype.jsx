@@ -32,12 +32,31 @@ export function WelfarePrototype({ child }) {
   const [selected,setSelected] = useState(null);
   const [query,setQuery] = useState('');
   const [favorites,setFavorites] = useState([]);
-  const [remotePrograms,setRemotePrograms] = useState(null);
+  const [remotePrograms,setRemotePrograms] = useState([]);
+  const [loading,setLoading] = useState(true);
   const [mode,setMode] = useState('PROACTIVE');
   const [sort,setSort] = useState('추천순');
   const profile = savedProfile || sessionProfile;
   const persistent = Boolean(savedProfile);
   const childName = child?.fullName || child?.name || '도윤이';
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    api.welfarePrograms({ size: 100 }).then((rows) => {
+      if (!mounted) return;
+      setRemotePrograms((rows || []).map((row) => ({
+        id: row.id, type: 'SUGGESTIVE', name: row.name, agency: row.agencyName || '공공서비스',
+        deadline: row.applicationDeadline || '상시 확인', score: 0, status: '조건을 확인해 보세요',
+        summary: row.purposeSummary || row.purposeDetail || '공공서비스 복지 프로그램',
+        matches: [], checks: ['입력한 조건과 신청기관의 최종 확인'], target: row.target || row.selectionCriteria || '상세 지원대상 확인',
+        benefit: row.benefit || '상세 지원내용 확인', documents: row.requiredDocuments || '서비스별 구비서류 확인',
+        method: row.applicationMethod || '공식 신청 페이지에서 확인', onlineApplicationUrl: row.onlineApplicationUrl,
+        detailUrl: row.detailUrl, modifiedAtSource: row.modifiedAtSource,
+      })));
+    }).catch(() => mounted && setRemotePrograms([])).finally(() => mounted && setLoading(false));
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     if (!child?.id || String(child.id).startsWith('demo-')) return;
@@ -58,20 +77,16 @@ export function WelfarePrototype({ child }) {
   useEffect(() => {
     if (!child?.id || String(child.id).startsWith('demo-')) return;
     api.welfareRecommendations(child.id, mode).then((result) => {
-      const items = (result?.items || []).map((item) => ({
-        id: item.programId, type: mode, name: item.name, agency: '공공서비스',
-        deadline: '상세 확인', score: Math.round(item.score),
-        status: item.status === 'ELIGIBLE' ? '신청 가능성이 높아요' : '조건을 확인해 보세요',
-        summary: '행정안전부 공공서비스 정보에서 제공하는 복지 서비스입니다.',
-        matches: ['아이 연령·프로필 기준 추천'], checks: ['신청기관의 최종 자격 확인'],
-        target: '공식 상세 페이지에서 지원대상을 확인해 주세요.', benefit: '지원내용은 공공서비스 상세정보를 확인해 주세요.',
-        documents: '서비스별 구비서류 확인', method: '공식 신청 페이지 또는 주민센터 신청',
+      const scores = new Map((result?.items || []).map((item) => [item.programId, item]));
+      setRemotePrograms((current) => current.map((program) => {
+        const item = scores.get(program.id);
+        if (!item) return { ...program, score: 0, status: '추가 확인 필요' };
+        return { ...program, type: mode, score: Math.round(item.score), status: item.status === 'ELIGIBLE' ? '신청 가능성이 높아요' : '조건을 확인해 보세요', matches: ['아이 연령·프로필 기준 추천'] };
       }));
-      if (items.length) setRemotePrograms(items);
     }).catch(() => {});
   }, [child?.id, mode]);
 
-  const visible = useMemo(() => (remotePrograms || PROGRAMS)
+  const visible = useMemo(() => remotePrograms
     .filter(item => (!persistent || item.type === mode) && `${item.name} ${item.summary} ${item.agency}`.includes(query.trim()))
     .sort((a,b) => sort === '추천순' ? b.score-a.score : a.name.localeCompare(b.name,'ko')),
   [mode,persistent,query,sort,remotePrograms]);
@@ -126,7 +141,7 @@ export function WelfarePrototype({ child }) {
     <label className="welfare-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="지원금, 돌봄, 교육 혜택 검색"/></label>
     <div className="welfare-summary-row"><div><b>{visible.length}</b><span>맞춤 추천</span></div><div><b>{visible.filter(v=>v.score>=80).length}</b><span>가능성 높음</span></div><div><b>{favorites.length}</b><span>관심 혜택</span></div></div>
     <div className="welfare-list-head"><div><Sparkles/><b>{childName} 맞춤 추천</b></div><select value={sort} onChange={e=>setSort(e.target.value)}><option>추천순</option><option>이름순</option></select></div>
-    <div className="welfare-program-list">{visible.map(item=><article key={item.id} className="welfare-program-card"><div className="program-top"><span className={item.score>=85?'high':'possible'}>{item.status}</span><button className={favorites.includes(item.id)?'saved':''} onClick={()=>toggleFavorite(item.id)} aria-label="관심 저장"><HeartPulse/></button></div><h3>{item.name}</h3><p>{item.summary}</p><div className="score-row"><span><i style={{width:`${item.score}%`}}/></span><b>{item.score}%</b></div><div className="program-tags">{item.matches.slice(0,2).map(v=><span key={v}><CheckCircle2/>{v}</span>)}</div><div className="program-meta"><span>{item.agency}</span><span><Clock3/>{item.deadline}</span></div><button className="program-detail-button" onClick={()=>setSelected(item)}>추천 이유와 상세보기 <ChevronRight/></button></article>)}</div>
+    {loading ? <div className="welfare-empty"><Clock3/><b>공공서비스 데이터를 불러오는 중이에요</b><p>정부24 최신 복지정보를 확인하고 있어요.</p></div> : <div className="welfare-program-list">{visible.map(item=><article key={item.id} className="welfare-program-card"><div className="program-top"><span className={item.score>=85?'high':'possible'}>{item.status}</span><button className={favorites.includes(item.id)?'saved':''} onClick={()=>toggleFavorite(item.id)} aria-label="관심 저장"><HeartPulse/></button></div><h3>{item.name}</h3><p>{item.summary}</p><div className="score-row"><span><i style={{width:`${item.score}%`}}/></span><b>{item.score}%</b></div><div className="program-tags">{item.matches.slice(0,2).map(v=><span key={v}><CheckCircle2/>{v}</span>)}</div><div className="program-meta"><span>{item.agency}</span><span><Clock3/>{item.deadline}</span></div><button className="program-detail-button" onClick={()=>setSelected(item)}>추천 이유와 상세보기 <ChevronRight/></button></article>)}</div>}
     {!visible.length && <div className="welfare-empty"><Search/><b>검색 결과가 없어요</b><p>다른 검색어로 찾아보세요.</p></div>}
     <p className="source-note"><ShieldCheck/> 행정안전부 대한민국 공공서비스 정보를 기반으로 구성한 프로토타입입니다.</p>
 
