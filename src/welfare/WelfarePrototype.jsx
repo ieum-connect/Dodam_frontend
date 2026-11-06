@@ -1,172 +1,68 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Bell, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gift,
-  HeartPulse, Link2, Save, Search, ShieldCheck, Sparkles, X,
-} from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Clock3, Gift, HeartPulse, Link2, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import './welfare.css';
-import { api } from '../api';
+import { api, errorMessage } from '../api';
 
-const PROGRAMS = [
-  { id:'childcare', type:'PROACTIVE', name:'아이돌봄 서비스', agency:'여성가족부', deadline:'상시 신청', score:92, status:'신청 가능성이 높아요', summary:'맞벌이 등 양육 공백이 있는 가정에 아이돌보미가 찾아갑니다.', matches:['만 7세 이하 연령 일치','서울 강서구 이용 가능','맞벌이 가구 조건 일치'], checks:['소득 구간에 따른 본인부담금 확인'], target:'생후 3개월 이상 만 12세 이하 아동 중 양육 공백이 발생한 가정', benefit:'아이돌보미가 가정으로 방문하여 임시보육, 놀이 활동, 등·하원 등을 지원합니다.', documents:'사회보장급여 신청서, 정부지원 자격 증빙서류', method:'복지로 또는 주소지 주민센터에서 신청' },
-  { id:'meal', type:'PROACTIVE', name:'아동 급식 지원', agency:'보건복지부', deadline:'지역별 상이', score:84, status:'조건을 확인해 보세요', summary:'결식 우려가 있는 만 18세 미만 아동에게 식사를 지원합니다.', matches:['만 7세 이하 연령 일치','거주지역 서비스 확인'], checks:['소득 및 가구 상황 확인 필요'], target:'보호자의 근로·질병 등으로 결식 우려가 있는 만 18세 미만 아동', benefit:'지역 여건에 따라 급식카드, 도시락 또는 지역아동센터 급식을 지원합니다.', documents:'신청서 및 가구 상황 확인서류', method:'주소지 주민센터에 방문 또는 전화 신청' },
-  { id:'care', type:'SUGGESTIVE', name:'시간제 보육 지원', agency:'교육부', deadline:'이용일 전 예약', score:78, status:'대상 가능성이 있어요', summary:'가정양육 중인 영아가 필요한 시간만 어린이집을 이용할 수 있습니다.', matches:['연령 조건 확인','서울 강서구 제공기관 있음'], checks:['어린이집 이용 여부 확인 필요'], target:'어린이집을 이용하지 않고 가정에서 양육 중인 6~36개월 영아', benefit:'지정 어린이집에서 시간 단위 보육 서비스를 이용할 수 있습니다.', documents:'시간제보육 이용신청서, 신분증', method:'아이사랑 포털에서 아동 등록 후 예약' },
-  { id:'culture', type:'SUGGESTIVE', name:'유아 문화예술교육 지원', agency:'문화체육관광부', deadline:'기관별 모집', score:70, status:'관심 분야와 잘 맞아요', summary:'유아와 보호자가 함께 참여하는 문화예술 체험 프로그램입니다.', matches:['만 7세 이하 연령 일치','문화·교육 관심사 일치'], checks:['참여기관별 일정 확인'], target:'만 3~7세 유아 및 보호자', benefit:'미술·음악·공연 등 지역 문화시설 연계 체험교육을 제공합니다.', documents:'참여기관 신청서', method:'지역 문화시설 또는 운영기관에서 신청' },
-];
-
-const EMPTY_PROFILE = {
-  region:'서울특별시 강서구', household:'4', income:'기준중위소득 100% 이하',
-  dualIncome:true, multiChild:true, childcare:'가정양육',
-};
-
-const readSavedProfile = () => {
-  try { return JSON.parse(localStorage.getItem('dodam-welfare-profile')) || null; }
-  catch { return null; }
+const EMPTY_PROFILE = { region:'', household:'', income:'', childcare:'', childCount:'', dualIncome:false, singleParent:false, multicultural:false, disability:false };
+const profileFromApi = p => ({ region:p.regionCode||'', household:p.householdSize==null?'':String(p.householdSize), income:p.incomeBand||'', childcare:p.childcareStatus||'', childCount:p.childCount==null?'':String(p.childCount), dualIncome:Boolean(p.dualIncome), singleParent:Boolean(p.singleParent), multicultural:Boolean(p.multicultural), disability:Boolean(p.disability) });
+const programFromApi = p => ({ id:p.id, name:p.name, agency:p.agencyName, deadline:p.applicationDeadline, summary:p.purposeSummary||p.purposeDetail, target:p.target||p.selectionCriteria, benefit:p.benefit, documents:p.requiredDocuments, method:p.applicationMethod, applicationUrl:p.onlineApplicationUrl||p.detailUrl, modifiedAtSource:p.modifiedAtSource });
+const ageLabel = value => {
+  if (!value) return '';
+  const birth = new Date(`${value}T00:00:00`); const now = new Date();
+  if (Number.isNaN(birth.getTime())) return '';
+  let months=(now.getFullYear()-birth.getFullYear())*12+now.getMonth()-birth.getMonth();
+  if(now.getDate()<birth.getDate()) months--;
+  return months<24?`생후 ${Math.max(months,0)}개월`:`만 ${Math.floor(months/12)}세`;
 };
 
 export function WelfarePrototype({ child }) {
-  const [savedProfile,setSavedProfile] = useState(readSavedProfile);
-  const [sessionProfile,setSessionProfile] = useState(null);
-  const [draft,setDraft] = useState(savedProfile || EMPTY_PROFILE);
-  const [profileOpen,setProfileOpen] = useState(false);
-  const [confirmOpen,setConfirmOpen] = useState(false);
-  const [selected,setSelected] = useState(null);
-  const [query,setQuery] = useState('');
-  const [favorites,setFavorites] = useState([]);
-  const [remotePrograms,setRemotePrograms] = useState([]);
-  const [loading,setLoading] = useState(true);
-  const [mode,setMode] = useState('PROACTIVE');
-  const [sort,setSort] = useState('추천순');
-  const [explanation,setExplanation] = useState(null);
-  const [profileRevision,setProfileRevision] = useState(0);
-  const profile = savedProfile || sessionProfile;
-  const persistent = Boolean(savedProfile);
-  const childName = child?.fullName || child?.name || '도윤이';
+  const [profile,setProfile]=useState(null), [draft,setDraft]=useState(EMPTY_PROFILE);
+  const [profileOpen,setProfileOpen]=useState(false), [confirmOpen,setConfirmOpen]=useState(false), [selected,setSelected]=useState(null);
+  const [programs,setPrograms]=useState([]), [recommendations,setRecommendations]=useState([]), [favorites,setFavorites]=useState([]);
+  const [query,setQuery]=useState(''), [sort,setSort]=useState('추천순'), [mode,setMode]=useState('SUGGESTIVE');
+  const [loading,setLoading]=useState(true), [saving,setSaving]=useState(false), [error,setError]=useState(''), [explanation,setExplanation]=useState(null), [revision,setRevision]=useState(0);
+  const childId=child?.id, childName=child?.name||child?.fullName||'', childAge=ageLabel(child?.birthDate);
 
-  useEffect(() => {
-    if (!selected) { setExplanation(null); return; }
-    setExplanation({ loading: true });
-    api.welfareAiExplain({
-      program: { program_id: selected.id, name: selected.name, target: selected.target, benefit: selected.benefit, required_documents: selected.documents },
-      recommendation: { program_id: selected.id, name: selected.name, score: selected.score, status: selected.status, matched_conditions: selected.matches, missing_conditions: selected.checks },
-      evidence: selected.matches,
-    }).then(setExplanation).catch(() => setExplanation(null));
-  }, [selected]);
+  useEffect(()=>{ let active=true; setLoading(true); setError(''); api.welfarePrograms({size:100}).then(rows=>active&&setPrograms((rows||[]).map(programFromApi))).catch(e=>active&&setError(errorMessage(e,'복지 서비스 정보를 불러오지 못했어요.'))).finally(()=>active&&setLoading(false)); return()=>{active=false}; },[]);
+  useEffect(()=>{ if(!childId)return; api.welfareProfile(childId).then(remote=>{if(remote?.storageConsent){const next=profileFromApi(remote);setProfile(next);setDraft(next)}}).catch(()=>{setProfile(null);setDraft(EMPTY_PROFILE)}); api.welfareFavorites(childId).then(setFavorites).catch(()=>setFavorites([])); },[childId,revision]);
+  useEffect(()=>{ if(!childId){setRecommendations([]);return} setLoading(true);setError('');api.welfareRecommendations(childId,mode).then(result=>setRecommendations(result?.items||[])).catch(e=>{setRecommendations([]);setError(errorMessage(e,'맞춤 추천을 불러오지 못했어요.'))}).finally(()=>setLoading(false)); },[childId,mode,revision]);
+  const recommendationMap=useMemo(()=>new Map(recommendations.map(item=>[item.programId,item])),[recommendations]);
+  const visible=useMemo(()=>programs.filter(p=>recommendationMap.has(p.id)).map(p=>({...p,...recommendationMap.get(p.id)})).filter(p=>`${p.name||''} ${p.summary||''} ${p.agency||''}`.includes(query.trim())).sort((a,b)=>sort==='추천순'?Number(b.score)-Number(a.score):(a.name||'').localeCompare(b.name||'','ko')),[programs,recommendationMap,query,sort]);
 
-  useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    api.welfarePrograms({ size: 100 }).then((rows) => {
-      if (!mounted) return;
-      setRemotePrograms((rows || []).map((row) => ({
-        id: row.id, type: 'SUGGESTIVE', name: row.name, agency: row.agencyName || '공공서비스',
-        deadline: row.applicationDeadline || '상시 확인', score: 0, status: '조건을 확인해 보세요',
-        summary: row.purposeSummary || row.purposeDetail || '공공서비스 복지 프로그램',
-        matches: [], checks: ['입력한 조건과 신청기관의 최종 확인'], target: row.target || row.selectionCriteria || '상세 지원대상 확인',
-        benefit: row.benefit || '상세 지원내용 확인', documents: row.requiredDocuments || '서비스별 구비서류 확인',
-        method: row.applicationMethod || '공식 신청 페이지에서 확인', onlineApplicationUrl: row.onlineApplicationUrl,
-        detailUrl: row.detailUrl, modifiedAtSource: row.modifiedAtSource,
-      })));
-    }).catch(() => mounted && setRemotePrograms([])).finally(() => mounted && setLoading(false));
-    return () => { mounted = false; };
-  }, []);
+  useEffect(()=>{if(!selected){setExplanation(null);return}setExplanation({loading:true});api.welfareAiExplain({program:{program_id:selected.id,name:selected.name,target:selected.target,benefit:selected.benefit,required_documents:selected.documents},recommendation:{program_id:selected.id,name:selected.name,score:selected.score,status:selected.status,matched_conditions:selected.matchedConditions||[],missing_conditions:selected.missingConditions||[]},evidence:selected.matchedConditions||[]}).then(setExplanation).catch(e=>setExplanation({error:errorMessage(e)}));},[selected]);
+  const openProfile=()=>{setDraft(profile||EMPTY_PROFILE);setProfileOpen(true)};
+  const saveProfile=async()=>{if(!childId)return;setSaving(true);setError('');try{const saved=await api.saveWelfareProfile(childId,{regionCode:draft.region.trim()||null,householdSize:draft.household===''?null:Number(draft.household),incomeBand:draft.income.trim()||null,childCount:draft.childCount===''?null:Number(draft.childCount),dualIncome:draft.dualIncome,childcareStatus:draft.childcare.trim()||null,singleParent:draft.singleParent,multicultural:draft.multicultural,disability:draft.disability,storageConsent:true,healthDataConsent:false});const next=profileFromApi(saved);setProfile(next);setDraft(next);setRevision(v=>v+1);setConfirmOpen(false);setProfileOpen(false)}catch(e){setError(errorMessage(e,'맞춤정보를 저장하지 못했어요.'))}finally{setSaving(false)}};
+  const removeProfile=async()=>{if(!childId)return;try{await api.deleteWelfareProfile(childId);setProfile(null);setDraft(EMPTY_PROFILE);setMode('SUGGESTIVE');setRevision(v=>v+1);setProfileOpen(false)}catch(e){setError(errorMessage(e,'맞춤정보를 삭제하지 못했어요.'))}};
+  const toggleFavorite=async id=>{if(!childId)return;const exists=favorites.includes(id);try{if(exists)await api.removeWelfareFavorite(childId,id);else await api.addWelfareFavorite(childId,id);setFavorites(items=>exists?items.filter(v=>v!==id):[...items,id])}catch(e){setError(errorMessage(e,'관심 혜택을 변경하지 못했어요.'))}};
 
-  useEffect(() => {
-    if (!child?.id || String(child.id).startsWith('demo-')) return;
-    api.welfareProfile(child.id).then((remote) => {
-      if (!remote?.storageConsent) return;
-      const next = {
-        region: remote.regionCode || EMPTY_PROFILE.region,
-        household: String(remote.householdSize || EMPTY_PROFILE.household),
-        income: remote.incomeBand || EMPTY_PROFILE.income,
-        dualIncome: Boolean(remote.dualIncome),
-        multiChild: Number(remote.childCount || 1) > 1,
-        childcare: remote.childcareStatus || EMPTY_PROFILE.childcare,
-      };
-      setSavedProfile(next); setDraft(next);
-    }).catch(() => {});
-  }, [child?.id]);
-
-  useEffect(() => {
-    if (!child?.id || String(child.id).startsWith('demo-')) return;
-    api.welfareRecommendations(child.id, mode).then((result) => {
-      const scores = new Map((result?.items || []).map((item) => [item.programId, item]));
-      setRemotePrograms((current) => current.map((program) => {
-        const item = scores.get(program.id);
-        if (!item) return { ...program, score: 0, status: '추가 확인 필요' };
-        return { ...program, type: mode, score: Math.round(item.score), status: item.status === 'ELIGIBLE' ? '신청 가능성이 높아요' : '조건을 확인해 보세요', matches: ['아이 연령·프로필 기준 추천'] };
-      }));
-    }).catch(() => {});
-  }, [child?.id, mode, profileRevision]);
-
-  const visible = useMemo(() => remotePrograms
-    .filter(item => (!persistent || item.type === mode) && `${item.name} ${item.summary} ${item.agency}`.includes(query.trim()))
-    .sort((a,b) => sort === '추천순' ? b.score-a.score : a.name.localeCompare(b.name,'ko')),
-  [mode,persistent,query,sort,remotePrograms]);
-
-  const saveProfile = async () => {
-    if (child?.id && !String(child.id).startsWith('demo-')) {
-      try {
-        await api.saveWelfareProfile(child.id, {
-          regionCode: draft.region, householdSize: Number.parseInt(draft.household, 10) || null,
-          incomeBand: draft.income, childCount: draft.multiChild ? 2 : 1,
-          dualIncome: draft.dualIncome, childcareStatus: draft.childcare,
-          singleParent: Boolean(draft.singleParent), multicultural: Boolean(draft.multicultural), disability: Boolean(draft.disability),
-          storageConsent: true, healthDataConsent: false,
-        });
-      } catch { /* local fallback keeps the prototype usable while the API is unavailable */ }
-    }
-    localStorage.setItem('dodam-welfare-profile', JSON.stringify(draft));
-    setSavedProfile(draft); setSessionProfile(null); setProfileRevision(v=>v+1); setConfirmOpen(false); setProfileOpen(false);
-  };
-  const useOnce = () => {
-    setSessionProfile(draft); setSavedProfile(null); setMode('SUGGESTIVE');
-    localStorage.removeItem('dodam-welfare-profile'); setConfirmOpen(false); setProfileOpen(false);
-  };
-  const removeProfile = () => {
-    localStorage.removeItem('dodam-welfare-profile'); setSavedProfile(null); setSessionProfile(null);
-    setDraft(EMPTY_PROFILE); setProfileOpen(false);
-  };
-  const toggleFavorite = id => {
-    const exists = favorites.includes(id);
-    setFavorites(items => exists ? items.filter(v=>v!==id) : [...items,id]);
-    if (child?.id && !String(child.id).startsWith('demo-')) {
-      const call = exists ? api.removeWelfareFavorite(child.id, id) : api.addWelfareFavorite(child.id, id);
-      call.catch(() => {});
-    }
-  };
-
-  if (selected) return <div className="page padded welfare-page welfare-detail-view">
+  if(selected)return <div className="page padded welfare-page welfare-detail-view">
     <button className="welfare-back" onClick={()=>setSelected(null)}><ChevronLeft/> 추천 목록</button>
-    <div className="welfare-detail-title"><div><span>{selected.agency}</span><h2>{selected.name}</h2><p>{selected.summary}</p></div><button className={favorites.includes(selected.id)?'saved':''} onClick={()=>toggleFavorite(selected.id)} aria-label="관심 서비스 저장"><HeartPulse/></button></div>
-    <div className="eligibility-summary"><Sparkles/><div><b>현재 입력한 정보 기준 {selected.score}% 일치</b><p>자격을 확정하는 결과가 아니며, 신청기관의 최종 확인이 필요해요.</p></div></div>
-    <section className="welfare-info-card"><h3>도담이가 추천한 이유</h3>{explanation?.loading ? <p>추천 이유를 정리하고 있어요...</p> : explanation?.summary && <p className="ai-reason">{explanation.summary}</p>}{selected.matches.map(v=><p className="match-line" key={v}><CheckCircle2/> {v}</p>)}{selected.checks.map(v=><p className="check-line" key={v}><Clock3/> 추가 확인: {v}</p>)}</section>
-    {[['지원대상',selected.target],['지원내용',selected.benefit],['신청방법',selected.method],['준비서류',selected.documents],['신청기한',selected.deadline]].map(([title,body])=><section className="welfare-copy-block" key={title}><h3>{title}</h3><p>{body}</p></section>)}
-    <button className="primary-button welfare-apply" onClick={()=>window.alert('프로토타입: 실제 서비스에서는 정부24 공식 신청 페이지로 이동합니다.')}><Link2/> 공식 사이트에서 확인하기</button>
-    <p className="source-note"><ShieldCheck/> 행정안전부 대한민국 공공서비스 정보 · 프로토타입 예시 · 2026.11.05 기준</p>
+    <div className="welfare-detail-title"><div>{selected.agency&&<span>{selected.agency}</span>}<h2>{selected.name}</h2>{selected.summary&&<p>{selected.summary}</p>}</div><button className={favorites.includes(selected.id)?'saved':''} onClick={()=>toggleFavorite(selected.id)}><HeartPulse/></button></div>
+    <div className="eligibility-summary"><Sparkles/><div><b>현재 저장된 정보 기준 {Math.round(Number(selected.score))}% 일치</b><p>자격을 확정하는 결과가 아니며 신청기관의 최종 확인이 필요해요.</p></div></div>
+    <section className="welfare-info-card"><h3>AI 추천 설명</h3>{explanation?.loading&&<p>추천 이유를 정리하고 있어요...</p>}{explanation?.summary&&<p className="ai-reason">{explanation.summary}</p>}{explanation?.error&&<p>{explanation.error}</p>}</section>
+    {[['지원대상',selected.target],['지원내용',selected.benefit],['신청방법',selected.method],['준비서류',selected.documents],['신청기한',selected.deadline]].filter(([,v])=>v).map(([title,body])=><section className="welfare-copy-block" key={title}><h3>{title}</h3><p>{body}</p></section>)}
+    {selected.applicationUrl&&<button className="primary-button welfare-apply" onClick={()=>window.open(selected.applicationUrl,'_blank','noopener,noreferrer')}><Link2/> 공식 사이트에서 확인하기</button>}
+    {selected.modifiedAtSource&&<p className="source-note"><ShieldCheck/> 공공서비스 원천정보 수정일 {new Date(selected.modifiedAtSource).toLocaleDateString('ko-KR')}</p>}
   </div>;
 
   return <div className="page padded detail-page welfare-page">
-    <div className="welfare-hero"><div><span className="eyebrow">WELFARE FOR FAMILY</span><h2>{childName}에게 맞는<br/><strong>복지혜택</strong>을 찾았어요</h2><p>출생부터 만 7세까지, 놓치기 쉬운 혜택을 모아드려요.</p></div><span className="welfare-hero-icon"><Gift/></span></div>
-    <button className="welfare-child-card" onClick={()=>{setDraft(profile || EMPTY_PROFILE);setProfileOpen(true)}}><span className="child-face">{child?.emoji || '👶🏻'}</span><span><b>{childName}</b><small>{child?.age || '생후 18개월'} · {profile?.region || '거주지역 미입력'}</small></span><ChevronRight/></button>
-    <section className="profile-progress-card"><div className="profile-progress-head"><div><span>{profile ? persistent ? '저장된 맞춤정보' : '이번 추천에만 적용 중' : '맞춤정보를 입력해 주세요'}</span><b>{profile?'100':'25'}%</b></div><button onClick={()=>{setDraft(profile || EMPTY_PROFILE);setProfileOpen(true)}}>{profile?'수정하기':'입력하기'} <ChevronRight/></button></div><div className="profile-progress"><i style={{width:profile?'100%':'25%'}}/></div><p>{persistent?'저장된 정보를 자동으로 적용해 추천했어요.':sessionProfile?'화면을 벗어나면 입력정보를 폐기해요.':'지역과 가구정보를 입력하면 추천이 더 정확해져요.'}</p></section>
-
-    {persistent && <><div className="recommendation-mode-tabs"><button className={mode==='PROACTIVE'?'active':''} onClick={()=>setMode('PROACTIVE')}><Bell/>선제형 추천</button><button className={mode==='SUGGESTIVE'?'active':''} onClick={()=>setMode('SUGGESTIVE')}><Sparkles/>제안형 추천</button></div><div className={`recommendation-mode-note ${mode.toLowerCase()}`}><b>{mode==='PROACTIVE'?'지금 확인하면 좋은 혜택이에요':'이런 혜택도 잘 맞아요'}</b><p>{mode==='PROACTIVE'?'신규 정책, 조건 변경, 신청 마감일을 확인해 먼저 알려드려요.':'저장된 가족정보와 관심사를 분석해 놓치기 쉬운 혜택을 제안해요.'}</p></div></>}
-    <label className="welfare-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="지원금, 돌봄, 교육 혜택 검색"/></label>
-    <div className="welfare-summary-row"><div><b>{visible.length}</b><span>맞춤 추천</span></div><div><b>{visible.filter(v=>v.score>=80).length}</b><span>가능성 높음</span></div><div><b>{favorites.length}</b><span>관심 혜택</span></div></div>
-    <div className="welfare-list-head"><div><Sparkles/><b>{childName} 맞춤 추천</b></div><select value={sort} onChange={e=>setSort(e.target.value)}><option>추천순</option><option>이름순</option></select></div>
-    {loading ? <div className="welfare-empty"><Clock3/><b>공공서비스 데이터를 불러오는 중이에요</b><p>정부24 최신 복지정보를 확인하고 있어요.</p></div> : <div className="welfare-program-list">{visible.map(item=><article key={item.id} className="welfare-program-card"><div className="program-top"><span className={item.score>=85?'high':'possible'}>{item.status}</span><button className={favorites.includes(item.id)?'saved':''} onClick={()=>toggleFavorite(item.id)} aria-label="관심 저장"><HeartPulse/></button></div><h3>{item.name}</h3><p>{item.summary}</p><div className="score-row"><span><i style={{width:`${item.score}%`}}/></span><b>{item.score}%</b></div><div className="program-tags">{item.matches.slice(0,2).map(v=><span key={v}><CheckCircle2/>{v}</span>)}</div><div className="program-meta"><span>{item.agency}</span><span><Clock3/>{item.deadline}</span></div><button className="program-detail-button" onClick={()=>setSelected(item)}>추천 이유와 상세보기 <ChevronRight/></button></article>)}</div>}
-    {!visible.length && <div className="welfare-empty"><Search/><b>검색 결과가 없어요</b><p>다른 검색어로 찾아보세요.</p></div>}
-    <p className="source-note"><ShieldCheck/> 행정안전부 대한민국 공공서비스 정보를 기반으로 구성한 프로토타입입니다.</p>
-
-    {profileOpen && <div className="modal-backdrop" onMouseDown={()=>setProfileOpen(false)}><div className="sheet welfare-profile-sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={()=>setProfileOpen(false)}><X/></button><div className="sheet-heading"><Gift/><div><h3>복지 맞춤정보</h3><p>출생~만 7세 혜택 추천에만 사용해요.</p></div></div>
-      <label>거주지역<span>지역별 서비스를 찾는 데 필요해요</span><select value={draft.region} onChange={e=>setDraft({...draft,region:e.target.value})}><option>서울특별시 강서구</option><option>서울특별시 마포구</option><option>경기도 고양시</option></select></label>
-      <div className="welfare-form-row"><label>가구원 수<select value={draft.household} onChange={e=>setDraft({...draft,household:e.target.value})}><option>2</option><option>3</option><option>4</option><option>5명 이상</option></select></label><label>소득 구간<select value={draft.income} onChange={e=>setDraft({...draft,income:e.target.value})}><option>선택하지 않음</option><option>기준중위소득 80% 이하</option><option>기준중위소득 100% 이하</option><option>기준중위소득 150% 이하</option></select></label></div>
-      <label>현재 양육 형태<select value={draft.childcare} onChange={e=>setDraft({...draft,childcare:e.target.value})}><option>가정양육</option><option>어린이집 이용</option><option>유치원 이용</option></select></label>
-      <div className="welfare-checks"><label><input type="checkbox" checked={draft.dualIncome} onChange={e=>setDraft({...draft,dualIncome:e.target.checked})}/><span>맞벌이 가구</span></label><label><input type="checkbox" checked={draft.multiChild} onChange={e=>setDraft({...draft,multiChild:e.target.checked})}/><span>다자녀 가구</span></label></div>
-      <div className="welfare-checks"><label><input type="checkbox" checked={Boolean(draft.singleParent)} onChange={e=>setDraft({...draft,singleParent:e.target.checked})}/><span>한부모 가정</span></label><label><input type="checkbox" checked={Boolean(draft.multicultural)} onChange={e=>setDraft({...draft,multicultural:e.target.checked})}/><span>다문화 가정</span></label></div>
-      <div className="welfare-checks"><label><input type="checkbox" checked={Boolean(draft.disability)} onChange={e=>setDraft({...draft,disability:e.target.checked})}/><span>장애 관련 조건</span></label></div>
-      <p className="privacy-help"><ShieldCheck/> 민감한 정보는 선택사항이며, 저장하기 전 다시 확인해 드려요.</p>{persistent&&<button className="welfare-delete-profile" onClick={removeProfile}>저장된 맞춤정보 삭제</button>}<button className="primary-button" onClick={()=>setConfirmOpen(true)}><Sparkles/> 이 정보로 추천받기</button>
+    <div className="welfare-hero"><div><span className="eyebrow">WELFARE FOR FAMILY</span><h2>{childName&&<>{childName}에게 맞는<br/></>}<strong>복지혜택</strong>을 확인해요</h2><p>공공서비스 API와 저장된 가족정보를 기준으로 추천해요.</p></div><span className="welfare-hero-icon"><Gift/></span></div>
+    {childId?<button className="welfare-child-card" onClick={openProfile}><span className="child-face">{child?.emoji||'👶🏻'}</span><span><b>{childName}</b><small>{[childAge,profile?.region||'거주지역 미입력'].filter(Boolean).join(' · ')}</small></span><ChevronRight/></button>:<div className="welfare-empty"><b>아이를 먼저 선택해 주세요</b></div>}
+    {childId&&<section className="profile-progress-card"><div className="profile-progress-head"><div><span>{profile?'저장된 맞춤정보':'맞춤정보를 입력해 주세요'}</span><b>{profile?'저장됨':'미입력'}</b></div><button onClick={openProfile}>{profile?'수정하기':'입력하기'} <ChevronRight/></button></div><p>{profile?'DB에 저장된 정보를 적용해 추천했어요.':'지역과 가구정보를 저장하면 추천에 반영돼요.'}</p></section>}
+    {profile&&<div className="recommendation-mode-tabs"><button className={mode==='PROACTIVE'?'active':''} onClick={()=>setMode('PROACTIVE')}><Bell/>선제형 추천</button><button className={mode==='SUGGESTIVE'?'active':''} onClick={()=>setMode('SUGGESTIVE')}><Sparkles/>제안형 추천</button></div>}
+    <label className="welfare-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="복지 서비스 검색"/></label>
+    <div className="welfare-summary-row"><div><b>{visible.length}</b><span>API 추천</span></div><div><b>{visible.filter(v=>v.status==='ELIGIBLE').length}</b><span>가능성 높음</span></div><div><b>{favorites.length}</b><span>관심 혜택</span></div></div>
+    <div className="welfare-list-head"><div><Sparkles/><b>{childName?`${childName} 맞춤 추천`:'맞춤 추천'}</b></div><select value={sort} onChange={e=>setSort(e.target.value)}><option>추천순</option><option>이름순</option></select></div>
+    {error&&<div className="welfare-empty"><b>{error}</b></div>}
+    {loading?<div className="welfare-empty"><Clock3/><b>복지 데이터를 불러오는 중이에요</b></div>:<div className="welfare-program-list">{visible.map(item=><article key={item.id} className="welfare-program-card"><div className="program-top"><span className={item.status==='ELIGIBLE'?'high':'possible'}>{item.status}</span><button className={favorites.includes(item.id)?'saved':''} onClick={()=>toggleFavorite(item.id)}><HeartPulse/></button></div><h3>{item.name}</h3>{item.summary&&<p>{item.summary}</p>}<div className="score-row"><span><i style={{width:`${Number(item.score)}%`}}/></span><b>{Math.round(Number(item.score))}%</b></div><div className="program-meta">{item.agency&&<span>{item.agency}</span>}{item.deadline&&<span><Clock3/>{item.deadline}</span>}</div><button className="program-detail-button" onClick={()=>setSelected(item)}>추천 결과와 상세보기 <ChevronRight/></button></article>)}</div>}
+    {!loading&&!error&&childId&&!visible.length&&<div className="welfare-empty"><Search/><b>API에서 받은 추천 결과가 없어요</b></div>}
+    {profileOpen&&<div className="modal-backdrop" onMouseDown={()=>setProfileOpen(false)}><div className="sheet welfare-profile-sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={()=>setProfileOpen(false)}><X/></button><div className="sheet-heading"><Gift/><div><h3>복지 맞춤정보</h3><p>입력한 값은 복지 프로필 DB에 저장돼요.</p></div></div>
+      <label>거주지역<span>시·도와 시·군·구를 입력해 주세요</span><input value={draft.region} onChange={e=>setDraft({...draft,region:e.target.value})} placeholder="거주지역"/></label>
+      <div className="welfare-form-row"><label>가구원 수<input type="number" min="1" value={draft.household} onChange={e=>setDraft({...draft,household:e.target.value})}/></label><label>자녀 수<input type="number" min="0" value={draft.childCount} onChange={e=>setDraft({...draft,childCount:e.target.value})}/></label></div>
+      <label>소득 구간<input value={draft.income} onChange={e=>setDraft({...draft,income:e.target.value})} placeholder="해당하는 소득 구간"/></label><label>현재 양육 형태<input value={draft.childcare} onChange={e=>setDraft({...draft,childcare:e.target.value})} placeholder="현재 양육 형태"/></label>
+      <div className="welfare-checks"><label><input type="checkbox" checked={draft.dualIncome} onChange={e=>setDraft({...draft,dualIncome:e.target.checked})}/><span>맞벌이 가구</span></label><label><input type="checkbox" checked={draft.singleParent} onChange={e=>setDraft({...draft,singleParent:e.target.checked})}/><span>한부모 가정</span></label></div><div className="welfare-checks"><label><input type="checkbox" checked={draft.multicultural} onChange={e=>setDraft({...draft,multicultural:e.target.checked})}/><span>다문화 가정</span></label><label><input type="checkbox" checked={draft.disability} onChange={e=>setDraft({...draft,disability:e.target.checked})}/><span>장애 관련 조건</span></label></div>
+      <p className="privacy-help"><ShieldCheck/> 민감한 정보는 선택사항이며 복지 추천 목적으로만 저장해요.</p>{profile&&<button className="welfare-delete-profile" onClick={removeProfile}>저장된 맞춤정보 삭제</button>}<button className="primary-button" onClick={()=>setConfirmOpen(true)}><Sparkles/> 이 정보로 추천받기</button>
     </div></div>}
-    {confirmOpen && <div className="modal-backdrop confirm-layer"><div className="welfare-confirm"><span><Save/></span><h3>입력한 정보를 저장할까요?</h3><p>저장하면 다음에도 맞춤 추천에 자동으로 사용해요. 저장하지 않아도 지금 한 번은 추천받을 수 있어요.</p><div className="confirm-data"><b>{draft.region}</b><span>가구원 {draft.household}명 · {draft.income}</span></div><button className="primary-button" onClick={saveProfile}>저장하고 맞춤 추천</button><button className="outline-button" onClick={useOnce}>저장하지 않고 이번만 사용</button><button className="text-button" onClick={()=>setConfirmOpen(false)}>다시 확인하기</button></div></div>}
+    {confirmOpen&&<div className="modal-backdrop confirm-layer"><div className="welfare-confirm"><span><Save/></span><h3>입력한 정보를 저장할까요?</h3><p>저장한 값은 다음 맞춤 추천부터 API 요청에 반영돼요.</p><div className="confirm-data">{draft.region&&<b>{draft.region}</b>}<span>가구원 {draft.household||'미입력'}명 · {draft.income||'소득 구간 미입력'}</span></div><button className="primary-button" disabled={saving} onClick={saveProfile}>{saving?'저장 중...':'저장하고 맞춤 추천'}</button><button className="text-button" onClick={()=>setConfirmOpen(false)}>다시 확인하기</button></div></div>}
   </div>;
 }

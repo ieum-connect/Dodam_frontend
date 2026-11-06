@@ -109,6 +109,7 @@ export const api = {
     return request(`/api/welfare-recommendations?${query}`);
   },
   welfareAiExplain: (body) => request('/api/v1/welfare/explanations', { method: 'POST', body: JSON.stringify(body) }),
+  welfareFavorites: (patientId) => request(`/api/welfare-favorites?patientId=${encodeURIComponent(patientId)}`),
   addWelfareFavorite: (patientId, programId) => request(`/api/welfare-favorites?patientId=${encodeURIComponent(patientId)}&programId=${encodeURIComponent(programId)}`, { method: 'POST' }),
   removeWelfareFavorite: (patientId, programId) => request(`/api/welfare-favorites/${encodeURIComponent(programId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'DELETE' }),
   aiDocuments: (params = {}) => {
