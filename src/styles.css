@@ -51,7 +51,9 @@
   .app-shell{display:block;width:100%;min-width:0;}
   .desktop-rail{display:none;}
   .phone-frame{width:100%;min-width:0;height:100dvh;min-height:100dvh;}
-  .bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;max-width:none;height:84px;min-height:84px;transform:none;}
+  /* Keep the navigation inside the app viewport. `fixed` anchors to the
+     browser viewport and can escape the phone/app frame in embedded previews. */
+  .bottom-nav{position:absolute;left:0;right:0;bottom:0;width:100%;max-width:100%;height:84px;min-height:84px;transform:none;}
 }
 @media(max-width:560px){
   .welcome{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;padding-top:26px;align-items:start}
