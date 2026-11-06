@@ -36,9 +36,20 @@ export function WelfarePrototype({ child }) {
   const [loading,setLoading] = useState(true);
   const [mode,setMode] = useState('PROACTIVE');
   const [sort,setSort] = useState('추천순');
+  const [explanation,setExplanation] = useState(null);
   const profile = savedProfile || sessionProfile;
   const persistent = Boolean(savedProfile);
   const childName = child?.fullName || child?.name || '도윤이';
+
+  useEffect(() => {
+    if (!selected) { setExplanation(null); return; }
+    setExplanation({ loading: true });
+    api.welfareAiExplain({
+      program: { program_id: selected.id, name: selected.name, target: selected.target, benefit: selected.benefit, required_documents: selected.documents },
+      recommendation: { program_id: selected.id, name: selected.name, score: selected.score, status: selected.status, matched_conditions: selected.matches, missing_conditions: selected.checks },
+      evidence: selected.matches,
+    }).then(setExplanation).catch(() => setExplanation(null));
+  }, [selected]);
 
   useEffect(() => {
     let mounted = true;
@@ -98,6 +109,7 @@ export function WelfarePrototype({ child }) {
           regionCode: draft.region, householdSize: Number.parseInt(draft.household, 10) || null,
           incomeBand: draft.income, childCount: draft.multiChild ? 2 : 1,
           dualIncome: draft.dualIncome, childcareStatus: draft.childcare,
+          singleParent: Boolean(draft.singleParent), multicultural: Boolean(draft.multicultural), disability: Boolean(draft.disability),
           storageConsent: true, healthDataConsent: false,
         });
       } catch { /* local fallback keeps the prototype usable while the API is unavailable */ }
@@ -126,7 +138,7 @@ export function WelfarePrototype({ child }) {
     <button className="welfare-back" onClick={()=>setSelected(null)}><ChevronLeft/> 추천 목록</button>
     <div className="welfare-detail-title"><div><span>{selected.agency}</span><h2>{selected.name}</h2><p>{selected.summary}</p></div><button className={favorites.includes(selected.id)?'saved':''} onClick={()=>toggleFavorite(selected.id)} aria-label="관심 서비스 저장"><HeartPulse/></button></div>
     <div className="eligibility-summary"><Sparkles/><div><b>현재 입력한 정보 기준 {selected.score}% 일치</b><p>자격을 확정하는 결과가 아니며, 신청기관의 최종 확인이 필요해요.</p></div></div>
-    <section className="welfare-info-card"><h3>도담이가 추천한 이유</h3>{selected.matches.map(v=><p className="match-line" key={v}><CheckCircle2/> {v}</p>)}{selected.checks.map(v=><p className="check-line" key={v}><Clock3/> 추가 확인: {v}</p>)}</section>
+    <section className="welfare-info-card"><h3>도담이가 추천한 이유</h3>{explanation?.loading ? <p>추천 이유를 정리하고 있어요...</p> : explanation?.summary && <p className="ai-reason">{explanation.summary}</p>}{selected.matches.map(v=><p className="match-line" key={v}><CheckCircle2/> {v}</p>)}{selected.checks.map(v=><p className="check-line" key={v}><Clock3/> 추가 확인: {v}</p>)}</section>
     {[['지원대상',selected.target],['지원내용',selected.benefit],['신청방법',selected.method],['준비서류',selected.documents],['신청기한',selected.deadline]].map(([title,body])=><section className="welfare-copy-block" key={title}><h3>{title}</h3><p>{body}</p></section>)}
     <button className="primary-button welfare-apply" onClick={()=>window.alert('프로토타입: 실제 서비스에서는 정부24 공식 신청 페이지로 이동합니다.')}><Link2/> 공식 사이트에서 확인하기</button>
     <p className="source-note"><ShieldCheck/> 행정안전부 대한민국 공공서비스 정보 · 프로토타입 예시 · 2026.11.05 기준</p>
@@ -150,6 +162,8 @@ export function WelfarePrototype({ child }) {
       <div className="welfare-form-row"><label>가구원 수<select value={draft.household} onChange={e=>setDraft({...draft,household:e.target.value})}><option>2</option><option>3</option><option>4</option><option>5명 이상</option></select></label><label>소득 구간<select value={draft.income} onChange={e=>setDraft({...draft,income:e.target.value})}><option>선택하지 않음</option><option>기준중위소득 80% 이하</option><option>기준중위소득 100% 이하</option><option>기준중위소득 150% 이하</option></select></label></div>
       <label>현재 양육 형태<select value={draft.childcare} onChange={e=>setDraft({...draft,childcare:e.target.value})}><option>가정양육</option><option>어린이집 이용</option><option>유치원 이용</option></select></label>
       <div className="welfare-checks"><label><input type="checkbox" checked={draft.dualIncome} onChange={e=>setDraft({...draft,dualIncome:e.target.checked})}/><span>맞벌이 가구</span></label><label><input type="checkbox" checked={draft.multiChild} onChange={e=>setDraft({...draft,multiChild:e.target.checked})}/><span>다자녀 가구</span></label></div>
+      <div className="welfare-checks"><label><input type="checkbox" checked={Boolean(draft.singleParent)} onChange={e=>setDraft({...draft,singleParent:e.target.checked})}/><span>한부모 가정</span></label><label><input type="checkbox" checked={Boolean(draft.multicultural)} onChange={e=>setDraft({...draft,multicultural:e.target.checked})}/><span>다문화 가정</span></label></div>
+      <div className="welfare-checks"><label><input type="checkbox" checked={Boolean(draft.disability)} onChange={e=>setDraft({...draft,disability:e.target.checked})}/><span>장애 관련 조건</span></label></div>
       <p className="privacy-help"><ShieldCheck/> 민감한 정보는 선택사항이며, 저장하기 전 다시 확인해 드려요.</p>{persistent&&<button className="welfare-delete-profile" onClick={removeProfile}>저장된 맞춤정보 삭제</button>}<button className="primary-button" onClick={()=>setConfirmOpen(true)}><Sparkles/> 이 정보로 추천받기</button>
     </div></div>}
     {confirmOpen && <div className="modal-backdrop confirm-layer"><div className="welfare-confirm"><span><Save/></span><h3>입력한 정보를 저장할까요?</h3><p>저장하면 다음에도 맞춤 추천에 자동으로 사용해요. 저장하지 않아도 지금 한 번은 추천받을 수 있어요.</p><div className="confirm-data"><b>{draft.region}</b><span>가구원 {draft.household}명 · {draft.income}</span></div><button className="primary-button" onClick={saveProfile}>저장하고 맞춤 추천</button><button className="outline-button" onClick={useOnce}>저장하지 않고 이번만 사용</button><button className="text-button" onClick={()=>setConfirmOpen(false)}>다시 확인하기</button></div></div>}
