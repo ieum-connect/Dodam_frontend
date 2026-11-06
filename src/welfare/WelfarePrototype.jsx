@@ -37,6 +37,7 @@ export function WelfarePrototype({ child }) {
   const [mode,setMode] = useState('PROACTIVE');
   const [sort,setSort] = useState('추천순');
   const [explanation,setExplanation] = useState(null);
+  const [profileRevision,setProfileRevision] = useState(0);
   const profile = savedProfile || sessionProfile;
   const persistent = Boolean(savedProfile);
   const childName = child?.fullName || child?.name || '도윤이';
@@ -95,7 +96,7 @@ export function WelfarePrototype({ child }) {
         return { ...program, type: mode, score: Math.round(item.score), status: item.status === 'ELIGIBLE' ? '신청 가능성이 높아요' : '조건을 확인해 보세요', matches: ['아이 연령·프로필 기준 추천'] };
       }));
     }).catch(() => {});
-  }, [child?.id, mode]);
+  }, [child?.id, mode, profileRevision]);
 
   const visible = useMemo(() => remotePrograms
     .filter(item => (!persistent || item.type === mode) && `${item.name} ${item.summary} ${item.agency}`.includes(query.trim()))
@@ -115,7 +116,7 @@ export function WelfarePrototype({ child }) {
       } catch { /* local fallback keeps the prototype usable while the API is unavailable */ }
     }
     localStorage.setItem('dodam-welfare-profile', JSON.stringify(draft));
-    setSavedProfile(draft); setSessionProfile(null); setConfirmOpen(false); setProfileOpen(false);
+    setSavedProfile(draft); setSessionProfile(null); setProfileRevision(v=>v+1); setConfirmOpen(false); setProfileOpen(false);
   };
   const useOnce = () => {
     setSessionProfile(draft); setSavedProfile(null); setMode('SUGGESTIVE');
