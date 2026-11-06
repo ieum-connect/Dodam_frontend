@@ -239,7 +239,7 @@ function LoginScreen({ onLogin }) {
 }
 
 function Logo({ compact = false }) {
-  return <div className={`logo ${compact ? 'compact' : ''}`}><span className="logo-mark"><img src="/dodam-mark.svg" alt="" /></span><span>도담</span></div>;
+  return <div className={`logo ${compact ? 'compact' : ''}`}><img className="dodam-wordmark" src="/dodam-logo.png" alt="도담" /></div>;
 }
 
 function HomeScreen({ onOpen, child, onChildOpen }) {
