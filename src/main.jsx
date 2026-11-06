@@ -170,13 +170,13 @@ function App() {
         </div>
         <div className="rail-illustration" aria-hidden="true">
           <span className="orbit orbit-one"/><span className="orbit orbit-two"/>
-          <HeartPulse size={54}/><span className="mini-dot d1"/><span className="mini-dot d2"/>
+          <img className="dodam-brand-icon" src="/favicon.png" alt=""/><span className="mini-dot d1"/><span className="mini-dot d2"/>
         </div>
         <p className="rail-foot">도담 · 우리 가족 건강 동반자</p>
       </aside>
 
       <main className={`phone-frame ${!loggedIn ? 'login-frame' : ''}`}>
-        {!authReady ? <div className="app-loading"><span className="login-heart"><HeartPulse/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} /> : <>
+        {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} /> : <>
         <header className="topbar">
           {detail ? (
             <button className="icon-button" onClick={() => setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
@@ -218,7 +218,7 @@ const DEMO_ACCOUNTS = [['MINJI','김민지','엄마','민'],['SOONJA','김순자
 function LoginScreen({ onLogin }) {
   const [emailOpen, setEmailOpen] = useState(false);
   return <div className="login-screen">
-    <div className="login-visual"><span className="login-glow one"/><span className="login-glow two"/><div className="login-heart"><HeartPulse/></div><div className="login-badge badge-one"><Syringe/><span>예방접종</span></div><div className="login-badge badge-two"><TrendingUp/><span>성장 기록</span></div><div className="login-badge badge-three"><FileText/><span>건강 문서</span></div></div>
+    <div className="login-visual"><span className="login-glow one"/><span className="login-glow two"/><div className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt="도담"/></div><div className="login-badge badge-one"><Syringe/><span>예방접종</span></div><div className="login-badge badge-two"><TrendingUp/><span>성장 기록</span></div><div className="login-badge badge-three"><FileText/><span>건강 문서</span></div></div>
     <div className="login-content"><Logo/><span className="eyebrow">FAMILY HEALTH COMPANION</span><h1>아이의 건강한 성장을<br/><strong>도담</strong>과 함께 기록해요.</h1><p>병원 기록부터 예방접종, 성장 발달까지<br/>우리 가족의 건강 정보를 안전하게 관리하세요.</p>
       {emailOpen && <div className="login-fields"><label>이메일<input type="email" placeholder="name@example.com"/></label><label>비밀번호<input type="password" placeholder="비밀번호를 입력해주세요"/></label></div>}
       <div className="login-actions"><button className="kakao-button" onClick={()=>onLogin('kakao')}><span>💬</span> 카카오로 3초 만에 시작하기</button><button className="email-button" onClick={()=>emailOpen?onLogin('demo'):setEmailOpen(true)}>{emailOpen?'체험 계정으로 로그인':'이메일로 계속하기'}</button></div>
