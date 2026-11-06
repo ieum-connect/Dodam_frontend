@@ -6,11 +6,11 @@ export default defineConfig({
   server: {
     port: 4173,
     proxy: {
-      '/api/v1': { target: 'http://localhost:8000', changeOrigin: true },
-      '/api': { target: 'http://localhost:8081', changeOrigin: true },
-      '/oauth2': { target: 'http://localhost:8081', changeOrigin: true },
-      '/login/oauth2': { target: 'http://localhost:8081', changeOrigin: true },
-      '/logout': { target: 'http://localhost:8081', changeOrigin: true },
+      '/api/v1': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/api': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/oauth2': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/login/oauth2': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/logout': { target: 'http://127.0.0.1:8081', changeOrigin: true },
     },
   },
 });

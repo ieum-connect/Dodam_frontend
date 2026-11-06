@@ -109,18 +109,15 @@ function App() {
   const login = async (mode, account) => {
     if (mode === 'kakao') { window.location.href = api.kakaoLoginUrl; return; }
     try {
-      const user = await api.demoLogin(account); setMe(user); setBackendOnline(true); setLoggedIn(true); await loadFamilyData(); showToast(`${user?.name || '테스트 계정'}(으)로 로그인했어요`);
+      await api.demoLogin(account);
+      const user = await api.me();
+      setMe(user); setBackendOnline(true); setLoggedIn(true);
+      await loadFamilyData();
+      showToast(`${user?.name || '테스트 계정'}(으)로 로그인했어요`);
     } catch (error) {
-      if (mode === 'demo' && import.meta.env.DEV) {
-        const demoUser = { name: account === 'SOONJA' ? '김순자' : account === 'JIHUN' ? '박지훈' : '김민지' };
-        const demoChild = { id:'demo-child', name:'박도윤', fullName:'박도윤', age:'생후 18개월', birthDate:'2025-05-05', emoji:'👶🏻' };
-        setMe(demoUser); setChildren([demoChild]); setActiveChild(demoChild); setLoggedIn(true); setBackendOnline(false);
-        showToast('복지 프로토타입 체험 모드로 시작했어요');
-        return;
-      }
       setLoggedIn(false);
       setBackendOnline(false);
-      showToast(error instanceof ApiError ? '로그인에 실패했어요. 백엔드 연결을 확인해주세요.' : '서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.');
+      showToast(error instanceof ApiError ? errorMessage(error, '테스트 계정 로그인에 실패했어요.') : '서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.');
     }
   };
 
