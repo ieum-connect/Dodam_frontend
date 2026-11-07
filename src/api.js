@@ -75,7 +75,7 @@ export const api = {
   chatSessions: (patientId) => request(`/api/ai-chat-sessions${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
   createChatSession: (patientId, title) => request('/api/ai-chat-sessions', { method: 'POST', body: JSON.stringify({ patientId, title }) }),
   chatMessages: (sessionId) => request(`/api/ai-chat-sessions/${sessionId}/messages`),
-  askChat: (sessionId, question, documentIds, questionType = 'DOCUMENT_EASY_EXPLANATION') => request(`/api/ai-chat-sessions/${sessionId}/messages`, { method: 'POST', body: JSON.stringify({ question, questionType, documentIds }) }),
+  askChat: (sessionId, question, documentIds) => request(`/api/ai-chat-sessions/${sessionId}/messages`, { method: 'POST', body: JSON.stringify({ question, documentIds }) }),
   healthRecords: (patientId) => request(`/api/health-records${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
   createHealthRecord: (body) => request('/api/health-records', { method: 'POST', body: JSON.stringify(body) }),
   updateHealthRecord: (recordId, body) => request(`/api/health-records/${recordId}`, { method: 'PUT', body: JSON.stringify(body) }),
