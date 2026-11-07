@@ -466,7 +466,7 @@
 
 /* Care screens: consistent controls, readable feedback and touch targets. */
 .memo-overview{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0;padding:18px;border:1px solid #eadce4;border-radius:18px;background:#fff}
-.memo-overview span,.memo-overview b{display:block}.memo-overview span{font-size:12px;color:#796470;margin-bottom:6px}.memo-overview b{font-size:19px;color:#513d48}.memo-overview button{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.memo-overview span,.memo-overview b{display:block}.memo-overview span{font-size:12px;color:#796470;margin-bottom:6px}.memo-overview b{font-size:19px;color:#513d48}.memo-overview>div{flex:1 1 auto;min-width:0}.memo-overview span,.memo-overview b{white-space:nowrap}.memo-overview>.primary-button{display:inline-flex;flex:0 0 auto;width:auto;margin:0;padding:0 18px;gap:6px;align-items:center;justify-content:center;white-space:nowrap}
 .memo-compose-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.memo-compose-heading h3{font-size:17px;margin:0}.memo-compose-heading button{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#f8f0f4;color:#75475c}
 .memo-compose-hint{display:flex;justify-content:space-between;font-size:12px;color:#77636e;margin:8px 0 16px}.care-clear-filter{min-height:44px;padding:8px 12px;color:#8f345c;background:#f7edf2;border-radius:10px;font-size:13px;margin-bottom:14px}
 .memo-screen textarea{min-height:130px;line-height:1.8}.memo-compose{scroll-margin-top:20px}.memo-screen .memo-tag-chips button,.memo-screen .memo-row-actions button{min-height:44px;min-width:44px}.memo-screen .memo-tag-labels span{overflow-wrap:anywhere;max-width:100%}
