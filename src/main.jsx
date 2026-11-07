@@ -9,6 +9,7 @@ import {
   Pencil, Save, Trash2
 } from 'lucide-react';
 import './styles.css';
+import './care-workspace.css';
 import { api, ApiError, errorMessage } from './api';
 import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 import { WelfarePrototype } from './welfare/WelfarePrototype';

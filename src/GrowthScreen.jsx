@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Ruler, Scale, TrendingUp, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Ruler, Scale, TrendingUp, Pencil, Trash2, X, MoreHorizontal } from 'lucide-react';
 import { api, errorMessage } from './api';
 import { growthRange, growthPoints, growthPosition, stamp } from './growth';
 
@@ -68,10 +68,9 @@ export default function GrowthScreen({ child, onToast }) {
     catch(e) { setError(errorMessage(e)); setDeleting(null); }
     finally { setBusy(false); }
   };
-  return <div className="page padded detail-page growth-live">
-    <header className="record-timeline-heading"><span className="record-timeline-kicker">차곡차곡 자라는 우리 아이</span><h2>성장 기록</h2><p>{child?.fullName || child?.name || '아이'}의 키와 몸무게 변화를 살펴보세요.</p></header>
+  return <div className="page padded detail-page growth-live care-workspace">
+    <header className="care-page-header"><div><h2>성장 기록</h2><p>{child?.fullName || child?.name || '아이'}</p></div><button className="care-add" disabled={busy || !child?.id} onClick={()=>{setForm(blank());setFormError('');}}><Plus size={18}/> 기록 추가</button></header>
     {!child?.id ? <div className="growth-empty">아이를 먼저 등록하거나 선택해주세요.</div> : <>
-      <button className="primary-button growth-add" disabled={busy} onClick={() => {setForm(blank()); setFormError('');}}><Plus size={19}/> 측정 기록 추가</button>
       {error && <div role="alert" className="record-timeline-error">{error}<button onClick={() => setRevision(r => r + 1)}>다시 불러오기</button></div>}
       {form && <form className="growth-editor" onSubmit={save} ref={editor}>
         <div className="growth-editor-heading"><h3>{form.id ? '측정 기록 수정' : '새 측정 기록'}</h3><button type="button" aria-label="입력 닫기" disabled={busy} onClick={() => setForm(null)}><X/></button></div>
@@ -97,7 +96,7 @@ export default function GrowthScreen({ child, onToast }) {
         <p className="growth-chart-note">입력한 측정값의 변화예요. 또래 평균이나 정상 범위를 판단하는 그래프는 아니에요.</p>
         <div className="list-header"><h3>측정 기록</h3><span>{visible.length}건 · {period ? `최근 ${period}개월` : '전체 기간'}</span></div>
         {!visible.length && <div className="growth-empty">이 기간에 등록된 기록이 없어요.</div>}
-        {visible.map(row => <article className="growth-history" key={row.id}><h4>{row.measuredOn}</h4><div className="growth-history-values"><span>키 <b>{row.heightCm ?? '—'}</b> cm</span><span>몸무게 <b>{row.weightKg ?? '—'}</b> kg</span></div>{row.note && <p>{row.note}</p>}<div className="growth-history-actions"><button disabled={busy} onClick={() => {setForm({...row, heightCm: row.heightCm ?? '', weightKg: row.weightKg ?? '', note: row.note || ''});setFormError('');}}><Pencil size={14}/> 수정</button><button disabled={busy} onClick={() => setDeleting(row)}><Trash2 size={14}/> 삭제</button></div></article>)}
+        {visible.map(row => <article className="growth-history" key={row.id}><h4>{row.measuredOn}</h4><div className="growth-history-values"><span>키 <b>{row.heightCm ?? '—'}</b> cm</span><span>몸무게 <b>{row.weightKg ?? '—'}</b> kg</span></div>{row.note && <p>{row.note}</p>}<details className="record-menu growth-history-actions"><summary aria-label={`${row.measuredOn} 성장 기록 더보기`}><MoreHorizontal size={20}/></summary><div><button disabled={busy} onClick={() => {setForm({...row, heightCm: row.heightCm ?? '', weightKg: row.weightKg ?? '', note: row.note || ''});setFormError('');}}><Pencil size={14}/> 수정</button><button disabled={busy} onClick={() => setDeleting(row)}><Trash2 size={14}/> 삭제</button></div></details></article>)}
       </>}
       {deleting && <div className="growth-delete-confirm" role="dialog" aria-modal="true" aria-labelledby="growth-delete-title"><div><h3 id="growth-delete-title">이 측정 기록을 삭제할까요?</h3><p>{deleting.measuredOn} 기록이 그래프와 목록에서 사라져요.</p><button disabled={busy} onClick={() => setDeleting(null)}>취소</button><button disabled={busy} onClick={remove}>{busy ? '삭제 중…' : '기록 삭제'}</button></div></div>}
     </>}
