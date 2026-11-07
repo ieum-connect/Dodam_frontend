@@ -57,7 +57,7 @@ export function WelfarePrototype({ child, onChildOpen, onBackChange }) {
   useEffect(()=>{ if(!selected){setDetail(null);return} let active=true; setDetail(null);
     api.welfareProgram(selected.id).then(row=>active&&setDetail(programFromApi(row))).catch(e=>{if(!active)return;setDetail({});setError(errorMessage(e,'복지 서비스 상세를 불러오지 못했어요.'))}); return()=>{active=false}; },[selected]);
   useEffect(()=>{if(!selected){setExplanation(null);return}if(!detail){setExplanation({loading:true});return}const cacheKey=`${selected.id}|${revision}`;const cached=explanationCache.current.get(cacheKey);if(cached){setExplanation(cached);return}setExplanation({loading:true});
-    api.welfareAiExplain({
+    api.welfareAiExplain(childId, {
       program:{program_id:selected.id,name:selected.name,purpose_summary:selected.summary,agency_name:selected.agency,
         target:detail?.target,benefit:detail?.benefit,application_method:detail?.method,required_documents:detail?.documents},
       recommendation:{program_id:selected.id,name:selected.name,score:selected.score,status:selected.status,
@@ -70,7 +70,7 @@ export function WelfarePrototype({ child, onChildOpen, onBackChange }) {
         multicultural:childContext.multicultural,disability:childContext.disability,childcare_status:childContext.childcareStatus,
         profile_saved:childContext.profileSaved}:null,
       evidence:selected.matchedConditions,
-    }).then(result=>{explanationCache.current.set(cacheKey,result);setExplanation(result)}).catch(e=>setExplanation({error:errorMessage(e)}));},[selected,detail,childContext,revision]);
+    }, childId).then(result=>{explanationCache.current.set(cacheKey,result);setExplanation(result)}).catch(e=>setExplanation({error:errorMessage(e)}));},[selected,detail,childContext,revision,childId]);
   const calculateIncomeBand=()=>{const size=Number(draft.household), income=Number(monthlyIncome);if(!incomeGuide||!size||!income)return;const values=incomeGuide.medianMonthlyIncomeByHouseholdSize||[];const base=size<=values.length?values[size-1]:values.at(-1)+(size-values.length)*(values.at(-1)-values.at(-2));const percent=income/base*100;const option=incomeBands.find(item=>item.maximumPercent!=null&&percent<=item.maximumPercent)||incomeBands.find(item=>item.maximumPercent==null);if(option)setDraft({...draft,income:option.value})};
   const openProfile=async()=>{
     const next=profile||EMPTY_PROFILE; setDraft(next); setProfileOpen(true);
