@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { growthRange, growthPoints, growthPosition } from './growth.js';
+import { growthRange, growthPoints, growthPosition, newestGrowthFirst } from './growth.js';
 
 test('same measurements occupy different positions for 3, 6 and 12 months', () => {
   const ranges = [3, 6, 12].map(months => growthRange(months, '2026-11-07'));
@@ -30,4 +30,17 @@ test('single-day or empty all-history ranges never divide by zero', () => {
   const range = growthRange(0, '2026-11-07', [{ measuredOn: '2026-11-07' }]);
   assert.equal(growthPosition('2026-11-07', range), 1);
   assert.ok(Number.isFinite(growthPosition('2026-11-07', growthRange(0, '2026-11-07'))));
+});
+
+test('latest cards and history use newest dates regardless of API order', () => {
+  const rows = [
+    { measuredOn: '2026-09-01', heightCm: 80 },
+    { measuredOn: '2026-11-01', weightKg: 12 },
+    { measuredOn: '2026-10-01', heightCm: 85 },
+  ];
+  const sorted = newestGrowthFirst(rows);
+  assert.deepEqual(sorted.map(r => r.measuredOn), ['2026-11-01', '2026-10-01', '2026-09-01']);
+  assert.equal(sorted.filter(r => r.heightCm != null)[0].heightCm, 85);
+  assert.equal(rows[0].measuredOn, '2026-09-01');
+  assert.deepEqual(newestGrowthFirst([...rows].reverse()), sorted);
 });

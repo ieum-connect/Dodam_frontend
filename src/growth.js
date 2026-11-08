@@ -24,3 +24,8 @@ export function growthPoints(records, metric, range) {
 export function growthPosition(date, range) {
   return (stamp(date) - stamp(range.from)) / (stamp(range.to) - stamp(range.from));
 }
+
+// Normalize API ordering once for the latest cards and history list without mutating the response.
+export function newestGrowthFirst(rows) {
+  return [...rows].sort((a, b) => b.measuredOn.localeCompare(a.measuredOn));
+}

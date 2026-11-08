@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Ruler, Scale, TrendingUp, Pencil, Trash2, X, MoreHorizontal } from 'lucide-react';
 import { api, errorMessage } from './api';
-import { growthRange, growthPoints, growthPosition, stamp } from './growth';
+import { growthRange, growthPoints, growthPosition, stamp, newestGrowthFirst } from './growth';
 
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
 const blank = () => ({ measuredOn: today(), heightCm: '', weightKg: '', note: '' });
@@ -42,7 +42,7 @@ export default function GrowthScreen({ child, onToast }) {
     let active = true;
     setRecords([]); setError(''); setLoading(true);
     if (!child?.id) { setLoading(false); return; }
-    api.growthRecords(child.id).then(rows => { if (active) setRecords(rows); }).catch(e => { if (active) setError(errorMessage(e)); }).finally(() => { if (active) setLoading(false); });
+    api.growthRecords(child.id).then(rows => { if (active) setRecords(newestGrowthFirst(rows)); }).catch(e => { if (active) setError(errorMessage(e)); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [child?.id, revision]);
   useEffect(() => { if (form) editor.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [!!form]);
