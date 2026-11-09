@@ -29,7 +29,9 @@
 .vax-dot{display:inline-block;width:13px;height:13px;border-radius:50%;border:1.5px solid #cdbcc2;background:#fff;flex:none}
 .vax-dot.done{background:var(--pink-dark);border-color:var(--pink-dark)}
 .vax-dot.now{border:3px solid var(--pink-dark)}
-.vax-dot.past{border:1.5px dashed #a8552b}
+.vax-past-notice{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding:11px 14px;border-radius:16px;background:#fff0e0;border:1px solid #f5dcc0;color:#8a4a24;font-size:12px;font-weight:700;text-align:left}
+.vax-past-notice svg{width:16px;flex:none}
+.vax-past{scroll-margin-top:12px}
 .vax-past{margin-top:22px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:0 14px}
 .vax-past summary{display:flex;justify-content:space-between;align-items:center;padding:14px 0;cursor:pointer;list-style:none}
 .vax-past summary::-webkit-details-marker{display:none}

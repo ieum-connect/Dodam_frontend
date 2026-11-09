@@ -398,7 +398,7 @@ function DetailScreen({ type, onToast, visits = [], documents = [], child, onDat
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthDetail onToast={onToast}/>;
   if(type==='welfare') return <WelfarePrototype child={child} onChildOpen={onChildOpen} onBackChange={onWelfareBackChange}/>;
-  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast}/>;
+  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar}/>;
   if(type==='memo') return <MemoDetail onToast={onToast} child={child} backendOnline={backendOnline}/>;
   if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
