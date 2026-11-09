@@ -12,6 +12,7 @@ import './styles.css';
 import { api, ApiError, errorMessage } from './api';
 import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 import { WelfarePrototype } from './welfare/WelfarePrototype';
+import { VaccinationScreen } from './vaccination/VaccinationScreen';
 
 const featureCards = [
   { id: 'records', title: '병원 방문', subtitle: '진료 기록과 예약을 한곳에', icon: Stethoscope, tone: 'rose' },
@@ -397,19 +398,18 @@ function DetailScreen({ type, onToast, visits = [], documents = [], child, onDat
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthDetail onToast={onToast}/>;
   if(type==='welfare') return <WelfarePrototype child={child} onChildOpen={onChildOpen} onBackChange={onWelfareBackChange}/>;
+  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast}/>;
   if(type==='memo') return <MemoDetail onToast={onToast} child={child} backendOnline={backendOnline}/>;
   if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
   const Icon = featureCards.find(x=>x.id===type)?.icon || FileText;
   const items = {
-    vaccine: [['10월 24일','DTaP 4차','오늘 · 동네봄 소아청소년과'],['2027년 3월','일본뇌염 2차','접종 권장 시기']],
     meds: [['매일 08:30','비타민 D','1방울 · 아침 식후'],['필요시','해열제','체온 38.5℃ 이상']],
     records: visits.length ? visits.slice(0,5).map(v=>[v.visitedOn, v.department || '병원 방문', v.hospitalName || '병원 정보 없음']) : [['2026.09.12','감기 진료','동네봄 소아청소년과'],['2026.07.03','영유아 건강검진','튼튼아동병원']],
     documents: [['2026.10.12','혈액검사 결과지','AI 분석 완료'],['2026.09.12','진료 확인서','보관 중']],
     memo: [['오늘 09:10','아침 식사','바나나 반 개, 요거트 잘 먹음'],['어제 20:40','잠들기 전','새 그림책을 아주 좋아했음']],
   }[type] || [];
   return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Icon/></span><div><h2>{title}</h2><p>{desc}</p></div></div>
-    {type==='vaccine' && <div className="progress-card"><div><span>접종 진행률</span><b>72%</b></div><div className="progress"><i style={{width:'72%'}}/></div><p><ShieldCheck size={16}/> 권장 일정에 맞게 잘 진행하고 있어요.</p></div>}
     <div className="list-header"><h3>{type==='memo'?'최근 메모':'최근 기록'}</h3><button>전체보기</button></div>
     <div className="record-list">{items.map(([date,name,note],i)=><button key={i}><span className="record-date">{date}</span><span><b>{name}</b><small>{note}</small></span><ChevronRight/></button>)}</div>
     <button className="primary-button" onClick={()=>onToast(`${title}에 새 기록을 추가할게요`)}>{type==='documents'?<Upload/>:<Plus/>}{type==='documents'?' 문서 업로드':' 새 기록 추가'}</button>
