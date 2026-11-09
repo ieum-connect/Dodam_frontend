@@ -345,6 +345,11 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   const [docPicker, setDocPicker] = useState(false);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
 
+  const prepareDocumentExplanation = () => {
+    setInput('선택한 건강 문서의 내용을 쉽게 설명해줘');
+    setDocPicker(true);
+  };
+
   React.useEffect(() => {
     setSelectedDocumentIds((documents || []).slice(0, 1).map(doc => doc.documentId));
   }, [documents]);
@@ -435,7 +440,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   return <div className="chat-page chat-conversation">
     <div className="chat-conversation-bar"><button onClick={()=>setHistoryOpen(true)}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
     <div className="chat-hero"><span className="ai-orb"><Sparkles/></span><div><span className="eyebrow">AI CARE ASSISTANT</span><h2>{activeSession?.title || '새 채팅'}</h2><p>{activeSession ? '이전 대화 내용을 이어서 질문할 수 있어요.' : '아이의 건강 기록을 바탕으로 궁금한 점을 쉽게 설명해드릴게요.'}</p></div></div>
-    <div className="suggestions"><button onClick={()=>setInput('예방접종 일정을 알려줘')}>예방접종 일정</button><button onClick={()=>setInput('성장 발달이 잘 되고 있나요?')}>성장 발달 확인</button><button className={docPicker?'active':''} onClick={()=>setDocPicker(v=>!v)}>문서 설명</button></div>
+    <div className="suggestions"><button onClick={()=>setInput('예방접종 일정을 알려줘')}>예방접종 일정</button><button onClick={()=>setInput('성장 발달이 잘 되고 있나요?')}>성장 발달 확인</button><button className={docPicker?'active':''} onClick={prepareDocumentExplanation}>문서 설명</button></div>
     <div className="selected-documents"><div><span className="eyebrow">REFERENCE DOCUMENTS</span><b>이번 답변에 사용할 문서</b></div><button className="document-select-button" onClick={()=>setDocPicker(v=>!v)}><FileText/> {selectedDocumentIds.length}개 선택 <ChevronRight/></button></div>
     {docPicker && <div className="doc-picker"><div className="doc-picker-head"><div><b>답변 근거를 선택하세요</b><small>선택한 문서만 AI가 참고합니다.</small></div><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
       {documents?.length ? <div className="doc-picker-list">{documents.map(doc=>(
