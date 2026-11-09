@@ -11,12 +11,28 @@ import {
 import './styles.css';
 import './care-workspace.css';
 import { api, ApiError, errorMessage } from './api';
-import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 import { WelfarePrototype } from './welfare/WelfarePrototype';
+import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
+import ChildSheet from './ChildSheet';
 
+function MarkdownText({ text }) {
+  const lines = String(text || '').split(/\r?\n/);
+  return <div className="markdown-answer">{lines.map((line, index) => {
+    const key = `${index}-${line}`;
+    if (!line.trim()) return <div className="markdown-gap" key={key} />;
+    const heading = line.match(/^#{1,3}\s+(.*)$/);
+    const bullet = line.match(/^[-*]\s+(.*)$/);
+    const content = (heading?.[1] || bullet?.[1] || line).split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+      part.startsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part
+    );
+    if (heading) return <h4 key={key}>{content}</h4>;
+    if (bullet) return <div className="markdown-bullet" key={key}>• {content}</div>;
+    return <div key={key}>{content}</div>;
+  })}</div>;
+}
 
 const featureCards = [
   { id: 'records', title: '병원 방문', subtitle: '진료 기록과 예약을 한곳에', icon: Stethoscope, tone: 'rose' },
@@ -47,6 +63,11 @@ function App() {
   const [detail, setDetail] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [childOpen, setChildOpen] = useState(false);
+  const [childEditing, setChildEditing] = useState(false);
+  const activeChildRef = React.useRef(null);
+  const familyRequest = React.useRef(0);
+  const [dataRevision, setDataRevision] = useState(0);
+  const chooseChild = child => { familyRequest.current++; activeChildRef.current = child; setVisits([]); setDocuments([]); setMedicationDraft(null); setActiveChild(child); };
   const [activeChild, setActiveChild] = useState(null);
   const [children, setChildren] = useState([]);
   const [me, setMe] = useState(null);
@@ -78,30 +99,28 @@ function App() {
   };
   const normalizeChild = (child, index=0) => {
     const displayName = child.name || child.fullName || child.displayName || (index === 0 ? '박도윤' : `아이 ${index + 1}`);
-    return { id: child.id, name: displayName, fullName: displayName, age: childAge(child.birthDate), birthDate: child.birthDate, inviteCode: child.inviteCode, parentCount: child.parentCount, emoji: index % 2 ? '👧🏻' : '👶🏻' };
+    return { id: child.id, name: displayName, fullName: displayName, age: childAge(child.birthDate), birthDate: child.birthDate, gender: child.gender, inviteCode: child.inviteCode, parentCount: child.parentCount, emoji: index % 2 ? '👧🏻' : '👶🏻' };
   };
 
   const isCompleteChild = (child) => Boolean(
     child?.birthDate && child?.name && child.name !== '이름 확인 필요'
   );
 
-  const loadFamilyData = async () => {
+  const loadFamilyData = async (preferredId) => {
+    const request = ++familyRequest.current;
     try {
       const childRows = await api.children();
+      if (request !== familyRequest.current) return;
       const mapped = childRows.map(normalizeChild);
       const ordered = [...mapped].sort((a, b) => Number(isCompleteChild(b)) - Number(isCompleteChild(a)));
       setChildren(ordered);
-      const current = ordered.find((child) => child.id === activeChild?.id);
+      const current = ordered.find((child) => child.id === (typeof preferredId === 'string' ? preferredId : activeChildRef.current?.id));
       const selected = (current && isCompleteChild(current))
         ? current
         : ordered.find(isCompleteChild) || current || ordered[0];
-      setActiveChild(selected || null);
-      const patientId = selected?.id;
+      chooseChild(selected || null);
+      setDataRevision(r => r + 1);
       api.notifications().then(p => setNotis({ items: p?.items || [], unreadCount: p?.unreadCount || 0 })).catch(()=>{});
-      if (!patientId) { setVisits([]); setDocuments([]); return; }
-      const [visitPage, documentPage] = await Promise.all([api.visits(patientId), api.documents(patientId)]);
-      setVisits(visitPage?.items || []);
-      setDocuments(documentPage?.items || []);
     } catch (error) {
       if (error.status !== 401) showToast('일부 건강 기록을 불러오지 못했어요');
     }
@@ -143,16 +162,20 @@ function App() {
       setChildren([]);
       setVisits([]);
       setDocuments([]);
-      setActiveChild(null);
+      activeChildRef.current = null; familyRequest.current++; setActiveChild(null);
     }
   };
 
   React.useEffect(() => {
+    let current = true;
+    setVisits([]); setDocuments([]);
     if (!loggedIn || !backendOnline || !activeChild?.id) return;
-    Promise.all([api.visits(activeChild.id), api.documents(activeChild.id)]).then(([v,d]) => { setVisits(v?.items||[]); setDocuments(d?.items||[]); }).catch(()=>{});
-  }, [activeChild?.id]);
+    Promise.all([api.visits(activeChild.id), api.documents(activeChild.id)])
+      .then(([v,d]) => { if(current){setVisits(v?.items||[]); setDocuments(d?.items||[]);} })
+      .catch(() => {if(current) showToast('기록을 불러오지 못했어요. 다시 시도해 주세요.');});
+    return () => { current = false; };
+  }, [activeChild?.id, loggedIn, backendOnline, dataRevision]);
 
-  const MEDICAL_IDS = ['records','meds','vaccine','documents'];
   React.useEffect(() => {
     if (!loggedIn || !backendOnline || !me) return;
     let canceled = false;
@@ -171,6 +194,7 @@ function App() {
     if (['chat','home','calendar','medical','more'].includes(id)) { setDetail(null); setTab(id); return; }
     setTab('home'); setDetail(id);
   };
+  const MEDICAL_IDS = ['records','meds','vaccine','documents'];
   const activeNav = MEDICAL_IDS.includes(detail || tab) ? 'medical' : (detail || tab);
 
   const openFeature = (id) => {
@@ -207,7 +231,7 @@ function App() {
           </div>
         </header>
 
-        <div className="screen-content" ref={screenRef}>
+        <div className="screen-content" ref={screenRef} key={activeChild?.id || 'no-child'}>
           {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
           {detail ? <DetailScreen medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});setDetail('meds');setTab('home');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
 
@@ -232,15 +256,15 @@ function App() {
           if (!child) { showToast('현재 접근할 수 있는 아이의 일정인지 확인해주세요'); return; }
           const date = target.searchParams.get('date');
           if (!date || Number.isNaN(new Date(date).getTime())) return;
-          setActiveChild(child);
+          chooseChild(child);
           setCalendarFocus(date);
           setNotiOpen(false);
           navigate('calendar');
         }}
         onRead={async (id) => { try { await api.readNotification(id); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); } catch {} }}
         onReadAll={async () => { try { await api.readAllNotifications(); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); showToast('모든 알림을 읽음 처리했어요'); } catch { showToast('알림을 처리하지 못했어요'); } }} />}
-      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onJoined={loadFamilyData} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
-      {childOpen && <ChildSheet active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { setActiveChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => setChildOpen(false)} onToast={showToast} onCreated={loadFamilyData} />}
+      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onJoined={loadFamilyData} onProfileSaved={setMe} onEditChild={() => {setProfileOpen(false);setChildEditing(true);setChildOpen(true);}} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
+      {childOpen && <ChildSheet editing={childEditing} active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { chooseChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => {setChildOpen(false);setChildEditing(false);}} onToast={showToast} onCreated={loadFamilyData} />}
       {toast && <div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
     </div>
   );
@@ -328,6 +352,16 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [docPicker, setDocPicker] = useState(false);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+
+  const prepareDocumentExplanation = () => {
+    setInput('선택한 건강 문서의 내용을 쉽게 설명해줘');
+    setDocPicker(true);
+  };
+
+  React.useEffect(() => {
+    setSelectedDocumentIds((documents || []).slice(0, 1).map(doc => doc.documentId));
+  }, [documents]);
 
   const refreshSessions = React.useCallback(async () => {
     if (!backendOnline || !child?.id) { setSessions([]); return []; }
@@ -341,6 +375,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     setMessages([]);
     setChatError(null);
     setHistoryOpen(true);
+    setSelectedDocumentIds([]);
     refreshSessions().catch(error => onToast(errorMessage(error, '이전 채팅을 불러오지 못했어요.')));
   }, [refreshSessions]);
 
@@ -350,6 +385,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     setChatError(null);
     setHistoryOpen(false);
     setInput('');
+    setSelectedDocumentIds((documents || []).slice(0, 1).map(doc => doc.documentId));
   };
 
   const openSession = async (session) => {
@@ -376,7 +412,9 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
       setSending(true);
       const session = activeSession || await api.createChatSession(child.id, '새 채팅');
       if (!activeSession) setActiveSession(session);
-      const targetDocs = docIds?.length ? docIds : documents.slice(0,5).map(d=>d.documentId);
+      // 사용자가 선택을 해제해도 최근 문서로 안전하게 자동 대체한다.
+      const targetDocs = docIds?.length ? docIds : (selectedDocumentIds.length ? selectedDocumentIds : documents.slice(0, 1).map(d => d.documentId));
+      if (!targetDocs.length) { setMessages(prev => prev.filter(message => message.messageId !== optimistic.messageId)); setChatError({ code: 'DOCUMENT_REQUIRED', message: 'AI가 근거로 확인할 건강 문서가 없어요. 문서를 먼저 업로드해주세요.' }); return; }
       const result = await api.askChat(session.sessionId, question, targetDocs);
       const latestAnswer = [...result].reverse().find(m=>m.role==='ASSISTANT');
       if (!latestAnswer) throw new ApiError('AI 서버에서 답변이 오지 않았어요.', 502, { code: 'AI_EMPTY_RESPONSE' });
@@ -411,19 +449,22 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   return <div className="chat-page chat-conversation">
     <div className="chat-conversation-bar"><button onClick={()=>setHistoryOpen(true)}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
     <div className="chat-hero"><span className="ai-orb"><Sparkles/></span><div><span className="eyebrow">AI CARE ASSISTANT</span><h2>{activeSession?.title || '새 채팅'}</h2><p>{activeSession ? '이전 대화 내용을 이어서 질문할 수 있어요.' : '아이의 건강 기록을 바탕으로 궁금한 점을 쉽게 설명해드릴게요.'}</p></div></div>
-    <div className="suggestions"><button onClick={()=>setInput('예방접종 일정을 알려줘')}>예방접종 일정</button><button onClick={()=>setInput('성장 발달이 잘 되고 있나요?')}>성장 발달 확인</button><button className={docPicker?'active':''} onClick={()=>setDocPicker(v=>!v)}>문서 설명</button></div>
-    {docPicker && <div className="doc-picker"><div className="doc-picker-head"><b>어떤 문서를 설명해드릴까요?</b><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
+    <div className="suggestions"><button onClick={()=>setInput('예방접종 일정을 알려줘')}>예방접종 일정</button><button onClick={()=>setInput('성장 발달이 잘 되고 있나요?')}>성장 발달 확인</button><button className={docPicker?'active':''} onClick={prepareDocumentExplanation}>문서 설명</button></div>
+    <div className="selected-documents"><div><span className="eyebrow">REFERENCE DOCUMENTS</span><b>이번 답변에 사용할 문서</b></div><button className="document-select-button" onClick={()=>setDocPicker(v=>!v)}><FileText/> {selectedDocumentIds.length}개 선택 <ChevronRight/></button></div>
+    {docPicker && <div className="doc-picker"><div className="doc-picker-head"><div><b>답변 근거를 선택하세요</b><small>선택한 문서만 AI가 참고합니다.</small></div><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
       {documents?.length ? <div className="doc-picker-list">{documents.map(doc=>(
-        <button key={doc.documentId} disabled={sending} onClick={()=>ask(`'${doc.documentName}' 문서를 보호자가 이해하기 쉽게, 용어 풀이와 함께 자세히 설명해줘. 수치가 있으면 정상 범위와 비교해서 알려주고 집에서 살펴볼 점도 알려줘.`, [doc.documentId])}>
-          <span className="doc-picker-icon"><FileText/></span>
-          <span className="doc-picker-text"><b>{doc.documentName}</b><small>{doc.visitedOn || ''} · {DOC_STATUS[doc.documentStatus]||doc.documentStatus||''}</small></span>
-          <ChevronRight/>
+        <button className={selectedDocumentIds.includes(doc.documentId)?'selected':''} key={doc.documentId} disabled={sending} onClick={()=>setSelectedDocumentIds(ids=>ids.includes(doc.documentId)?ids.filter(id=>id!==doc.documentId):[...ids,doc.documentId])}>
+          <span className="doc-picker-check">{selectedDocumentIds.includes(doc.documentId)?'✓':''}</span><span className="doc-picker-icon"><FileText/></span>
+          <span className="doc-picker-text"><b>{doc.documentName}</b><small>{doc.visitedOn || ''} · {DOC_STATUS[doc.documentStatus]||doc.documentStatus||''}{doc.embeddingStatus==='INDEXING'||doc.embeddingStatus==='PENDING'?' · AI 검색 준비 중':doc.embeddingStatus==='FAILED'?' · AI 검색 준비 실패':''}</small></span>
         </button>))}</div>
       : <p className="doc-picker-empty">등록된 건강 문서가 없어요. 의료 &gt; 건강 문서에서 먼저 업로드해주세요.</p>}
+      <div className="doc-picker-footer"><span>{selectedDocumentIds.length}개 문서 선택됨</span><button onClick={()=>setDocPicker(false)}>선택 완료</button></div>
     </div>}
-    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai">무엇이 궁금하신가요? 의료 기록과 성장 데이터를 참고해 함께 살펴볼게요.</div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.role==='USER'?'user':'ai'}`}>{message.content}</div>)}{chatError&&<div className="message error"><b>{chatError.code}</b><span>{chatError.message}</span><button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
-    <div className="chat-input"><button type="button" aria-label="문서 첨부 안내" onClick={()=>onToast('건강 문서 메뉴에 등록된 최근 문서를 자동으로 참고해요')}><Plus/></button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
-    <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
+    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai">무엇이 궁금하신가요? 의료 기록과 성장 데이터를 참고해 함께 살펴볼게요.</div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.role==='USER'?'user':'ai'}`}>{message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{chatError&&<div className="message error"><b>{chatError.code}</b><span>{chatError.message}</span><button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
+    <div className="chat-composer">
+      <div className="chat-input"><button type="button" aria-label="문서 선택" onClick={()=>setDocPicker(true)}><FileText/></button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
+      <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
+    </div>
   </div>;
 }
 
@@ -642,9 +683,12 @@ function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
 
 const GUARDIAN_RELATION = { '김민지':'엄마', '김순자':'할머니', '박지훈':'아빠' };
 
-function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,onChildOpen}) {
+function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
   const name = child?.fullName || '아이 미선택';
   const relation = GUARDIAN_RELATION[me?.name] || '보호자';
+  const [editingName,setEditingName] = useState(false);
+  const [profileName,setProfileName] = useState(me?.name || '');
+  const [profileError,setProfileError] = useState('');
   const [parents,setParents] = useState(null);
   const [codeOpen,setCodeOpen] = useState(false);
   const [joinOpen,setJoinOpen] = useState(false);
@@ -698,6 +742,17 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
     <div className="profile-head"><span className="big-avatar">{(me?.name||'도').slice(0,1)}</span><div><h3>{me?.name || '내 프로필'}</h3><p>{relation} · {name}</p></div></div>
   </div>
 
+    <div className="profile-edit-actions">
+      <button className="outline-button" onClick={()=>setEditingName(v=>!v)}>내 프로필 수정</button>
+      {child?.id && <button className="outline-button" onClick={onEditChild}>아이 정보 수정 · {child.name || child.fullName}</button>}
+    </div>
+    {editingName && <form className="child-profile-form" onSubmit={async e=>{
+      e.preventDefault(); if(busy)return; setBusy(true);setProfileError('');
+      try {const updated=await api.updateMyProfile({name:profileName.trim()});onProfileSaved(updated);setEditingName(false);onToast('내 프로필을 수정했어요');}
+      catch(error){setProfileError(errorMessage(error));}finally{setBusy(false);}
+    }}><label htmlFor="guardian-name">보호자 이름</label><input id="guardian-name" value={profileName} required maxLength={100} disabled={busy} onChange={e=>setProfileName(e.target.value)}/>
+    {profileError&&<p role="alert">{profileError}</p>}<div className="child-form-actions"><button type="button" disabled={busy} onClick={()=>setEditingName(false)}>취소</button><button className="child-save" disabled={busy}>{busy?'저장 중…':'변경사항 저장'}</button></div></form>}
+
     <div className="family-block">
       <div className="family-block-head"><b>연결된 가족</b><span>{parents===null?'…':`${parents.length}명`}</span></div>
       {parents===null ? <p className="family-empty">불러오는 중…</p>
@@ -737,14 +792,6 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
     <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 추가 · 전환</button>
     <button className="logout-button" onClick={onLogout}>로그아웃</button>
   </div></div>;
-}
-
-function ChildSheet({ active, children: apiChildren, backendOnline, onSelect, onClose, onToast, onCreated }) {
-  const children = apiChildren || [];
-  const [adding,setAdding]=useState(false); const [joining,setJoining]=useState(false); const [name,setName]=useState(''); const [birthDate,setBirthDate]=useState(''); const [inviteCode,setInviteCode]=useState('');
-  const create = async()=>{ if(!name||!birthDate){onToast('아이 이름과 생년월일을 입력해주세요');return;} if(!backendOnline){onToast('체험 모드에서는 추가 화면만 확인할 수 있어요');return;} try{await api.createChild({name,birthDate});onToast('아이 프로필을 추가했어요');await onCreated?.();setAdding(false);}catch(e){onToast(e.message||'아이 프로필을 추가하지 못했어요')}};
-  const join = async()=>{ if(!inviteCode.trim()){onToast('공유 코드를 입력해주세요');return;} try{await api.joinChild(inviteCode.trim());onToast('아이 건강 기록에 연결했어요');await onCreated?.();setJoining(false);setInviteCode('');}catch(e){onToast(e.message||'공유 코드가 올바르지 않아요')}};
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button><div className="sheet-heading"><UsersRound/><div><h3>아이 선택</h3><p>부모·조부모·보호자와 함께 건강 기록을 관리해요.</p></div></div><div className="child-list">{children.length ? children.map(child=><button className={active?.id===child.id?'selected':''} onClick={()=>onSelect(child)} key={child.id}><span className="child-face">{child.emoji}</span><span><b>{child.fullName}</b><small>{child.age}</small></span>{active?.id===child.id?<CheckCircle2/>:<ChevronRight/>}</button>) : <p className="family-empty">아직 등록된 아이가 없어요. 아래에서 첫 아이를 등록해 주세요.</p>}</div>{adding&&<div className="new-child-form"><input placeholder="아이 이름" value={name} onChange={e=>setName(e.target.value)}/><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}/><button className="primary-button compact" onClick={create}>프로필 저장</button></div>}{joining&&<div className="new-child-form"><input placeholder="공유 코드 8자리" value={inviteCode} onChange={e=>setInviteCode(e.target.value.toUpperCase())}/><button className="primary-button compact" onClick={join}>공유 코드로 연결</button></div>}<button className="outline-button" onClick={()=>{setAdding(!adding);setJoining(false)}}><UserRoundPlus/> {adding?'추가 취소':'새 아이 프로필 추가'}</button><button className="outline-button" onClick={()=>{setJoining(!joining);setAdding(false)}}><Link2/> {joining?'코드 입력 취소':'가족 공유 코드 입력'}</button></div></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
