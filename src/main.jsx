@@ -11,12 +11,27 @@ import {
 import './styles.css';
 import './care-workspace.css';
 import { api, ApiError, errorMessage } from './api';
-import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 import { WelfarePrototype } from './welfare/WelfarePrototype';
+import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
 
+function MarkdownText({ text }) {
+  const lines = String(text || '').split(/\r?\n/);
+  return <div className="markdown-answer">{lines.map((line, index) => {
+    const key = `${index}-${line}`;
+    if (!line.trim()) return <div className="markdown-gap" key={key} />;
+    const heading = line.match(/^#{1,3}\s+(.*)$/);
+    const bullet = line.match(/^[-*]\s+(.*)$/);
+    const content = (heading?.[1] || bullet?.[1] || line).split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+      part.startsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part
+    );
+    if (heading) return <h4 key={key}>{content}</h4>;
+    if (bullet) return <div className="markdown-bullet" key={key}>• {content}</div>;
+    return <div key={key}>{content}</div>;
+  })}</div>;
+}
 
 const featureCards = [
   { id: 'records', title: '병원 방문', subtitle: '진료 기록과 예약을 한곳에', icon: Stethoscope, tone: 'rose' },
@@ -328,6 +343,16 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [docPicker, setDocPicker] = useState(false);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+
+  const prepareDocumentExplanation = () => {
+    setInput('선택한 건강 문서의 내용을 쉽게 설명해줘');
+    setDocPicker(true);
+  };
+
+  React.useEffect(() => {
+    setSelectedDocumentIds((documents || []).slice(0, 1).map(doc => doc.documentId));
+  }, [documents]);
 
   const refreshSessions = React.useCallback(async () => {
     if (!backendOnline || !child?.id) { setSessions([]); return []; }
@@ -341,6 +366,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     setMessages([]);
     setChatError(null);
     setHistoryOpen(true);
+    setSelectedDocumentIds([]);
     refreshSessions().catch(error => onToast(errorMessage(error, '이전 채팅을 불러오지 못했어요.')));
   }, [refreshSessions]);
 
@@ -350,6 +376,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     setChatError(null);
     setHistoryOpen(false);
     setInput('');
+    setSelectedDocumentIds((documents || []).slice(0, 1).map(doc => doc.documentId));
   };
 
   const openSession = async (session) => {
@@ -376,7 +403,9 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
       setSending(true);
       const session = activeSession || await api.createChatSession(child.id, '새 채팅');
       if (!activeSession) setActiveSession(session);
-      const targetDocs = docIds?.length ? docIds : documents.slice(0,5).map(d=>d.documentId);
+      // 사용자가 선택을 해제해도 최근 문서로 안전하게 자동 대체한다.
+      const targetDocs = docIds?.length ? docIds : (selectedDocumentIds.length ? selectedDocumentIds : documents.slice(0, 1).map(d => d.documentId));
+      if (!targetDocs.length) { setMessages(prev => prev.filter(message => message.messageId !== optimistic.messageId)); setChatError({ code: 'DOCUMENT_REQUIRED', message: 'AI가 근거로 확인할 건강 문서가 없어요. 문서를 먼저 업로드해주세요.' }); return; }
       const result = await api.askChat(session.sessionId, question, targetDocs);
       const latestAnswer = [...result].reverse().find(m=>m.role==='ASSISTANT');
       if (!latestAnswer) throw new ApiError('AI 서버에서 답변이 오지 않았어요.', 502, { code: 'AI_EMPTY_RESPONSE' });
@@ -411,19 +440,22 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   return <div className="chat-page chat-conversation">
     <div className="chat-conversation-bar"><button onClick={()=>setHistoryOpen(true)}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
     <div className="chat-hero"><span className="ai-orb"><Sparkles/></span><div><span className="eyebrow">AI CARE ASSISTANT</span><h2>{activeSession?.title || '새 채팅'}</h2><p>{activeSession ? '이전 대화 내용을 이어서 질문할 수 있어요.' : '아이의 건강 기록을 바탕으로 궁금한 점을 쉽게 설명해드릴게요.'}</p></div></div>
-    <div className="suggestions"><button onClick={()=>setInput('예방접종 일정을 알려줘')}>예방접종 일정</button><button onClick={()=>setInput('성장 발달이 잘 되고 있나요?')}>성장 발달 확인</button><button className={docPicker?'active':''} onClick={()=>setDocPicker(v=>!v)}>문서 설명</button></div>
-    {docPicker && <div className="doc-picker"><div className="doc-picker-head"><b>어떤 문서를 설명해드릴까요?</b><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
+    <div className="suggestions"><button onClick={()=>setInput('예방접종 일정을 알려줘')}>예방접종 일정</button><button onClick={()=>setInput('성장 발달이 잘 되고 있나요?')}>성장 발달 확인</button><button className={docPicker?'active':''} onClick={prepareDocumentExplanation}>문서 설명</button></div>
+    <div className="selected-documents"><div><span className="eyebrow">REFERENCE DOCUMENTS</span><b>이번 답변에 사용할 문서</b></div><button className="document-select-button" onClick={()=>setDocPicker(v=>!v)}><FileText/> {selectedDocumentIds.length}개 선택 <ChevronRight/></button></div>
+    {docPicker && <div className="doc-picker"><div className="doc-picker-head"><div><b>답변 근거를 선택하세요</b><small>선택한 문서만 AI가 참고합니다.</small></div><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
       {documents?.length ? <div className="doc-picker-list">{documents.map(doc=>(
-        <button key={doc.documentId} disabled={sending} onClick={()=>ask(`'${doc.documentName}' 문서를 보호자가 이해하기 쉽게, 용어 풀이와 함께 자세히 설명해줘. 수치가 있으면 정상 범위와 비교해서 알려주고 집에서 살펴볼 점도 알려줘.`, [doc.documentId])}>
-          <span className="doc-picker-icon"><FileText/></span>
-          <span className="doc-picker-text"><b>{doc.documentName}</b><small>{doc.visitedOn || ''} · {DOC_STATUS[doc.documentStatus]||doc.documentStatus||''}</small></span>
-          <ChevronRight/>
+        <button className={selectedDocumentIds.includes(doc.documentId)?'selected':''} key={doc.documentId} disabled={sending} onClick={()=>setSelectedDocumentIds(ids=>ids.includes(doc.documentId)?ids.filter(id=>id!==doc.documentId):[...ids,doc.documentId])}>
+          <span className="doc-picker-check">{selectedDocumentIds.includes(doc.documentId)?'✓':''}</span><span className="doc-picker-icon"><FileText/></span>
+          <span className="doc-picker-text"><b>{doc.documentName}</b><small>{doc.visitedOn || ''} · {DOC_STATUS[doc.documentStatus]||doc.documentStatus||''}{doc.embeddingStatus==='INDEXING'||doc.embeddingStatus==='PENDING'?' · AI 검색 준비 중':doc.embeddingStatus==='FAILED'?' · AI 검색 준비 실패':''}</small></span>
         </button>))}</div>
       : <p className="doc-picker-empty">등록된 건강 문서가 없어요. 의료 &gt; 건강 문서에서 먼저 업로드해주세요.</p>}
+      <div className="doc-picker-footer"><span>{selectedDocumentIds.length}개 문서 선택됨</span><button onClick={()=>setDocPicker(false)}>선택 완료</button></div>
     </div>}
-    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai">무엇이 궁금하신가요? 의료 기록과 성장 데이터를 참고해 함께 살펴볼게요.</div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.role==='USER'?'user':'ai'}`}>{message.content}</div>)}{chatError&&<div className="message error"><b>{chatError.code}</b><span>{chatError.message}</span><button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
-    <div className="chat-input"><button type="button" aria-label="문서 첨부 안내" onClick={()=>onToast('건강 문서 메뉴에 등록된 최근 문서를 자동으로 참고해요')}><Plus/></button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
-    <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
+    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai">무엇이 궁금하신가요? 의료 기록과 성장 데이터를 참고해 함께 살펴볼게요.</div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.role==='USER'?'user':'ai'}`}>{message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{chatError&&<div className="message error"><b>{chatError.code}</b><span>{chatError.message}</span><button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
+    <div className="chat-composer">
+      <div className="chat-input"><button type="button" aria-label="문서 선택" onClick={()=>setDocPicker(true)}><FileText/></button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
+      <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
+    </div>
   </div>;
 }
 
