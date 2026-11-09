@@ -145,8 +145,8 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
       {row.status === 'COMPLETED' ? <p className="care-complete-note"><Check/>{row.scheduleType === 'MEDICATION' ? '복용을 완료했어요' : '일정을 완료했어요'}</p> : <p className="care-reminder-note"><Bell/>{row.remindedAt ? '앱 내 알림을 보냈어요' : new Date(row.startsAt) < new Date() ? '예정 시간이 지났어요. 완료 여부를 확인해주세요.' : '예정 시각에 앱 내 알림'}</p>}
       {row.status === 'SCHEDULED' && <div className="care-schedule-actions">
         <button className="care-complete-button" disabled={busy} onClick={() => execute(() => api.completeSchedule(row.id), '완료로 기록했어요')}><Check/>{row.scheduleType === 'MEDICATION' ? '복용 완료' : '완료'}</button>
-        <details className="record-menu"><summary aria-label={`${row.title} 일정 더보기`}><MoreHorizontal size={20}/></summary><div><button disabled={busy || !!form} onClick={() => setForm({ ...row, startsAt: localInput(row.startsAt), notes: row.notes || '', repeatDays: 1 })}><Pencil/>수정</button>
-        <button disabled={busy} onClick={() => { if (window.confirm('이 날짜의 일정을 취소할까요?')) execute(() => api.cancelSchedule(row.id), '일정을 취소했어요'); }}>취소</button></div></details>
+        <button disabled={busy || !!form} onClick={() => setForm({ ...row, startsAt: localInput(row.startsAt), notes: row.notes || '', repeatDays: 1 })}><Pencil size={16}/>수정</button>
+        <button disabled={busy} onClick={() => { if (window.confirm('이 날짜의 일정을 삭제할까요? 반복 일정의 다른 날짜는 유지됩니다.')) execute(() => api.cancelSchedule(row.id), '일정을 삭제했어요'); }}>삭제</button>
       </div>}
     </div></div>)}</div>
 
