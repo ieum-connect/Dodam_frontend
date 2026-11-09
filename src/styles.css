@@ -479,3 +479,8 @@
 .memo-screen button:focus-visible,.growth-live button:focus-visible,.care-calendar button:focus-visible{outline:3px solid #b44873;outline-offset:3px}.record-timeline-error{overflow-wrap:anywhere}.growth-live-chart{max-width:100%;height:auto}.growth-point-detail{gap:12px}
 @media(max-width:380px){.memo-overview{padding:14px;gap:9px}.memo-overview b{font-size:17px}.memo-overview .primary-button{padding:10px 12px}.memo-datetime{flex-wrap:wrap}.memo-datetime>label{min-width:0;flex:1 1 120px}}
 @media(prefers-reduced-motion:reduce){.memo-screen *,.growth-live *,.care-calendar *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* Keep the chat composer visible while the conversation scrolls. */
+.chat-composer{position:sticky;bottom:0;z-index:9;flex-shrink:0;padding:8px 0 1px;background:linear-gradient(180deg,#fffafc00 0,#fffafcf2 18%,#fffafc 42%);backdrop-filter:blur(10px)}
+.chat-composer .chat-input{box-shadow:0 8px 24px #6e354118}
+.chat-composer .disclaimer{margin-bottom:7px}

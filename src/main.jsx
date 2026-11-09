@@ -452,8 +452,10 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
       <div className="doc-picker-footer"><span>{selectedDocumentIds.length}개 문서 선택됨</span><button onClick={()=>setDocPicker(false)}>선택 완료</button></div>
     </div>}
     <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai">무엇이 궁금하신가요? 의료 기록과 성장 데이터를 참고해 함께 살펴볼게요.</div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.role==='USER'?'user':'ai'}`}>{message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{chatError&&<div className="message error"><b>{chatError.code}</b><span>{chatError.message}</span><button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
-    <div className="chat-input"><button type="button" aria-label="문서 선택" onClick={()=>setDocPicker(true)}><FileText/></button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
-    <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
+    <div className="chat-composer">
+      <div className="chat-input"><button type="button" aria-label="문서 선택" onClick={()=>setDocPicker(true)}><FileText/></button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
+      <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
+    </div>
   </div>;
 }
 
