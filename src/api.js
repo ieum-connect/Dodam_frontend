@@ -63,6 +63,7 @@ export const api = {
   cancelSchedule: (id) => request(`/api/schedules/${id}`, { method: 'DELETE' }),
   authConfig: () => request('/api/auth/config'),
   me: () => request('/api/me'),
+  updateMyProfile: (body) => request('/api/me/profile', { method: 'PUT', body: JSON.stringify(body) }),
   demoLogin: (account) => request('/api/demo/login', { method: 'POST', body: JSON.stringify(account ? { account } : { role: 'CAREGIVER' }) }),
   kakaoLoginUrl: `${API_BASE}/oauth2/authorization/kakao`,
   logout: () => request('/logout', { method: 'POST' }),

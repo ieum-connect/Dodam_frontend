@@ -48,6 +48,11 @@ function App() {
   const [detail, setDetail] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [childOpen, setChildOpen] = useState(false);
+  const [childEditing, setChildEditing] = useState(false);
+  const activeChildRef = React.useRef(null);
+  const familyRequest = React.useRef(0);
+  const [dataRevision, setDataRevision] = useState(0);
+  const chooseChild = child => { familyRequest.current++; activeChildRef.current = child; setVisits([]); setDocuments([]); setMedicationDraft(null); setActiveChild(child); };
   const [activeChild, setActiveChild] = useState(null);
   const [children, setChildren] = useState([]);
   const [me, setMe] = useState(null);
@@ -86,23 +91,21 @@ function App() {
     child?.birthDate && child?.name && child.name !== '이름 확인 필요'
   );
 
-  const loadFamilyData = async () => {
+  const loadFamilyData = async (preferredId) => {
+    const request = ++familyRequest.current;
     try {
       const childRows = await api.children();
+      if (request !== familyRequest.current) return;
       const mapped = childRows.map(normalizeChild);
       const ordered = [...mapped].sort((a, b) => Number(isCompleteChild(b)) - Number(isCompleteChild(a)));
       setChildren(ordered);
-      const current = ordered.find((child) => child.id === activeChild?.id);
+      const current = ordered.find((child) => child.id === (typeof preferredId === 'string' ? preferredId : activeChildRef.current?.id));
       const selected = (current && isCompleteChild(current))
         ? current
         : ordered.find(isCompleteChild) || current || ordered[0];
-      setActiveChild(selected || null);
-      const patientId = selected?.id;
+      chooseChild(selected || null);
+      setDataRevision(r => r + 1);
       api.notifications().then(p => setNotis({ items: p?.items || [], unreadCount: p?.unreadCount || 0 })).catch(()=>{});
-      if (!patientId) { setVisits([]); setDocuments([]); return; }
-      const [visitPage, documentPage] = await Promise.all([api.visits(patientId), api.documents(patientId)]);
-      setVisits(visitPage?.items || []);
-      setDocuments(documentPage?.items || []);
     } catch (error) {
       if (error.status !== 401) showToast('일부 건강 기록을 불러오지 못했어요');
     }
@@ -144,16 +147,20 @@ function App() {
       setChildren([]);
       setVisits([]);
       setDocuments([]);
-      setActiveChild(null);
+      activeChildRef.current = null; familyRequest.current++; setActiveChild(null);
     }
   };
 
   React.useEffect(() => {
+    let current = true;
+    setVisits([]); setDocuments([]);
     if (!loggedIn || !backendOnline || !activeChild?.id) return;
-    Promise.all([api.visits(activeChild.id), api.documents(activeChild.id)]).then(([v,d]) => { setVisits(v?.items||[]); setDocuments(d?.items||[]); }).catch(()=>{});
-  }, [activeChild?.id]);
+    Promise.all([api.visits(activeChild.id), api.documents(activeChild.id)])
+      .then(([v,d]) => { if(current){setVisits(v?.items||[]); setDocuments(d?.items||[]);} })
+      .catch(() => {if(current) showToast('기록을 불러오지 못했어요. 다시 시도해 주세요.');});
+    return () => { current = false; };
+  }, [activeChild?.id, loggedIn, backendOnline, dataRevision]);
 
-  const MEDICAL_IDS = ['records','meds','vaccine','documents'];
   React.useEffect(() => {
     if (!loggedIn || !backendOnline || !me) return;
     let canceled = false;
@@ -172,6 +179,7 @@ function App() {
     if (['chat','home','calendar','medical','more'].includes(id)) { setDetail(null); setTab(id); return; }
     setTab('home'); setDetail(id);
   };
+  const MEDICAL_IDS = ['records','meds','vaccine','documents'];
   const activeNav = MEDICAL_IDS.includes(detail || tab) ? 'medical' : (detail || tab);
 
   const openFeature = (id) => {
@@ -208,7 +216,7 @@ function App() {
           </div>
         </header>
 
-        <div className="screen-content" ref={screenRef}>
+        <div className="screen-content" ref={screenRef} key={activeChild?.id || 'no-child'}>
           {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
           {detail ? <DetailScreen medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});setDetail('meds');setTab('home');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
 
@@ -233,15 +241,15 @@ function App() {
           if (!child) { showToast('현재 접근할 수 있는 아이의 일정인지 확인해주세요'); return; }
           const date = target.searchParams.get('date');
           if (!date || Number.isNaN(new Date(date).getTime())) return;
-          setActiveChild(child);
+          chooseChild(child);
           setCalendarFocus(date);
           setNotiOpen(false);
           navigate('calendar');
         }}
         onRead={async (id) => { try { await api.readNotification(id); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); } catch {} }}
         onReadAll={async () => { try { await api.readAllNotifications(); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); showToast('모든 알림을 읽음 처리했어요'); } catch { showToast('알림을 처리하지 못했어요'); } }} />}
-      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onJoined={loadFamilyData} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
-      {childOpen && <ChildSheet active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { setActiveChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => setChildOpen(false)} onToast={showToast} onCreated={loadFamilyData} />}
+      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onJoined={loadFamilyData} onProfileSaved={setMe} onEditChild={() => {setProfileOpen(false);setChildEditing(true);setChildOpen(true);}} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
+      {childOpen && <ChildSheet editing={childEditing} active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { chooseChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => {setChildOpen(false);setChildEditing(false);}} onToast={showToast} onCreated={loadFamilyData} />}
       {toast && <div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
     </div>
   );
@@ -659,9 +667,12 @@ function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
 
 const GUARDIAN_RELATION = { '김민지':'엄마', '김순자':'할머니', '박지훈':'아빠' };
 
-function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,onChildOpen}) {
+function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
   const name = child?.fullName || '아이 미선택';
   const relation = GUARDIAN_RELATION[me?.name] || '보호자';
+  const [editingName,setEditingName] = useState(false);
+  const [profileName,setProfileName] = useState(me?.name || '');
+  const [profileError,setProfileError] = useState('');
   const [parents,setParents] = useState(null);
   const [codeOpen,setCodeOpen] = useState(false);
   const [joinOpen,setJoinOpen] = useState(false);
@@ -714,6 +725,17 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-header"><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button>
     <div className="profile-head"><span className="big-avatar">{(me?.name||'도').slice(0,1)}</span><div><h3>{me?.name || '내 프로필'}</h3><p>{relation} · {name}</p></div></div>
   </div>
+
+    <div className="profile-edit-actions">
+      <button className="outline-button" onClick={()=>setEditingName(v=>!v)}>내 프로필 수정</button>
+      {child?.id && <button className="outline-button" onClick={onEditChild}>아이 정보 수정 · {child.name || child.fullName}</button>}
+    </div>
+    {editingName && <form className="child-profile-form" onSubmit={async e=>{
+      e.preventDefault(); if(busy)return; setBusy(true);setProfileError('');
+      try {const updated=await api.updateMyProfile({name:profileName.trim()});onProfileSaved(updated);setEditingName(false);onToast('내 프로필을 수정했어요');}
+      catch(error){setProfileError(errorMessage(error));}finally{setBusy(false);}
+    }}><label htmlFor="guardian-name">보호자 이름</label><input id="guardian-name" value={profileName} required maxLength={100} disabled={busy} onChange={e=>setProfileName(e.target.value)}/>
+    {profileError&&<p role="alert">{profileError}</p>}<div className="child-form-actions"><button type="button" disabled={busy} onClick={()=>setEditingName(false)}>취소</button><button className="child-save" disabled={busy}>{busy?'저장 중…':'변경사항 저장'}</button></div></form>}
 
     <div className="family-block">
       <div className="family-block-head"><b>연결된 가족</b><span>{parents===null?'…':`${parents.length}명`}</span></div>

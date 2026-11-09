@@ -50,3 +50,5 @@
 .child-profile-sheet .child-list>button{background:#fff;border:1px solid #efd7e2;border-radius:16px}
 .child-profile-sheet .child-list>button.selected{background:#fce7ef;border-color:#dc8cab}
 @media(max-width:360px){.child-profile-form{padding:14px}.child-sheet-emblem{flex-basis:40px;height:40px}.child-sheet-header h2{font-size:21px}.child-mode-switch button{font-size:13px;gap:5px}.child-gender label{font-size:12px;gap:4px}}
+
+.profile-edit-actions{display:grid;gap:10px;margin:16px 0}.child-profile-form>input{display:block;width:100%;height:48px;border:1px solid #e8d4dd;border-radius:12px;padding:12px;background:#fff;font-size:16px;margin-top:10px}.care-schedule-actions{flex-wrap:wrap;gap:10px}.care-schedule-actions>button{min-height:44px;padding:8px 14px;border-radius:12px;border:1px solid #ead4de}
