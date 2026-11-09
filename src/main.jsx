@@ -16,6 +16,7 @@ import { WelfarePrototype } from './welfare/WelfarePrototype';
 import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
+import ChildSheet from './ChildSheet';
 
 
 const featureCards = [
@@ -78,7 +79,7 @@ function App() {
   };
   const normalizeChild = (child, index=0) => {
     const displayName = child.name || child.fullName || child.displayName || (index === 0 ? '박도윤' : `아이 ${index + 1}`);
-    return { id: child.id, name: displayName, fullName: displayName, age: childAge(child.birthDate), birthDate: child.birthDate, inviteCode: child.inviteCode, parentCount: child.parentCount, emoji: index % 2 ? '👧🏻' : '👶🏻' };
+    return { id: child.id, name: displayName, fullName: displayName, age: childAge(child.birthDate), birthDate: child.birthDate, gender: child.gender, inviteCode: child.inviteCode, parentCount: child.parentCount, emoji: index % 2 ? '👧🏻' : '👶🏻' };
   };
 
   const isCompleteChild = (child) => Boolean(
@@ -753,14 +754,6 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
     <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 추가 · 전환</button>
     <button className="logout-button" onClick={onLogout}>로그아웃</button>
   </div></div>;
-}
-
-function ChildSheet({ active, children: apiChildren, backendOnline, onSelect, onClose, onToast, onCreated }) {
-  const children = apiChildren || [];
-  const [adding,setAdding]=useState(false); const [joining,setJoining]=useState(false); const [name,setName]=useState(''); const [birthDate,setBirthDate]=useState(''); const [inviteCode,setInviteCode]=useState('');
-  const create = async()=>{ if(!name||!birthDate){onToast('아이 이름과 생년월일을 입력해주세요');return;} if(!backendOnline){onToast('체험 모드에서는 추가 화면만 확인할 수 있어요');return;} try{await api.createChild({name,birthDate});onToast('아이 프로필을 추가했어요');await onCreated?.();setAdding(false);}catch(e){onToast(e.message||'아이 프로필을 추가하지 못했어요')}};
-  const join = async()=>{ if(!inviteCode.trim()){onToast('공유 코드를 입력해주세요');return;} try{await api.joinChild(inviteCode.trim());onToast('아이 건강 기록에 연결했어요');await onCreated?.();setJoining(false);setInviteCode('');}catch(e){onToast(e.message||'공유 코드가 올바르지 않아요')}};
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button><div className="sheet-heading"><UsersRound/><div><h3>아이 선택</h3><p>부모·조부모·보호자와 함께 건강 기록을 관리해요.</p></div></div><div className="child-list">{children.length ? children.map(child=><button className={active?.id===child.id?'selected':''} onClick={()=>onSelect(child)} key={child.id}><span className="child-face">{child.emoji}</span><span><b>{child.fullName}</b><small>{child.age}</small></span>{active?.id===child.id?<CheckCircle2/>:<ChevronRight/>}</button>) : <p className="family-empty">아직 등록된 아이가 없어요. 아래에서 첫 아이를 등록해 주세요.</p>}</div>{adding&&<div className="new-child-form"><input placeholder="아이 이름" value={name} onChange={e=>setName(e.target.value)}/><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}/><button className="primary-button compact" onClick={create}>프로필 저장</button></div>}{joining&&<div className="new-child-form"><input placeholder="공유 코드 8자리" value={inviteCode} onChange={e=>setInviteCode(e.target.value.toUpperCase())}/><button className="primary-button compact" onClick={join}>공유 코드로 연결</button></div>}<button className="outline-button" onClick={()=>{setAdding(!adding);setJoining(false)}}><UserRoundPlus/> {adding?'추가 취소':'새 아이 프로필 추가'}</button><button className="outline-button" onClick={()=>{setJoining(!joining);setAdding(false)}}><Link2/> {joining?'코드 입력 취소':'가족 공유 코드 입력'}</button></div></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
