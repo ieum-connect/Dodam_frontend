@@ -557,20 +557,23 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
     if (!child?.id) { onToast('아이를 먼저 등록해 주세요'); return; }
     if (!file) { onToast('먼저 업로드할 문서를 선택해주세요'); return; }
     if (!backendOnline) { onToast('체험 모드에서는 업로드 흐름만 확인할 수 있어요'); return; }
+    let createdVisit = false;
     try {
       setSaving(true); let visitId = visit;
       if (newVisit) {
         const inputs = document.querySelectorAll('.new-visit-form input');
         const created = await api.createVisit({ patientId: child?.id, visitedOn: inputs[0]?.value, hospitalName: inputs[1]?.value, department: inputs[2]?.value, memo: '', visitStatus: 'DONE', version: null });
         visitId = created.visitId;
+        if (visitId) { setVisit(visitId); setNewVisit(false); createdVisit = true; }
       }
       if (!visitId) { onToast('연결할 방문 기록을 선택해주세요'); return; }
       const uploaded=await api.uploadDocument(visitId, file);
       setTracked(uploaded.documentId); setAnalysisStatus(uploaded.documentStatus);
       onToast('문서를 방문 기록에 연결해 업로드했어요'); setUploading(false); setFileName(''); setFile(null); await onDataChange?.();
-    } catch (error) { onToast(error.message || '문서를 업로드하지 못했어요'); }
+    } catch (error) { onToast(error.message || '문서를 업로드하지 못했어요'); if (createdVisit) onDataChange?.(); }
     finally { setSaving(false); }
   };
+  const closeSheet = () => { if (!saving) setUploading(false); };
   if (!child?.id) return <ChildRequiredState icon={FileText} title="건강 문서" onChildOpen={onChildOpen}/>;
   if(selectedDocument) return <DocumentItemDetail document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast}/>;
   return <div className="page padded detail-page">
@@ -581,14 +584,16 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
     <div className="list-header"><h3>최근 문서</h3><button>전체보기</button></div>
     <div className="record-list">{documents.length ? documents.slice(0,5).map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{doc.documentName}</b><small>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>}) : <div className="empty-record">아직 등록된 건강 문서가 없어요.</div>}</div>
     <button className="primary-button" onClick={()=>setUploading(true)}><Upload/> 문서 업로드</button>
-    {uploading && <div className="inline-panel">
-      <div className="panel-title"><div><b>새 문서 업로드</b><p>문서가 속한 병원 방문 기록을 선택해주세요.</p></div><button onClick={()=>setUploading(false)}><X/></button></div>
+    {uploading && <div className="modal-backdrop" onMouseDown={closeSheet}><div className="sheet upload-sheet" role="dialog" aria-modal="true" aria-label="문서 업로드" onMouseDown={e=>e.stopPropagation()}>
+      <div className="sheet-handle"/><button className="sheet-close" onClick={closeSheet} disabled={saving} aria-label="닫기"><X/></button>
+      <div className="sheet-heading"><Upload/><div><h3>문서 업로드</h3><p>문서가 속한 병원 방문 기록을 선택해주세요.</p></div></div>
       <label className={`upload-drop ${fileName?'filled':''}`}><input type="file" onChange={e=>{const picked=e.target.files?.[0];setFile(picked||null);setFileName(picked?.name||'')}} accept="image/*,.pdf"/><Upload/><b>{fileName || '파일을 선택하거나 촬영하세요'}</b><small>PDF, JPG, PNG · 최대 20MB</small></label>
       <label className="field-label">연결할 병원 방문 기록</label>
       {!newVisit ? <select className="select-field" value={visit} onChange={e=>setVisit(e.target.value)}>{visits.length?visits.map(v=><option value={v.visitId} key={v.visitId}>{v.visitedOn} · {v.hospitalName||'병원 방문'}</option>):<option value="">방문 기록이 없습니다</option>}</select> : <div className="new-visit-form"><input type="date" defaultValue="2026-10-24"/><input placeholder="병원명" defaultValue="동네봄 소아청소년과"/><input placeholder="방문 목적 (예: 정기 검진)"/></div>}
       <button className="create-link" onClick={()=>setNewVisit(!newVisit)}>{newVisit?<ChevronLeft/>:<Plus/>}{newVisit?' 기존 방문 기록 선택':' 방문 기록이 없나요? 새로 만들기'}</button>
-      <button className="primary-button compact" disabled={saving} onClick={complete}><Link2/> {saving?'업로드 중…':newVisit?'방문 기록 생성하고 연결':'선택한 방문 기록에 연결'}</button>
-    </div>}
+      <button className="primary-button upload-sheet-submit" disabled={saving || !file} onClick={complete}><Upload/> {saving?'올리는 중…':'업로드'}</button>
+      <p className="upload-sheet-hint">방문 기록에 연결해 저장돼요</p>
+    </div></div>}
   </div>;
 }
 
