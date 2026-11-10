@@ -59,6 +59,7 @@ const detailCopy = {
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [authConfig, setAuthConfig] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
   const [tab, setTab] = useState('home');
   const [detail, setDetail] = useState(null);
@@ -128,7 +129,7 @@ function App() {
   };
 
   React.useEffect(() => {
-    Promise.all([api.authConfig().catch(() => null), api.needsRole().catch(() => null), api.me()])
+    Promise.all([api.authConfig().then(config => { setAuthConfig(config); return config; }).catch(() => null), api.needsRole().catch(() => null), api.me()])
       .then(([, , user]) => { setMe(user); setLoggedIn(true); setBackendOnline(true); return loadFamilyData(); })
       .catch(() => {}).finally(() => setAuthReady(true));
   }, []);
@@ -221,7 +222,7 @@ function App() {
       </aside>
 
       <main className={`phone-frame ${!loggedIn ? 'login-frame' : ''}`}>
-        {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} /> : <>
+        {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} authConfig={authConfig} /> : <>
         <header className="topbar">
           {detail ? (
             <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
@@ -273,25 +274,32 @@ function App() {
 
 const DEMO_ACCOUNTS = [['MINJI','김민지','엄마','민'],['SOONJA','김순자','할머니','순'],['JIHUN','박지훈','아빠','지']];
 
-function LoginScreen({ onLogin }) {
-  const [emailOpen, setEmailOpen] = useState(false);
+function LoginScreen({ onLogin, authConfig }) {
+  const [loginFailed, setLoginFailed] = useState(() => new URLSearchParams(window.location.search).has('error'));
+  React.useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('error')) return;
+    url.searchParams.delete('error');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+  const retryLogin = (...args) => { setLoginFailed(false); onLogin(...args); };
   return <div className="login-screen">
     <div className="login-visual"><span className="login-glow one"/><span className="login-glow two"/><div className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt="도담"/></div><div className="login-badge badge-one"><Syringe/><span>예방접종</span></div><div className="login-badge badge-two"><TrendingUp/><span>성장 기록</span></div><div className="login-badge badge-three"><FileText/><span>건강 문서</span></div></div>
     <div className="login-content"><Logo/><span className="eyebrow">FAMILY HEALTH COMPANION</span><h1>아이의 건강한 성장을<br/><strong>도담</strong>과 함께 기록해요.</h1><p>병원 기록부터 예방접종, 성장 발달까지<br/>우리 가족의 건강 정보를 안전하게 관리하세요.</p>
-      {emailOpen && <div className="login-fields"><label>이메일<input type="email" placeholder="name@example.com"/></label><label>비밀번호<input type="password" placeholder="비밀번호를 입력해주세요"/></label></div>}
-      <div className="login-actions"><button className="kakao-button" onClick={()=>onLogin('kakao')}><span>💬</span> 카카오로 3초 만에 시작하기</button><button className="email-button" onClick={()=>emailOpen?onLogin('demo'):setEmailOpen(true)}>{emailOpen?'체험 계정으로 로그인':'이메일로 계속하기'}</button></div>
-      <div className="demo-login">
+      <div className="login-actions"><button className="kakao-button" onClick={()=>retryLogin('kakao')}><span>💬</span> 카카오로 3초 만에 시작하기</button>{authConfig?.demoLogin && <button className="email-button" onClick={()=>retryLogin('demo')}>체험 계정으로 로그인</button>}</div>
+      {authConfig?.demoLogin && <div className="demo-login">
         <div className="demo-login-head"><span>테스트 계정</span><em>비밀번호 없이 바로 입장</em></div>
         <div className="demo-list">
           {DEMO_ACCOUNTS.map(([key, name, relation, initial]) => (
-            <button key={key} className="demo-main" onClick={()=>onLogin('demo', key)}>
+            <button key={key} className="demo-main" onClick={()=>retryLogin('demo', key)}>
               <span className="demo-avatar">{initial}</span>
               <span className="demo-text"><b>{name}</b><small>{relation} · 박도윤, 박다연</small></span>
             </button>
           ))}
         </div>
-      </div>
-      <button className="signup-link">처음이신가요? <b>회원가입</b></button><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
+      </div>}
+      {loginFailed && <p role="alert">로그인을 완료하지 못했어요. 다시 시도해 주세요. 문제가 계속되면 운영팀에 문의해 주세요.</p>}
+      <p>처음 이용하시면 카카오 로그인으로 가입할 수 있어요.</p><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
     </div>
   </div>;
 }
@@ -622,14 +630,20 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
 function DocumentItemDetail({ document, visits, onBack, onToast }) {
   const storageKey=`dodam-document-note-${document.documentId}`;
   const [detail,setDetail]=useState(document), [editing,setEditing]=useState(false);
+  const [detailError,setDetailError]=useState(''), [detailLoading,setDetailLoading]=useState(true), [detailRetry,setDetailRetry]=useState(0);
   const [ai,setAi]=useState(null); const [removing,setRemoving]=useState(false);
   const [meta,setMeta]=useState(()=>{try{return JSON.parse(localStorage.getItem(storageKey))||{name:document.documentName||'',note:''}}catch{return{name:document.documentName||'',note:''}}});
-  React.useEffect(()=>{if(String(document.documentId).startsWith('sample'))return;api.document(document.documentId).then(setDetail).catch(()=>{});},[document.documentId]);
+  React.useEffect(()=>{let active=true;setDetail(document);setDetailError('');
+    if(String(document.documentId).startsWith('sample')){setDetailLoading(false);return;}
+    setDetailLoading(true);api.document(document.documentId).then(value=>{if(active)setDetail(value);})
+      .catch(error=>{if(active)setDetailError(errorMessage(error));}).finally(()=>{if(active)setDetailLoading(false);});
+    return()=>{active=false;};
+  },[document.documentId,detailRetry]);
   React.useEffect(()=>{if(String(document.documentId).startsWith('sample'))return; Promise.all([api.aiDocument(document.documentId),api.aiDocumentStatus(document.documentId),api.aiDocumentSections(document.documentId),api.aiDocumentFacts(document.documentId),api.aiDocumentCitations(document.documentId)]).then(([doc,status,sections,facts,citations])=>setAi({doc,status,sections,facts,citations})).catch(()=>setAi(null));},[document.documentId]);
   const linked=visits.find(v=>v.visitId===detail.visitId);
   const save=()=>{localStorage.setItem(storageKey,JSON.stringify(meta));setEditing(false);onToast('문서 이름과 메모를 수정했어요');};
   const remove=async()=>{if(!window.confirm('이 문서를 삭제할까요?'))return;try{setRemoving(true);await api.deleteDocument(document.documentId);onToast('문서를 삭제했어요');onBack();}catch(e){onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
-  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> 건강 문서로</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">DOCUMENT DETAIL</span><h2>{meta.name||detail.documentName}</h2><p>{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl} target="_blank" rel="noreferrer"><FileText/> 원본 문서 보기</a>}</>}</div>;
+  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> 건강 문서로</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">DOCUMENT DETAIL</span><h2>{meta.name||detail.documentName}</h2><p>{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
 }
 
 
