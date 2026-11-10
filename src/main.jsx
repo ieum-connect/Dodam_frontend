@@ -645,7 +645,7 @@ function MedicalHub({ onOpen, visits = [], documents = [] }) {
 }
 
 function MoreScreen({onOpen, me, child, onProfile, onChild, onLogout}) {
-  const relation = GUARDIAN_RELATION[me?.name] || '보호자';
+  const relation = me?.role === 'PATIENT' ? '아이' : '보호자';
   return <div className="page padded"><div className="page-title"><span className="eyebrow">ALL SERVICES</span><h2>전체</h2><p>내 프로필과 도담의 모든 기능을 한곳에서 관리하세요.</p></div>
     <button className="profile-banner" onClick={onProfile}>
       <span className="profile-banner-avatar">{(me?.name||'도').slice(0,1)}</span>
@@ -683,11 +683,9 @@ function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
   </div></div>;
 }
 
-const GUARDIAN_RELATION = { '김민지':'엄마', '김순자':'할머니', '박지훈':'아빠' };
-
 function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
   const name = child?.fullName || '아이 미선택';
-  const relation = GUARDIAN_RELATION[me?.name] || '보호자';
+  const relation = me?.role === 'PATIENT' ? '아이' : '보호자';
   const [editingName,setEditingName] = useState(false);
   const [profileName,setProfileName] = useState(me?.name || '');
   const [profileError,setProfileError] = useState('');
@@ -758,9 +756,11 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
     <div className="family-block">
       <div className="family-block-head"><b>연결된 가족</b><span>{parents===null?'…':`${parents.length}명`}</span></div>
       {parents===null ? <p className="family-empty">불러오는 중…</p>
-        : parents.length ? <div className="family-members">{parents.map(p=>(
-            <div className="family-member" key={p.userId}><span className="family-avatar">{(p.name||'?').slice(0,1)}</span>
-              <span className="family-text"><b>{p.name}{p.me && ' (나)'}</b><small>{GUARDIAN_RELATION[p.name] || '보호자'}</small></span></div>))}</div>
+        : parents.length ? <div className="family-members">{parents.map(p=>{
+            const displayName = p.me ? (me?.name ?? p.name) : p.name;
+            return <div className="family-member" key={p.userId}><span className="family-avatar">{(displayName||'?').slice(0,1)}</span>
+              <span className="family-text"><b>{displayName}{p.me && ' (나)'}</b><small>보호자</small></span></div>;
+          })}</div>
         : <p className="family-empty">아직 연결된 가족이 없어요.</p>}
     </div>
 
