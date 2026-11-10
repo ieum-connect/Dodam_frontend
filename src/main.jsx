@@ -59,6 +59,7 @@ const detailCopy = {
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [authConfig, setAuthConfig] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
   const [tab, setTab] = useState('home');
   const [detail, setDetail] = useState(null);
@@ -128,7 +129,7 @@ function App() {
   };
 
   React.useEffect(() => {
-    Promise.all([api.authConfig().catch(() => null), api.needsRole().catch(() => null), api.me()])
+    Promise.all([api.authConfig().then(config => { setAuthConfig(config); return config; }).catch(() => null), api.needsRole().catch(() => null), api.me()])
       .then(([, , user]) => { setMe(user); setLoggedIn(true); setBackendOnline(true); return loadFamilyData(); })
       .catch(() => {}).finally(() => setAuthReady(true));
   }, []);
@@ -221,7 +222,7 @@ function App() {
       </aside>
 
       <main className={`phone-frame ${!loggedIn ? 'login-frame' : ''}`}>
-        {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} /> : <>
+        {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} authConfig={authConfig} /> : <>
         <header className="topbar">
           {detail ? (
             <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
@@ -273,14 +274,12 @@ function App() {
 
 const DEMO_ACCOUNTS = [['MINJI','김민지','엄마','민'],['SOONJA','김순자','할머니','순'],['JIHUN','박지훈','아빠','지']];
 
-function LoginScreen({ onLogin }) {
-  const [emailOpen, setEmailOpen] = useState(false);
+function LoginScreen({ onLogin, authConfig }) {
   return <div className="login-screen">
     <div className="login-visual"><span className="login-glow one"/><span className="login-glow two"/><div className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt="도담"/></div><div className="login-badge badge-one"><Syringe/><span>예방접종</span></div><div className="login-badge badge-two"><TrendingUp/><span>성장 기록</span></div><div className="login-badge badge-three"><FileText/><span>건강 문서</span></div></div>
     <div className="login-content"><Logo/><span className="eyebrow">FAMILY HEALTH COMPANION</span><h1>아이의 건강한 성장을<br/><strong>도담</strong>과 함께 기록해요.</h1><p>병원 기록부터 예방접종, 성장 발달까지<br/>우리 가족의 건강 정보를 안전하게 관리하세요.</p>
-      {emailOpen && <div className="login-fields"><label>이메일<input type="email" placeholder="name@example.com"/></label><label>비밀번호<input type="password" placeholder="비밀번호를 입력해주세요"/></label></div>}
-      <div className="login-actions"><button className="kakao-button" onClick={()=>onLogin('kakao')}><span>💬</span> 카카오로 3초 만에 시작하기</button><button className="email-button" onClick={()=>emailOpen?onLogin('demo'):setEmailOpen(true)}>{emailOpen?'체험 계정으로 로그인':'이메일로 계속하기'}</button></div>
-      <div className="demo-login">
+      <div className="login-actions"><button className="kakao-button" onClick={()=>onLogin('kakao')}><span>💬</span> 카카오로 3초 만에 시작하기</button>{authConfig?.demoLogin && <button className="email-button" onClick={()=>onLogin('demo')}>체험 계정으로 로그인</button>}</div>
+      {authConfig?.demoLogin && <div className="demo-login">
         <div className="demo-login-head"><span>테스트 계정</span><em>비밀번호 없이 바로 입장</em></div>
         <div className="demo-list">
           {DEMO_ACCOUNTS.map(([key, name, relation, initial]) => (
@@ -290,8 +289,9 @@ function LoginScreen({ onLogin }) {
             </button>
           ))}
         </div>
-      </div>
-      <button className="signup-link">처음이신가요? <b>회원가입</b></button><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
+      </div>}
+      {new URLSearchParams(window.location.search).has('error') && <p role="alert">로그인을 완료하지 못했어요. 다시 시도해 주세요. 문제가 계속되면 운영팀에 문의해 주세요.</p>}
+      <p>처음 이용하시면 카카오 로그인으로 가입할 수 있어요.</p><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
     </div>
   </div>;
 }
