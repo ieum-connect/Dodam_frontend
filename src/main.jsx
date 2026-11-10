@@ -17,6 +17,7 @@ import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
 import ChildSheet from './ChildSheet';
+import { VaccinationScreen } from './vaccination/VaccinationScreen';
 
 function MarkdownText({ text }) {
   const lines = String(text || '').split(/\r?\n/);
@@ -475,6 +476,7 @@ function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], chil
   if(type==='meds') return <LiveCalendarScreen key={child?.id || 'none'} child={child} onToast={onToast} medicationOnly initialDraft={medicationDraft} />;
   if(type==='welfare') return <WelfarePrototype child={child} onChildOpen={onChildOpen} onBackChange={onWelfareBackChange}/>;
   if(type==='memo') return <MemoScreen key={child?.id || 'none'} onToast={onToast} child={child} backendOnline={backendOnline} onMedication={onMedication}/>;
+  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar}/>;
 
   if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
