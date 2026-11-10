@@ -43,5 +43,5 @@ npm run build
 
 ## PWA 설치
 - 확인: `npm run build && npm run preview` 후 http://localhost:4173 에서 개발자도구 Application 탭(Manifest, Service Workers)을 봅니다. 개발 서버(`npm run dev`)에서는 서비스 워커를 등록하지 않습니다. LAN IP 주소는 HTTPS가 아니라 서비스 워커가 동작하지 않습니다.
-- 캐시 정책: `/api`, `/oauth2`, `/login`, `/logout`과 GET이 아닌 요청, 다른 출처 요청은 서비스 워커가 처리하지 않습니다. 페이지는 네트워크 우선이고 오프라인이면 마지막으로 받은 화면 또는 `offline.html`을 보여 줍니다. `/assets/` 해시 파일만 캐시 우선입니다.
+- 캐시 정책: `/api`, `/oauth2`, `/login`, `/logout`과 GET이 아닌 요청, 다른 출처 요청은 서비스 워커가 처리하지 않습니다. 페이지는 네트워크 우선이고 오프라인이면 마지막으로 받은 화면을 보여 주고, 그 화면에 필요한 `/assets/` 파일이 캐시에 하나라도 없으면 `offline.html`을 보여 줍니다. `/assets/` 해시 파일만 캐시 우선입니다.
 - 배포 주의: HTTPS가 필요합니다. `sw.js`, `index.html`, `manifest.webmanifest`는 `Cache-Control: no-cache`로 내려야 새 버전이 바로 반영됩니다(`/assets/*`는 길게 캐시해도 됩니다). `.webmanifest`는 `application/manifest+json` MIME 타입으로 내려 주세요. `public/sw.js`의 캐시 로직을 바꿀 때만 `VERSION`을 올립니다.
