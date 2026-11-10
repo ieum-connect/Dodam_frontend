@@ -1,3 +1,5 @@
+import { documentDisplayName } from './documentName.js';
+
 export function localDay(value) {
   if (!value) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -34,7 +36,7 @@ export function buildTimeline({ visits = [], documents = [], memos = [], schedul
       body: [v.department, v.memo].filter(Boolean).join(' · '), route: 'records', routeLabel: '병원 방문 목록 열기', label: '방문일',
     })),
     ...documents.map(d => ({
-      id: `document-${d.documentId}`, kind: 'documents', date: d.createdAt, title: d.documentName || '건강 문서',
+      id: `document-${d.documentId}`, kind: 'documents', date: d.createdAt, title: documentDisplayName(d, '건강 문서'),
       body: linkedVisit(d.visitId), route: 'documents', routeLabel: '건강 문서 목록 열기', label: '업로드',
     })),
     ...memos.map(m => ({
