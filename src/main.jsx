@@ -797,3 +797,9 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
 }
 
 createRoot(document.getElementById('root')).render(<App />);
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => console.warn('서비스 워커 등록 실패', error));
+  });
+}

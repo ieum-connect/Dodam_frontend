@@ -40,3 +40,8 @@ npm run build
 - 통합 기록: 병원 방문·문서·메모·일정을 날짜별로 조회하며 첫 페이지만이 아닌 전체 커서를 읽습니다.
 - 회귀 검사: `node --test src/growth.test.js src/timeline.test.js` 및 `npm run build`.
 - 필요한 API: Backend의 복약·메모 연동 PR 및 성장 기록 PR을 먼저 반영합니다. 실제 앱 푸시·운영 배포는 별도입니다.
+
+## PWA 설치
+- 확인: `npm run build && npm run preview` 후 http://localhost:4173 에서 개발자도구 Application 탭(Manifest, Service Workers)을 봅니다. 개발 서버(`npm run dev`)에서는 서비스 워커를 등록하지 않습니다. LAN IP 주소는 HTTPS가 아니라 서비스 워커가 동작하지 않습니다.
+- 캐시 정책: `/api`, `/oauth2`, `/login`, `/logout`과 GET이 아닌 요청, 다른 출처 요청은 서비스 워커가 처리하지 않습니다. 페이지는 네트워크 우선이고 오프라인이면 마지막으로 받은 화면 또는 `offline.html`을 보여 줍니다. `/assets/` 해시 파일만 캐시 우선입니다.
+- 배포 주의: HTTPS가 필요합니다. `sw.js`, `index.html`, `manifest.webmanifest`는 `Cache-Control: no-cache`로 내려야 새 버전이 바로 반영됩니다(`/assets/*`는 길게 캐시해도 됩니다). `.webmanifest`는 `application/manifest+json` MIME 타입으로 내려 주세요. `public/sw.js`의 캐시 로직을 바꿀 때만 `VERSION`을 올립니다.
