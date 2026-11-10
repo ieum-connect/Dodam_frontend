@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, ChevronRight, CheckCircle2, UserRoundPlus, Link2, UsersRound } from 'lucide-react';
 import { api, errorMessage } from './api';
 import './child-sheet.css';
+import { useBackLayer } from './backNavigation';
 
 function localDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -22,6 +23,7 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
   const oldest = new Date(today.getFullYear() - 19, today.getMonth(), today.getDate());
   const changeMode = (next) => { setError(''); setMode(next); };
   const close = () => { if (!pending.current) onClose(); };
+  useBackLayer(true, () => (pending.current ? false : onClose()));
 
   useEffect(() => {
     const previous = document.activeElement;

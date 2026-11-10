@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Gift, Link2, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import './welfare.css';
 import { api, errorMessage } from '../api';
+import { useBackLayer } from '../backNavigation';
 
 const EMPTY_PROFILE = { region:'', regionCode:'', household:'', income:'', childcare:'', childCount:'', dualIncome:false, singleParent:false, multicultural:false, disability:false };
 const isRegionCode = value => /^\d{10}$/.test(String(value||''));
@@ -52,6 +53,8 @@ export function WelfarePrototype({ child, onChildOpen, onBackChange }) {
     api.welfareRecommendations(childId,'SUGGESTIVE').then(result=>{ if(!active)return; setRecommendations((result?.items||[]).map(recommendationFromApi)); setChildContext(result?.child||null); setExcludedCount(result?.excludedCount||0); })
       .catch(e=>{ if(!active)return; setRecommendations([]);setChildContext(null);setError(errorMessage(e,'맞춤 추천을 불러오지 못했어요.')) }).finally(()=>active&&setLoading(false)); return()=>{active=false}; },[childId,revision]);
   useEffect(()=>{onBackChange?.(selected?()=>()=>setSelected(null):()=>null);return()=>onBackChange?.(()=>null)},[selected,onBackChange]);
+  useBackLayer(profileOpen,()=>setProfileOpen(false));
+  useBackLayer(confirmOpen,()=>setConfirmOpen(false));
   const visible=useMemo(()=>recommendations.filter(item=>`${item.name||''} ${item.summary||''} ${item.agency||''}`.includes(query.trim())).slice().sort((a,b)=>sort==='추천순'?0:(a.name||'').localeCompare(b.name||'','ko')),[recommendations,query,sort]);
 
   useEffect(()=>{ if(!selected){setDetail(null);return} let active=true; setDetail(null);
