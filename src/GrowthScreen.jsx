@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Ruler, Scale, TrendingUp, Pencil, Trash2, X, MoreHorizontal } from 'lucide-react';
 import { api, errorMessage } from './api';
 import { growthRange, growthPoints, growthPosition, stamp, newestGrowthFirst } from './growth';
+import { useBackLayer } from './backNavigation';
 
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
 const blank = () => ({ measuredOn: today(), heightCm: '', weightKg: '', note: '' });
@@ -49,6 +50,7 @@ export default function GrowthScreen({ child, onToast }) {
   const range = useMemo(() => growthRange(period, today(), records), [records, period]);
   const visible = useMemo(() => records.filter(row => row.measuredOn >= range.from && row.measuredOn <= range.to), [records, range]);
   useEffect(() => { setForm(null); setDeleting(null); setFormError(''); }, [child?.id]);
+  useBackLayer(!!deleting, () => (busy ? false : setDeleting(null)));
   const save = async event => {
     event.preventDefault();
     if (!form.heightCm && !form.weightKg) { setFormError('키 또는 몸무게를 하나 이상 입력해주세요.'); return; }

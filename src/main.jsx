@@ -18,6 +18,7 @@ import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
 import ChildSheet from './ChildSheet';
 import { VaccinationScreen } from './vaccination/VaccinationScreen';
+import { useBackLayer, useRootBack } from './backNavigation';
 
 function MarkdownText({ text }) {
   const lines = String(text || '').split(/\r?\n/);
@@ -204,6 +205,12 @@ function App() {
     if (id === 'chat' || id === 'calendar') { setTab(id); setDetail(null); return; }
     setDetail(id);
   };
+  useRootBack(() => showToast('한 번 더 누르면 종료돼요'));
+  useBackLayer(tab !== 'home', () => navigate('home'));
+  useBackLayer(!!detail, () => setDetail(null));
+  useBackLayer(!!welfareBackHandler, () => welfareBackHandler?.());
+  useBackLayer(notiOpen, () => setNotiOpen(false));
+  useBackLayer(profileOpen, () => setProfileOpen(false));
 
   return (
     <div className="app-shell">
@@ -362,6 +369,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   const [chatError, setChatError] = useState(null);
   const [docPicker, setDocPicker] = useState(false);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+  useBackLayer(!historyOpen, () => setHistoryOpen(true));
 
   const prepareDocumentExplanation = () => {
     setInput('선택한 건강 문서의 내용을 쉽게 설명해줘');
@@ -523,6 +531,7 @@ function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDat
     } catch (error) { onToast(error.message || '방문 기록을 저장하지 못했어요'); }
     finally { setSaving(false); }
   };
+  useBackLayer(!!selectedVisit, () => setSelectedVisit(null));
   if (!child?.id) return <ChildRequiredState icon={Stethoscope} title="병원 방문 기록" onChildOpen={onChildOpen}/>;
   if (selectedVisit) return <VisitItemDetail visit={selectedVisit} child={child} documents={documents} backendOnline={backendOnline} onBack={()=>setSelectedVisit(null)} onSaved={async(updated)=>{await onDataChange?.();setSelectedVisit(updated)}} onToast={onToast}/>;
   const visibleVisits = selectedDate ? visits.filter(v=>v.visitedOn===selectedDate) : visits;
@@ -604,6 +613,8 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
     finally { setSaving(false); }
   };
   const closeSheet = () => { if (!saving) setUploading(false); };
+  useBackLayer(!!selectedDocument, () => setSelectedDocument(null));
+  useBackLayer(uploading, () => (saving ? false : closeSheet()));
   if (!child?.id) return <ChildRequiredState icon={FileText} title="건강 문서" onChildOpen={onChildOpen}/>;
   if(selectedDocument) return <DocumentItemDetail document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast}/>;
   return <div className="page padded detail-page">
