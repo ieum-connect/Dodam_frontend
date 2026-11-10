@@ -47,8 +47,23 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  growthRecords: (patientId) => request(`/api/growth-records?${new URLSearchParams({ patientId })}`),
+  createGrowth: (body) => request('/api/growth-records', { method: 'POST', body: JSON.stringify(body) }),
+  updateGrowth: (id, body) => request(`/api/growth-records/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteGrowth: (id, version) => request(`/api/growth-records/${id}?version=${version}`, { method: 'DELETE' }),
+  timelinePage: (kind, patientId, cursor, signal) => request(`/api/${kind}?${new URLSearchParams({ patientId, size: '50', ...(cursor ? { cursor } : {}) })}`, { signal }),
+  actionItems: (patientId) => request(`/api/action-items?patientId=${encodeURIComponent(patientId)}`),
+  approveAction: (id, startsAt) => request(`/api/action-items/${id}/approve`, { method: 'POST', body: JSON.stringify({ startsAt }) }),
+  rejectAction: (id) => request(`/api/action-items/${id}/reject`, { method: 'POST' }),
+  schedules: (patientId, from, to) => request(`/api/schedules?${new URLSearchParams({ patientId, from, to })}`),
+  createSchedule: (body) => request('/api/schedules', { method: 'POST', body: JSON.stringify(body) }),
+  createScheduleBatch: (body) => request('/api/schedule-batches', { method: 'POST', body: JSON.stringify(body) }),
+  updateSchedule: (id, body) => request(`/api/schedules/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  completeSchedule: (id) => request(`/api/schedules/${id}/complete`, { method: 'POST' }),
+  cancelSchedule: (id) => request(`/api/schedules/${id}`, { method: 'DELETE' }),
   authConfig: () => request('/api/auth/config'),
   me: () => request('/api/me'),
+  updateMyProfile: (body) => request('/api/me/profile', { method: 'PUT', body: JSON.stringify(body) }),
   demoLogin: (account) => request('/api/demo/login', { method: 'POST', body: JSON.stringify(account ? { account } : { role: 'CAREGIVER' }) }),
   kakaoLoginUrl: `${API_BASE}/oauth2/authorization/kakao`,
   logout: () => request('/logout', { method: 'POST' }),
@@ -70,7 +85,14 @@ export const api = {
   chatSessions: (patientId) => request(`/api/ai-chat-sessions${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
   createChatSession: (patientId, title) => request('/api/ai-chat-sessions', { method: 'POST', body: JSON.stringify({ patientId, title }) }),
   chatMessages: (sessionId) => request(`/api/ai-chat-sessions/${sessionId}/messages`),
-  askChat: (sessionId, question, documentIds, questionType = 'DOCUMENT_EASY_EXPLANATION') => request(`/api/ai-chat-sessions/${sessionId}/messages`, { method: 'POST', body: JSON.stringify({ question, questionType, documentIds }) }),
+  askChat: (sessionId, question, documentIds) => request(`/api/ai-chat-sessions/${sessionId}/messages`, { method: 'POST', body: JSON.stringify({ question, documentIds }) }),
+  memoTags: patientId => request(`/api/memo-tags?patientId=${encodeURIComponent(patientId)}`),
+  createMemoTag: body => request('/api/memo-tags', {method:'POST',body:JSON.stringify(body)}),
+  updateMemoTag: (id,body) => request(`/api/memo-tags/${id}`, {method:'PUT',body:JSON.stringify(body)}),
+  deleteMemoTag: (id,version) => request(`/api/memo-tags/${id}?version=${version}`, {method:'DELETE'}),
+  medicationSeries: patientId => request(`/api/medication-series?patientId=${encodeURIComponent(patientId)}`),
+  createMedicationSeries: body => request('/api/medication-series',{method:'POST',body:JSON.stringify(body)}),
+  stopMedicationSeries: id => request(`/api/medication-series/${id}/stop`,{method:'POST'}),
   healthRecords: (patientId) => request(`/api/health-records${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
   createHealthRecord: (body) => request('/api/health-records', { method: 'POST', body: JSON.stringify(body) }),
   updateHealthRecord: (recordId, body) => request(`/api/health-records/${recordId}`, { method: 'PUT', body: JSON.stringify(body) }),
@@ -91,6 +113,27 @@ export const api = {
   updateChild: (childId, body) => request(`/api/children/${childId}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVisit: (visitId) => request(`/api/visits/${visitId}`, { method: 'DELETE' }),
   deleteDocument: (documentId) => request(`/api/documents/${documentId}`, { method: 'DELETE' }),
+  welfarePrograms: (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value != null && value !== '')).toString();
+    return request(`/api/welfare-programs${query ? `?${query}` : ''}`);
+  },
+  welfareProgram: (programId) => request(`/api/welfare-programs/${programId}`),
+  welfareProfile: (patientId) => request(`/api/welfare-profiles?patientId=${encodeURIComponent(patientId)}`),
+  welfareProfileOptions: () => request('/api/welfare-profiles/options'),
+  welfareRegions: (level = 'PROVINCE', parentCode) => {
+    const query = new URLSearchParams({ level, ...(parentCode ? { parentCode } : {}) });
+    return request(`/api/welfare-regions?${query}`);
+  },
+  saveWelfareProfile: (patientId, body) => request(`/api/welfare-profiles/${patientId}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteWelfareProfile: (patientId) => request(`/api/welfare-profiles/${patientId}`, { method: 'DELETE' }),
+  welfareRecommendations: (patientId, type) => {
+    const query = new URLSearchParams({ patientId, ...(type ? { type } : {}) }).toString();
+    return request(`/api/welfare-recommendations?${query}`);
+  },
+  welfareAiExplain: (patientId, body) => request(`/api/welfare-explanations?patientId=${encodeURIComponent(patientId)}`, { method: 'POST', body: JSON.stringify(body) }),
+  welfareFavorites: (patientId) => request(`/api/welfare-favorites?patientId=${encodeURIComponent(patientId)}`),
+  addWelfareFavorite: (patientId, programId) => request(`/api/welfare-favorites?patientId=${encodeURIComponent(patientId)}&programId=${encodeURIComponent(programId)}`, { method: 'POST' }),
+  removeWelfareFavorite: (patientId, programId) => request(`/api/welfare-favorites/${encodeURIComponent(programId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'DELETE' }),
   aiDocuments: (params = {}) => {
     const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value != null && value !== '')).toString();
     return request(`/api/ai-documents${query ? `?${query}` : ''}`);
@@ -100,6 +143,9 @@ export const api = {
   aiDocumentFacts: (documentId) => request(`/api/ai-documents/${documentId}/facts`),
   aiDocumentCitations: (documentId, sectionId) => request(`/api/ai-documents/${documentId}/citations${sectionId ? `?sectionId=${encodeURIComponent(sectionId)}` : ''}`),
   aiDocumentPage: (documentId, pageNo, anchorId) => request(`/api/ai-documents/${documentId}/pages/${pageNo}${anchorId ? `?anchorId=${encodeURIComponent(anchorId)}` : ''}`),
+  vaccinations: (patientId) => request(`/api/vaccinations?patientId=${encodeURIComponent(patientId)}`),
+  checkVaccination: (patientId, doseId) => request(`/api/vaccinations/checks/${encodeURIComponent(doseId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'PUT' }),
+  uncheckVaccination: (patientId, doseId) => request(`/api/vaccinations/checks/${encodeURIComponent(doseId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'DELETE' }),
   accounts: () => request('/api/accounts'),
   switchAccount: (role) => request('/api/accounts/switch', { method: 'POST', body: JSON.stringify({ role }) }),
   needsRole: () => request('/api/auth/needs-role'),
