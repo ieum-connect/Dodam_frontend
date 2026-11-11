@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Pill, CalendarDays, Check, Clock3, Sparkles, RefreshCw, Bell, Pencil, X, MoreHorizontal } from 'lucide-react';
 import { api, errorMessage } from './api';
+import { useBackLayer } from './backNavigation';
+import { calendarVisits, visitLabel } from './calendarVisits';
 
 const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 const localInput = (value) => {
@@ -12,23 +14,34 @@ const localInput = (value) => {
 export function TodaySchedules({ child, onOpen }) {
   const [rows,setRows] = useState(null);
   const [failed,setFailed] = useState(false);
+  const [visits,setVisits] = useState([]);
+  const [visitsFailed,setVisitsFailed] = useState(false);
   useEffect(()=>{
     let canceled=false;
-    setRows(null); setFailed(false);
+    setRows(null); setFailed(false); setVisits([]); setVisitsFailed(false);
     if (!child?.id) { setRows([]); return; }
     const start=new Date(); start.setHours(0,0,0,0);
     const end=new Date(start); end.setDate(end.getDate()+1);
     api.schedules(child.id,start.toISOString(),end.toISOString())
-      .then(result=>{ if(!canceled) setRows(result.filter(row => row.status !== 'CANCELLED')); })
-      .catch(()=>{ if(!canceled) setFailed(true); });
+      .then(result=>{if(!canceled)setRows(result.filter(row=>row.status!=='CANCELLED'));})
+      .catch(()=>{if(!canceled)setFailed(true);});
+    calendarVisits(child.id)
+      .then(records=>{if(!canceled)setVisits(records.filter(v=>v.visitedOn===localDate(start)));})
+      .catch(()=>{if(!canceled)setVisitsFailed(true);});
     return ()=>{canceled=true;};
   },[child?.id]);
   return <section className="today-card"><div className="section-heading"><div><span className="eyebrow">TODAY</span><h3>오늘의 건강 일정</h3></div><button onClick={()=>onOpen('calendar')}>전체보기</button></div>
-    {failed ? <p>일정을 불러오지 못했어요. 캘린더에서 다시 확인해주세요.</p> : rows===null ? <p>일정을 불러오는 중이에요.</p> : rows.length===0 ? <p>오늘 등록된 일정이 없어요.</p> : rows.map(row=><div className="timeline-item" key={row.id}><span className="time">{new Date(row.startsAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</span><span className={`timeline-dot ${row.status === 'COMPLETED' ? 'done' : 'pink'}`}/><div><b>{row.title}</b><small className="today-schedule-status">{row.status === 'COMPLETED' ? '완료' : '예정'}</small></div></div>)}
+    {failed ? <p>일정을 불러오지 못했어요. 캘린더에서 다시 확인해주세요.</p> : rows===null ? <p>일정을 불러오는 중이에요.</p> : rows.length===0 && visits.length===0 && !visitsFailed ? <p>오늘 등록된 일정이 없어요.</p> : rows.map(row=><div className="timeline-item" key={row.id}><span className="time">{new Date(row.startsAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</span><span className={`timeline-dot ${row.status === 'COMPLETED' ? 'done' : 'pink'}`}/><div><b>{row.title}</b><small className="today-schedule-status">{row.status === 'COMPLETED' ? '완료' : '예정'}</small></div></div>)}
+    {visitsFailed && <p role="status">병원 방문 기록을 불러오지 못했어요. 캘린더에서 다시 확인해주세요.</p>}
+    {visits.map(visit=><button className="today-visit-row" key={visit.visitId} onClick={()=>onOpen('calendar')}><CalendarDays size={18}/><span><b>{visit.hospitalName || '병원 방문'}{visit.department ? ` · ${visit.department}` : ''}</b><small>{visitLabel(visit)} · 시간 정보 없음</small></span><ChevronRight size={16}/></button>)}
   </section>;
 }
 
-export default function CalendarScreen({ child, onToast, medicationOnly = false, initialDate, initialDraft }) {
+export default function CalendarScreen({ child, onToast, medicationOnly = false, initialDate, initialDraft, renderVisit }) {
+  const [visits, setVisits] = useState([]);
+  const [visitError, setVisitError] = useState('');
+  const [visitLoading, setVisitLoading] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState(null);
   const [month, setMonth] = useState(() => {
     const date = initialDate ? new Date(initialDate) : new Date();
     return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -53,6 +66,17 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
     if (editorOpen) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [editorOpen]);
   const [revision, setRevision] = useState(0);
+  useEffect(()=>{
+    let active=true;
+    setVisits([]); setVisitError(''); setSelectedVisit(null); setVisitLoading(false);
+    if (!child?.id || medicationOnly) return;
+    setVisitLoading(true);
+    calendarVisits(child.id).then(result=>{if(active)setVisits(result);})
+      .catch(e=>{if(active)setVisitError(errorMessage(e));})
+      .finally(()=>{if(active)setVisitLoading(false);});
+    return ()=>{active=false;};
+  },[child?.id,medicationOnly,revision]);
+  useBackLayer(!!selectedVisit, ()=>{setSelectedVisit(null);setRevision(n=>n+1);});
   const [source, setSource] = useState(null);
   useEffect(() => {
     setForm(initialDraft?.patientId===child?.id ? {requestId:initialDraft.id,title:'',scheduleType:'MEDICATION',startsAt:'',notes:initialDraft.notes,repeatMode:'ONCE',endDate:'',fromMemo:true,truncated:initialDraft.truncated} : null);
@@ -95,7 +119,7 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
       .finally(() => { if (!canceled) setCandidatesLoading(false); });
     return () => { canceled = true; };
   }, [child?.id, revision, medicationOnly]);
-  const marked = useMemo(()=>new Set(rows.filter(row => row.status !== 'CANCELLED').map(row=>localDate(new Date(row.startsAt)))),[rows]);
+  const marked = useMemo(()=>new Set([...rows.filter(row => row.status !== 'CANCELLED').map(row=>localDate(new Date(row.startsAt))),...visits.map(v=>v.visitedOn)]),[rows,visits]);
   const cells = [...Array(month.getDay()).fill(null),...Array.from({length:new Date(month.getFullYear(),month.getMonth()+1,0).getDate()},(_,i)=>i+1)];
   const move = (delta) => { const next=new Date(month.getFullYear(),month.getMonth()+delta,1); setMonth(next); setSelected(localDate(next)); };
   const execute = async (work, message, { refreshOnFailure = false, closeForm = false } = {}) => {
@@ -120,6 +144,7 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
     finally { setBusy(false); }
   };
   if (!child?.id) return <div className="page padded"><h2>가족 건강 일정</h2><p>아이를 등록하거나 선택하면 일정을 관리할 수 있어요.</p></div>;
+  if (selectedVisit && renderVisit) return renderVisit(selectedVisit, ()=>{setSelectedVisit(null);setRevision(n=>n+1);}, updated=>setSelectedVisit(updated));
   const selectedRows = rows.filter(row => row.status !== 'CANCELLED' && localDate(new Date(row.startsAt)) === selected);
   const repeatDays = form?.endDate && form?.startsAt ? Math.round((Date.parse(`${form.endDate}T00:00:00Z`) - Date.parse(`${form.startsAt.slice(0,10)}T00:00:00Z`)) / 86400000) + 1 : null;
   const completedCount = selectedRows.filter(row => row.status === 'COMPLETED').length;
@@ -137,8 +162,11 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
     </div>}
     {loading && <p role="status">일정을 불러오는 중이에요.</p>}
     {error && <div role="alert"><p>{error}</p><button onClick={()=>setRevision(n=>n+1)}>다시 불러오기</button></div>}
-    <section className="care-day-section"><div className="care-day-heading"><div><h3>{selectedLabel}</h3></div><span className="care-count">{completedCount} / {selectedRows.length} 완료</span></div>
-    {!loading && !error && !marked.has(selected) && <div className="care-empty"><CalendarDays/><b>아직 등록된 일정이 없어요</b><p>{medicationOnly?'위의 복약 등록으로 추가하세요.':'위의 일정 추가로 등록하세요.'}</p></div>}
+    <section className="care-day-section"><div className="care-day-heading"><div><h3>{selectedLabel}</h3></div><span className="care-count">일정 {completedCount} / {selectedRows.length} 완료</span></div>
+    {visitLoading && <p role="status">병원 방문 기록을 불러오는 중이에요.</p>}
+    {visitError && <p role="alert">방문 기록: {visitError} <button onClick={()=>setRevision(n=>n+1)}>다시 불러오기</button></p>}
+    {!loading && !visitLoading && !visitError && !error && !marked.has(selected) && <div className="care-empty"><CalendarDays/><b>아직 등록된 일정이 없어요</b><p>{medicationOnly?'위의 복약 등록으로 추가하세요.':'위의 일정 추가로 등록하세요.'}</p></div>}
+    {visits.filter(v=>v.visitedOn===selected).map(visit=><button className="calendar-visit-row" key={visit.visitId} onClick={()=>setSelectedVisit(visit)}><span className="care-schedule-icon"><CalendarDays/></span><span><small>{visitLabel(visit)} · 시간 정보 없음</small><b>{visit.hospitalName || '병원 방문'}</b><span>{visit.department || '진료 기록'} · 방문 기록 및 연결 문서 보기</span></span><ChevronRight size={18}/></button>)}
     <div className="schedule-list">{selectedRows.map(row => <div className={`schedule care-schedule ${row.status === 'COMPLETED' ? 'is-complete' : ''}`} key={row.id}><span className="care-schedule-icon">{row.status === 'COMPLETED' ? <Check/> : row.scheduleType === 'MEDICATION' ? <Pill/> : <CalendarDays/>}</span><div className="care-schedule-body">
       <div className="care-schedule-meta"><small><Clock3/>{new Date(row.startsAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</small><span className="care-status">{row.status === 'COMPLETED' ? '완료' : new Date(row.startsAt) < new Date() ? '시간 지남' : '예정'}</span></div><b>{row.title}</b>
       {row.notes && <p className="care-notes">{row.notes}</p>}

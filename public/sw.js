@@ -1,10 +1,33 @@
 // 도담 서비스 워커. sw.js의 캐시 로직을 바꿀 때만 VERSION을 올린다.
 // 정적 파일 배포는 VERSION을 올리지 않아도 된다: index.html은 네트워크 우선이고, /assets/는 파일 이름에 해시가 붙는다.
-const VERSION = 'dodam-v2';
+const VERSION = 'dodam-v3';
 const PRECACHE = ['/', '/index.html', '/offline.html', '/manifest.webmanifest', '/icon-192.png'];
 const ASSET_LIMIT = 40; // 배포마다 쌓이는 옛 해시 파일 상한(현재 index.html이 쓰는 파일은 제외)
 // SW가 처리하지 않고 브라우저가 바로 네트워크로 보내는 경로(API, 로그인 흐름)
 const BYPASS = ['/api', '/oauth2', '/login', '/logout'];
+
+// FCM data-only messages: one display path, no second Firebase worker/auto-display.
+self.addEventListener('push', event => {
+  let payload;
+  try { payload = event.data?.json(); } catch { return; }
+  const data = payload?.data;
+  if (data?.kind !== 'dodam-reminder' || !/^[0-9a-f-]{36}$/i.test(data.notificationId || '')) return;
+  event.waitUntil(self.registration.showNotification('도담 알림', {
+    body: '확인할 복약 또는 일정이 있어요. 도담에서 확인해주세요.',
+    icon: '/icon-192.png', tag: `dodam-${data.notificationId}`,
+    data: { url: '/?push=1' }
+  }));
+});
+self.addEventListener('notificationclick', event => {
+  if (event.notification.data?.url !== '/?push=1') return;
+  event.notification.close();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = windows.find(client => new URL(client.url).origin === self.location.origin);
+    if (existing) { existing.postMessage({ type: 'DODAM_OPEN_NOTIFICATIONS' }); await existing.focus(); }
+    else await self.clients.openWindow('/?push=1');
+  })());
+});
 
 const warn = (what, error) => console.warn(`[sw] ${what}`, error?.message || error);
 

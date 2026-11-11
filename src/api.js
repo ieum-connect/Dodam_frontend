@@ -47,6 +47,9 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  pushConfig: () => request('/api/push/config'),
+  registerPush: token => request('/api/push/devices', { method: 'POST', body: JSON.stringify({ token }) }),
+  unregisterPush: token => request('/api/push/devices', { method: 'DELETE', body: JSON.stringify({ token }) }),
   growthRecords: (patientId) => request(`/api/growth-records?${new URLSearchParams({ patientId })}`),
   createGrowth: (body) => request('/api/growth-records', { method: 'POST', body: JSON.stringify(body) }),
   updateGrowth: (id, body) => request(`/api/growth-records/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
@@ -71,11 +74,11 @@ export const api = {
   createChild: (body) => request('/api/children', { method: 'POST', body: JSON.stringify(body) }),
   childParents: (childId) => request(`/api/children/${childId}/parents`),
   joinChild: (inviteCode) => request('/api/children/join', { method: 'POST', body: JSON.stringify({ inviteCode }) }),
-  visits: (patientId) => request(`/api/visits${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
+  visits: (patientId, cursor) => request(`/api/visits?${new URLSearchParams({ ...(patientId ? {patientId} : {}), ...(cursor ? {cursor} : {}) })}`),
   visit: (visitId) => request(`/api/visits/${visitId}`),
   createVisit: (body) => request('/api/visits', { method: 'POST', body: JSON.stringify(body) }),
   updateVisit: (visitId, body) => request(`/api/visits/${visitId}`, { method: 'PUT', body: JSON.stringify(body) }),
-  documents: (patientId) => request(`/api/documents${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`),
+  documents: (patientId, visitId, cursor) => request(`/api/documents?${new URLSearchParams({...(patientId?{patientId}:{}),...(visitId?{visitId}:{}),...(cursor?{cursor}:{})})}`),
   document: (documentId) => request(`/api/documents/${documentId}`),
   uploadDocument: (visitId, file, declaredDocType) => {
     const form = new FormData(); form.append('file', file);
@@ -147,7 +150,11 @@ export const api = {
   checkVaccination: (patientId, doseId) => request(`/api/vaccinations/checks/${encodeURIComponent(doseId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'PUT' }),
   uncheckVaccination: (patientId, doseId) => request(`/api/vaccinations/checks/${encodeURIComponent(doseId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'DELETE' }),
   accounts: () => request('/api/accounts'),
-  switchAccount: (role) => request('/api/accounts/switch', { method: 'POST', body: JSON.stringify({ role }) }),
+  switchAccount: async (role) => {
+    const { disablePush } = await import('./push');
+    await disablePush().catch(() => {});
+    return request('/api/accounts/switch', { method: 'POST', body: JSON.stringify({ role }) });
+  },
   needsRole: () => request('/api/auth/needs-role'),
   setRole: (role) => request('/api/role', { method: 'POST', body: JSON.stringify({ role }) }),
   updateMyRole: (role) => request('/api/me/role', { method: 'PUT', body: JSON.stringify({ role }) }),

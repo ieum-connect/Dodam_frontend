@@ -7,10 +7,10 @@ export default defineConfig({
     port: 4173,
     proxy: {
       '/api/v1': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/api': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/api': { target: process.env.DODAM_BACKEND_URL || 'http://127.0.0.1:8081', changeOrigin: true },
       '/oauth2': { target: 'http://127.0.0.1:8081', changeOrigin: true },
       '/login/oauth2': { target: 'http://127.0.0.1:8081', changeOrigin: true },
-      '/logout': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/logout': { target: process.env.DODAM_BACKEND_URL || 'http://127.0.0.1:8081', changeOrigin: true },
     },
   },
 });
