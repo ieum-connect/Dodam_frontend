@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, Pill, CalendarDays, Check, Clock3, Spa
 import { api, errorMessage } from './api';
 import { useBackLayer } from './backNavigation';
 import { calendarVisits, visitLabel } from './calendarVisits';
+import ChildRequiredState from './ChildRequiredState';
 
 const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 const localInput = (value) => {
@@ -37,7 +38,7 @@ export function TodaySchedules({ child, onOpen }) {
   </section>;
 }
 
-export default function CalendarScreen({ child, onToast, medicationOnly = false, initialDate, initialDraft, renderVisit }) {
+export default function CalendarScreen({ child, onToast, onChildOpen, medicationOnly = false, initialDate, initialDraft, renderVisit }) {
   const [visits, setVisits] = useState([]);
   const [visitError, setVisitError] = useState('');
   const [visitLoading, setVisitLoading] = useState(false);
@@ -79,7 +80,8 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
   useBackLayer(!!selectedVisit, ()=>{setSelectedVisit(null);setRevision(n=>n+1);});
   const [source, setSource] = useState(null);
   useEffect(() => {
-    setForm(initialDraft?.patientId===child?.id ? {requestId:initialDraft.id,title:'',scheduleType:'MEDICATION',startsAt:'',notes:initialDraft.notes,repeatMode:'ONCE',endDate:'',fromMemo:true,truncated:initialDraft.truncated} : null);
+    const draftForSelectedChild = child?.id && initialDraft?.patientId === child.id;
+    setForm(draftForSelectedChild ? {requestId:initialDraft.id,title:'',scheduleType:'MEDICATION',startsAt:'',notes:initialDraft.notes,repeatMode:'ONCE',endDate:'',fromMemo:true,truncated:initialDraft.truncated} : null);
     setCandidates([]); setDates({}); setSource(null); setStoppingSeries(null);
   }, [child?.id, medicationOnly, initialDraft?.id]);
   useEffect(()=>{let active=true;setSeries([]);setSeriesError('');if(!child?.id)return;
@@ -143,7 +145,13 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
     }
     finally { setBusy(false); }
   };
-  if (!child?.id) return <div className="page padded"><h2>가족 건강 일정</h2><p>아이를 등록하거나 선택하면 일정을 관리할 수 있어요.</p></div>;
+  if (!child?.id) return <ChildRequiredState
+    icon={medicationOnly ? Pill : CalendarDays}
+    title={medicationOnly ? '복용약' : '가족 건강 일정'}
+    description={medicationOnly ? '복용 시간과 복약 알림을 관리해요.' : '복약·진료·접종 일정을 한곳에서 확인해요.'}
+    message={medicationOnly ? '복용약을 등록하려면 아이 프로필이 필요해요.' : '일정을 등록하려면 아이 프로필이 필요해요.'}
+    onChildOpen={onChildOpen}
+  />;
   if (selectedVisit && renderVisit) return renderVisit(selectedVisit, ()=>{setSelectedVisit(null);setRevision(n=>n+1);}, updated=>setSelectedVisit(updated));
   const selectedRows = rows.filter(row => row.status !== 'CANCELLED' && localDate(new Date(row.startsAt)) === selected);
   const repeatDays = form?.endDate && form?.startsAt ? Math.round((Date.parse(`${form.endDate}T00:00:00Z`) - Date.parse(`${form.startsAt.slice(0,10)}T00:00:00Z`)) / 86400000) + 1 : null;
@@ -165,12 +173,12 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
     <section className="care-day-section"><div className="care-day-heading"><div><h3>{selectedLabel}</h3></div><span className="care-count">일정 {completedCount} / {selectedRows.length} 완료</span></div>
     {visitLoading && <p role="status">병원 방문 기록을 불러오는 중이에요.</p>}
     {visitError && <p role="alert">방문 기록: {visitError} <button onClick={()=>setRevision(n=>n+1)}>다시 불러오기</button></p>}
-    {!loading && !visitLoading && !visitError && !error && !marked.has(selected) && <div className="care-empty"><CalendarDays/><b>아직 등록된 일정이 없어요</b><p>{medicationOnly?'위의 복약 등록으로 추가하세요.':'위의 일정 추가로 등록하세요.'}</p></div>}
+    {!loading && !visitLoading && !visitError && !error && !marked.has(selected) && <div className="care-empty">{medicationOnly ? <Pill/> : <CalendarDays/>}<b>{medicationOnly ? '이 날짜에 등록된 복용약이 없어요' : '아직 등록된 일정이 없어요'}</b><p>{medicationOnly ? '복약 등록을 눌러 복용 시간과 용량을 남겨보세요.' : '위의 일정 추가로 등록하세요.'}</p></div>}
     {visits.filter(v=>v.visitedOn===selected).map(visit=><button className="calendar-visit-row" key={visit.visitId} onClick={()=>setSelectedVisit(visit)}><span className="care-schedule-icon"><CalendarDays/></span><span><small>{visitLabel(visit)} · 시간 정보 없음</small><b>{visit.hospitalName || '병원 방문'}</b><span>{visit.department || '진료 기록'} · 방문 기록 및 연결 문서 보기</span></span><ChevronRight size={18}/></button>)}
     <div className="schedule-list">{selectedRows.map(row => <div className={`schedule care-schedule ${row.status === 'COMPLETED' ? 'is-complete' : ''}`} key={row.id}><span className="care-schedule-icon">{row.status === 'COMPLETED' ? <Check/> : row.scheduleType === 'MEDICATION' ? <Pill/> : <CalendarDays/>}</span><div className="care-schedule-body">
       <div className="care-schedule-meta"><small><Clock3/>{new Date(row.startsAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</small><span className="care-status">{row.status === 'COMPLETED' ? '완료' : new Date(row.startsAt) < new Date() ? '시간 지남' : '예정'}</span></div><b>{row.title}</b>
       {row.notes && <p className="care-notes">{row.notes}</p>}
-      {row.status === 'COMPLETED' ? <p className="care-complete-note"><Check/>{row.scheduleType === 'MEDICATION' ? '복용을 완료했어요' : '일정을 완료했어요'}</p> : <p className="care-reminder-note"><Bell/>{row.remindedAt ? '앱 내 알림을 보냈어요' : new Date(row.startsAt) < new Date() ? '예정 시간이 지났어요. 완료 여부를 확인해주세요.' : '예정 시각에 앱 내 알림'}</p>}
+      {row.status === 'COMPLETED' ? <p className="care-complete-note"><Check/>{row.scheduleType === 'MEDICATION' ? '복용을 완료했어요' : '일정을 완료했어요'}</p> : !row.remindedAt && <p className="care-reminder-note"><Bell/>{new Date(row.startsAt) < new Date() ? '예정 시간이 지났어요. 완료 여부를 확인해주세요.' : '예정 시각에 앱 내 알림'}</p>}
       {row.status === 'SCHEDULED' && <div className="care-schedule-actions">
         <button className="care-complete-button" disabled={busy} onClick={() => execute(() => api.completeSchedule(row.id), '완료로 기록했어요')}><Check/>{row.scheduleType === 'MEDICATION' ? '복용 완료' : '완료'}</button>
         <button disabled={busy || !!form} onClick={() => setForm({ ...row, startsAt: localInput(row.startsAt), notes: row.notes || '', repeatDays: 1 })}><Pencil size={16}/>수정</button>
@@ -189,7 +197,7 @@ export default function CalendarScreen({ child, onToast, medicationOnly = false,
       <div className="care-editor-heading"><div><h3>{form.id ? '일정 수정' : medicationOnly ? '복약 일정 추가' : '새 일정 추가'}</h3></div><button type="button" aria-label="일정 입력 닫기" disabled={busy} onClick={()=>setForm(null)}><X/></button></div>
       {form.fromMemo && <p className="medication-preview">메모 내용을 복용 방법 메모로 가져왔어요{form.truncated?' (앞 500자)':''}. 약 이름과 시간은 직접 확인해 입력해주세요. 저장 전에는 일정이 생성되지 않아요.</p>}
       <label>일정 제목<input required placeholder={medicationOnly ? '예: 아침 식사 후 복약' : '예: 소아과 정기 검진'} maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
-      <label>종류<select disabled={medicationOnly} value={form.scheduleType} onChange={e=>setForm({...form,scheduleType:e.target.value,repeatMode:'ONCE',endDate:''})}><option value="PERSONAL">개인 일정</option><option value="REVISIT">재진료</option><option value="TEST">검사</option><option value="MEDICATION">복약</option><option value="OTHER">기타</option></select></label>
+      {!medicationOnly && <label>종류<select value={form.scheduleType} onChange={e=>setForm({...form,scheduleType:e.target.value,repeatMode:'ONCE',endDate:''})}><option value="PERSONAL">개인 일정</option><option value="REVISIT">재진료</option><option value="TEST">검사</option><option value="MEDICATION">복약</option><option value="OTHER">기타</option></select></label>}
       <label>날짜와 시간<input required type="datetime-local" value={form.startsAt} onChange={e=>setForm({...form,startsAt:e.target.value})}/></label>
       <label>{form.scheduleType === 'MEDICATION' ? '용량·복용 방법 메모' : '메모'}<textarea maxLength={500} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="처방이나 안내받은 내용을 적어주세요"/></label>
       {!form.id && form.scheduleType === 'MEDICATION' && <>

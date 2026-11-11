@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, Syringe } from 'lucide-react';
 import './vaccination.css';
 import { api, errorMessage } from '../api';
+import ChildRequiredState from '../ChildRequiredState';
 
 const DAY = 86400000;
 // 날짜는 모두 'YYYY-MM-DD' 문자열을 UTC 자정으로 바꿔 계산한다. 기기 시간대와 무관하다.
@@ -77,7 +78,7 @@ const loadError = (e) => {
 const PREVIEW = 3;
 const NIP_URL = 'https://nip.kdca.go.kr/irhp/civil/goNonMemView.do';
 
-export function VaccinationScreen({ child, onToast, onCalendar }) {
+export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
   const childId = child?.id;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -167,7 +168,13 @@ export function VaccinationScreen({ child, onToast, onCalendar }) {
   };
 
   const hero = <div className="detail-hero"><span className="detail-icon"><Syringe/></span><div><h2>예방접종 관리</h2><p>{child?.name || '아이'}{data?.ageMonths != null ? ` · ${ageLabel(data.ageMonths)}` : ''}</p></div></div>;
-  if (!childId) return <div className="page padded detail-page">{hero}<div className="child-required"><h3>아이를 먼저 선택해 주세요</h3><p>아이를 등록하거나 선택하면 접종 일정을 볼 수 있어요.</p></div></div>;
+  if (!childId) return <ChildRequiredState
+    icon={Syringe}
+    title="예방접종 관리"
+    description="아이의 예방접종 일정과 기록을 확인해요."
+    message="접종 일정을 보려면 생년월일이 있는 아이 프로필이 필요해요."
+    onChildOpen={onChildOpen}
+  />;
   if (!data) return <div className="page padded detail-page">{hero}
     {loading ? <p className="empty-record" role="status">접종 일정을 불러오는 중이에요.</p>
       : error ? <div className="vax-error" role="alert"><p>{loadError(error).message}</p>{loadError(error).retry && <button className="outline-button" onClick={() => setRevision((n) => n + 1)}>다시 시도</button>}</div>

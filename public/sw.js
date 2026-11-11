@@ -12,8 +12,12 @@ self.addEventListener('push', event => {
   try { payload = event.data?.json(); } catch { return; }
   const data = payload?.data;
   if (data?.kind !== 'dodam-reminder' || !/^[0-9a-f-]{36}$/i.test(data.notificationId || '')) return;
-  event.waitUntil(self.registration.showNotification('도담 알림', {
-    body: '확인할 복약 또는 일정이 있어요. 도담에서 확인해주세요.',
+  const isMedication = data.scheduleType === 'MEDICATION';
+  const category = isMedication ? '복약' : data.scheduleType ? '일정' : '';
+  const title = typeof data.title === 'string' ? data.title.trim() : '';
+  const body = isMedication ? '복용할 시간이에요.' : category ? '일정 시간이에요.' : '확인할 복약 또는 일정이 있어요.';
+  event.waitUntil(self.registration.showNotification(title || (category ? `도담 · ${category} 알림` : '도담 알림'), {
+    body,
     icon: '/icon-192.png', tag: `dodam-${data.notificationId}`,
     data: { url: '/?push=1' }
   }));

@@ -13,6 +13,7 @@ import './care-workspace.css';
 import { api, ApiError, errorMessage } from './api';
 import { WelfarePrototype } from './welfare/WelfarePrototype';
 import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
+import ChildRequiredState from './ChildRequiredState';
 import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
@@ -22,6 +23,7 @@ import { useBackLayer, useRootBack } from './backNavigation';
 import { documentDisplayName, documentNoteKey } from './documentName';
 import PushSettings from './PushSettings';
 import { enablePush, disablePush, pushEnabled } from './push';
+import PushOnboarding from './PushOnboarding';
 
 function MarkdownText({ text }) {
   const lines = String(text || '').split(/\r?\n/);
@@ -175,7 +177,7 @@ function App() {
 
   React.useEffect(() => {
     if (!loggedIn) return;
-    if (pushEnabled()) enablePush(false).catch(() => {});
+    if (pushEnabled()) enablePush({ ask: false, userId: me?.id }).catch(() => {});
     if (new URLSearchParams(location.search).has('push') || sessionStorage.getItem('dodam.open-notifications')) {
       setNotiOpen(true); sessionStorage.removeItem('dodam.open-notifications');
       const url = new URL(location.href); url.searchParams.delete('push'); history.replaceState(history.state, '', url);
@@ -268,7 +270,7 @@ function App() {
 
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
-            : tab === 'calendar' ? <LiveCalendarScreen key={`${activeChild?.id || 'none'}-${calendarFocus || ''}`} initialDate={calendarFocus} child={activeChild} onToast={showToast} renderVisit={(visit,back,saved)=><VisitItemDetail key={visit.visitId} visit={visit} child={activeChild} documents={documents} backendOnline={backendOnline} onBack={back} onSaved={saved} onToast={showToast}/>} />
+            : tab === 'calendar' ? <LiveCalendarScreen key={`${activeChild?.id || 'none'}-${calendarFocus || ''}`} initialDate={calendarFocus} child={activeChild} onToast={showToast} onChildOpen={() => setChildOpen(true)} renderVisit={(visit,back,saved)=><VisitItemDetail key={visit.visitId} visit={visit} child={activeChild} documents={documents} backendOnline={backendOnline} onBack={back} onSaved={saved} onToast={showToast}/>} />
             : tab === 'chat' ? <ChatScreen child={activeChild} documents={documents} backendOnline={backendOnline} onToast={showToast} />
             : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
             : tab === 'documents' ? <DetailScreen type="documents" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
@@ -279,7 +281,9 @@ function App() {
         </>}
       </main>
 
-      {notiOpen && <NotificationSheet notis={notis} onClose={() => setNotiOpen(false)} onToast={showToast}
+      {loggedIn && backendOnline && me?.id && <PushOnboarding key={me.id} userId={me.id}
+        blocked={notiOpen || profileOpen || childOpen} />}
+      {notiOpen && <NotificationSheet notis={notis} userId={me?.id} onClose={() => setNotiOpen(false)} onToast={showToast}
         onOpen={notification => {
           if (notification.type !== 'SCHEDULE_DUE') return;
           const target = new URL(notification.path, window.location.origin);
@@ -511,10 +515,10 @@ function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], chil
   if(type==='timeline') return <RecordTimeline key={child?.id || 'no-child'} child={child} onOpen={onOpen}/>;
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthScreen key={child?.id || 'no-child'} child={child} onToast={onToast}/>;
-  if(type==='meds') return <LiveCalendarScreen key={child?.id || 'none'} child={child} onToast={onToast} medicationOnly initialDraft={medicationDraft} />;
+  if(type==='meds') return <LiveCalendarScreen key={child?.id || 'none'} child={child} onToast={onToast} onChildOpen={onChildOpen} medicationOnly initialDraft={medicationDraft} />;
   if(type==='welfare') return <WelfarePrototype child={child} onChildOpen={onChildOpen} onBackChange={onWelfareBackChange}/>;
   if(type==='memo') return <MemoScreen key={child?.id || 'none'} onToast={onToast} child={child} backendOnline={backendOnline} onMedication={onMedication}/>;
-  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar}/>;
+  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar} onChildOpen={onChildOpen}/>;
 
   if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
@@ -606,10 +610,6 @@ function useScrollTop(dep) {
 const DOC_STATUS = { UPLOADED:'분석 대기', PROCESSING:'분석 중', READY:'분석 완료', NEEDS_REVIEW:'일부 분석 완료 · 확인 필요', ANALYZING:'분석 중', DONE:'분석 완료', FAILED:'분석 실패' };
 
 function InfoRow({label,value}) { return <div className="info-row"><span>{label}</span><p>{value}</p></div>; }
-
-function ChildRequiredState({ icon: Icon, title, onChildOpen }) {
-  return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Icon/></span><div><h2>{title}</h2><p>아이별로 건강 기록을 안전하게 관리해요.</p></div></div><div className="child-required"><Baby/><h3>아이를 먼저 등록해 주세요</h3><p>방문 기록을 만들거나 건강 문서를 업로드하려면<br/>먼저 관리할 아이의 프로필이 필요해요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 등록하기</button></div></div>;
-}
 
 function DocumentDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft }) {
   const [uploading, setUploading] = useState(false);
@@ -718,7 +718,7 @@ function MoreScreen({onOpen, me, child, onProfile, onChild, onLogout}) {
   </div>;
 }
 
-function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
+function NotificationSheet({ notis, userId, onClose, onRead, onReadAll, onOpen }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const shown = notis.items.filter(item => !unreadOnly || !item.readAt);
@@ -727,7 +727,7 @@ function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
     <div className="notification-header">
       {settingsOpen ? <><button className="notification-back" aria-label="알림 목록으로 돌아가기" onClick={() => setSettingsOpen(false)}><ChevronLeft/></button><div><h3>알림 설정</h3><p>이 기기에서 받을 알림을 관리해요</p></div></> : <><Bell className="notification-header-icon"/><div><h3>알림</h3><p>읽지 않은 알림 {notis.unreadCount}건</p></div><button className="notification-settings-link" onClick={() => setSettingsOpen(true)}><Settings2 size={16}/> 설정</button></>}
     </div>
-    {settingsOpen ? <div className="notification-settings-view"><PushSettings/><p className="notification-settings-note">기기와 네트워크 상태에 따라 알림이 늦게 도착할 수 있어요.</p></div> : <>
+    {settingsOpen ? <div className="notification-settings-view"><PushSettings key={userId} userId={userId}/><p className="notification-settings-note">기기와 네트워크 상태에 따라 알림이 늦게 도착할 수 있어요.</p></div> : <>
     {notis.items.length ? <>
       <div className="notification-toolbar"><div className="noti-filters"><button aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>전체</button><button aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>안 읽음 <span>{notis.unreadCount}</span></button></div>{notis.unreadCount > 0 && <button className="notification-read-all" onClick={onReadAll}><CheckCircle2 size={14}/> 모두 읽기</button>}</div>
       {!shown.length && <p className="memo-empty">불러온 알림은 모두 확인했어요.</p>}
@@ -781,7 +781,7 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
   }, [backendOnline]);
 
   const switchAccount = async (role) => {
-    try { setBusy(true); await api.switchAccount(role); onToast('계정을 전환했어요. 알림 설정에서 이 기기 알림을 다시 켜주세요.'); await onJoined?.(); onClose(); }
+    try { setBusy(true); await disablePush().catch(() => {}); await api.switchAccount(role); onToast('계정을 전환했어요. 알림 설정에서 이 기기 알림을 다시 켜주세요.'); await onJoined?.(); onClose(); }
     catch (e) { onToast(e.message || '계정을 전환하지 못했어요'); }
     finally { setBusy(false); }
   };

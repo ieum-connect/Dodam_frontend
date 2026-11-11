@@ -507,7 +507,23 @@
 .push-switch:disabled { cursor: wait; opacity: .55; }
 .push-privacy { display: flex; align-items: flex-start; gap: 6px; padding: 11px 16px; background: #fff6f9; color: #927780; font-size: 11px; line-height: 1.6; }
 .push-privacy svg { flex-shrink: 0; margin-top: 2px; }
+.push-details-option { display: flex; align-items: flex-start; gap: 9px; padding: 12px 16px; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.push-details-option input { margin: 2px 0 0; width: 17px; height: 17px; flex-shrink: 0; accent-color: #a93861; }
+.push-details-option small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.push-blocked-action { flex-shrink: 0; min-height: 44px; white-space: nowrap; }
+.push-onboarding { width: min(390px, calc(100% - 32px)); padding: 23px; border: 1px solid var(--line); border-radius: 22px; background: #fffafc; color: var(--ink); }
+.push-onboarding::backdrop { background: #33212b70; }
+.push-onboarding h2 { margin: 14px 0 6px; font-size: 19px; }
+.push-onboarding > p { margin: 0 0 16px; font-size: 13px; line-height: 1.5; }
+.push-onboarding .push-details-option { background: var(--blush); border-radius: 12px; margin-bottom: 16px; }
+.push-onboarding-actions { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; }
+.push-onboarding-actions button { min-height: 44px; margin: 0; }
 .push-feedback { margin: 0; padding: 12px 16px; color: #a43e61; font-size: 12px; line-height: 1.6; border-top: 1px solid #f0e2e7; }
+.push-permission-help { color: var(--ink); word-break: keep-all; }
+.push-permission-help ol { margin: 0; padding-left: 1.3em; }
+.push-permission-help li + li { margin-top: 4px; }
+.push-permission-help p { margin: 8px 0 0; color: #83757c; }
+.push-browser-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-bottom: 8px; padding: 0 10px; border-radius: 10px; background: #f9ecf1; color: #973959; font-weight: 650; text-decoration: none; }
 .notification-empty { text-align: center; padding: 32px 12px 42px; }
 .notification-empty-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 24px; margin: 0 auto 18px; color: #c67d95; background: #f9edf2; }
 .notification-empty h4 { margin: 0 0 9px; font-size: 15px; font-weight: 600; color: #62515a; letter-spacing: -.3px; }

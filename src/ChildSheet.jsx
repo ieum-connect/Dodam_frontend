@@ -4,9 +4,7 @@ import { api, errorMessage } from './api';
 import './child-sheet.css';
 import { useBackLayer } from './backNavigation';
 
-function localDate(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+const seoulDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
 
 export default function ChildSheet({ active, children: childrenProp, backendOnline, onSelect, onClose, onToast, onCreated, editing = false }) {
   const children = childrenProp || [];
@@ -19,8 +17,10 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
   const [error, setError] = useState('');
   const sheet = useRef(null);
   const pending = useRef(false);
-  const today = new Date();
-  const oldest = new Date(today.getFullYear() - 19, today.getMonth(), today.getDate());
+  const today = seoulDate.format(new Date());
+  const [year, month, day] = today.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year - 19, month, 0)).getUTCDate();
+  const oldest = new Date(Date.UTC(year - 19, month - 1, Math.min(day, lastDay))).toISOString().slice(0, 10);
   const changeMode = (next) => { setError(''); setMode(next); };
   const close = () => { if (!pending.current) onClose(); };
   useBackLayer(true, () => (pending.current ? false : onClose()));
@@ -51,6 +51,10 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
     if (!backendOnline) { setError('서버에 연결한 뒤 다시 시도해 주세요. 입력한 내용은 유지돼요.'); return; }
     if (mode !== 'join' && (!name.trim() || !birthDate)) {
       setError('아이 이름과 생년월일을 입력해 주세요.'); return;
+    }
+    if (mode !== 'join' && (birthDate < oldest || birthDate > today)) {
+      setError(birthDate > today ? '생년월일은 오늘까지 선택할 수 있어요.' : '등록 가능한 생년월일 범위를 확인해 주세요.');
+      return;
     }
     pending.current = true;
     setBusy(true);
@@ -101,7 +105,7 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
             <input id="child-name" autoComplete="off" placeholder="예: 박도윤" value={name} maxLength={100} required onChange={e => setName(e.target.value)}/>
             <label htmlFor="child-birthdate">생년월일 <span>필수</span></label>
             <p id="child-birthdate-help" className="child-field-help">아이가 태어난 날짜를 선택해 주세요.</p>
-            <input id="child-birthdate" type="date" aria-describedby="child-birthdate-help" value={birthDate} min={localDate(oldest)} max={localDate(today)} required onChange={e => setBirthDate(e.target.value)}/>
+            <input id="child-birthdate" type="date" aria-describedby="child-birthdate-help" value={birthDate} min={oldest} max={today} required onChange={e => setBirthDate(e.target.value)}/>
             <fieldset className="child-gender"><legend>성별 <span>선택</span></legend><div>
               {[['MALE', '남아'], ['FEMALE', '여아'], ...((mode === 'edit' && active?.gender) ? [] : [['', '나중에 선택']])].map(([value, label]) => <label key={label} className={gender === value ? 'selected' : ''}><input type="radio" name="child-gender" value={value} checked={gender === value} onChange={() => setGender(value)}/>{label}</label>)}
             </div></fieldset>
