@@ -582,7 +582,7 @@ function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, 
   useBackLayer(!!selectedDocument,()=>setSelectedDocument(null));
   const [linkedDocs,setLinkedDocs]=useState([]), [docsError,setDocsError]=useState(''), [docsLoading,setDocsLoading]=useState(true);
   React.useEffect(()=>{let active=true;setDocsLoading(true);setDocsError('');
-    (async()=>{const result=[];const seen=new Set();let cursor;do{const page=await api.documents(visit.patientId||child?.id,visit.visitId,cursor);result.push(...(page.items||[]));if(!page.hasNext)break;if(!page.nextCursor||seen.has(page.nextCursor))throw new Error('문서 목록을 불러오지 못했어요.');cursor=page.nextCursor;seen.add(cursor);}while(cursor);return result;})().then(v=>{if(active)setLinkedDocs(v);}).catch(e=>{if(active)setDocsError(errorMessage(e));}).finally(()=>{if(active)setDocsLoading(false);});
+    (async()=>{const result=[];const seen=new Set();let cursor;do{const page=await api.documents(visit.patientId||child?.id,visit.visitId,cursor);result.push(...(page.items||[]));if(!page.nextCursor)break;if(seen.has(page.nextCursor))throw new Error('문서 목록을 불러오지 못했어요.');cursor=page.nextCursor;seen.add(cursor);}while(cursor);return result;})().then(v=>{if(active)setLinkedDocs(v);}).catch(e=>{if(active)setDocsError(errorMessage(e));}).finally(()=>{if(active)setDocsLoading(false);});
     return()=>{active=false;};
   },[visit.visitId,child?.id,selectedDocument]);
   const save=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 수정할 수 있어요');return;}try{setSaving(true);const updated=await api.updateVisit(visit.visitId,{patientId:visit.patientId||child?.id,...form,visitStatus:visit.visitStatus||'DONE',version:visit.version});await onSaved(updated);setEditing(false);onToast('방문 기록을 수정했어요');}catch(error){onToast(error.message||'수정하지 못했어요');}finally{setSaving(false)}};
@@ -781,7 +781,7 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
   }, [backendOnline]);
 
   const switchAccount = async (role) => {
-    try { setBusy(true); await api.switchAccount(role); onToast('계정을 전환했어요'); await onJoined?.(); onClose(); }
+    try { setBusy(true); await api.switchAccount(role); onToast('계정을 전환했어요. 알림 설정에서 이 기기 알림을 다시 켜주세요.'); await onJoined?.(); onClose(); }
     catch (e) { onToast(e.message || '계정을 전환하지 못했어요'); }
     finally { setBusy(false); }
   };

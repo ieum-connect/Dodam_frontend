@@ -15,20 +15,25 @@ export function TodaySchedules({ child, onOpen }) {
   const [rows,setRows] = useState(null);
   const [failed,setFailed] = useState(false);
   const [visits,setVisits] = useState([]);
+  const [visitsFailed,setVisitsFailed] = useState(false);
   useEffect(()=>{
     let canceled=false;
-    setRows(null); setFailed(false); setVisits([]);
+    setRows(null); setFailed(false); setVisits([]); setVisitsFailed(false);
     if (!child?.id) { setRows([]); return; }
     const start=new Date(); start.setHours(0,0,0,0);
     const end=new Date(start); end.setDate(end.getDate()+1);
-    Promise.all([api.schedules(child.id,start.toISOString(),end.toISOString()), calendarVisits(child.id)])
-      .then(([result, records])=>{ if(!canceled) {setRows(result.filter(row => row.status !== 'CANCELLED')); setVisits(records.filter(v=>v.visitedOn===localDate(start)));} })
-      .catch(()=>{ if(!canceled) setFailed(true); });
+    api.schedules(child.id,start.toISOString(),end.toISOString())
+      .then(result=>{if(!canceled)setRows(result.filter(row=>row.status!=='CANCELLED'));})
+      .catch(()=>{if(!canceled)setFailed(true);});
+    calendarVisits(child.id)
+      .then(records=>{if(!canceled)setVisits(records.filter(v=>v.visitedOn===localDate(start)));})
+      .catch(()=>{if(!canceled)setVisitsFailed(true);});
     return ()=>{canceled=true;};
   },[child?.id]);
   return <section className="today-card"><div className="section-heading"><div><span className="eyebrow">TODAY</span><h3>오늘의 건강 일정</h3></div><button onClick={()=>onOpen('calendar')}>전체보기</button></div>
-    {failed ? <p>일정을 불러오지 못했어요. 캘린더에서 다시 확인해주세요.</p> : rows===null ? <p>일정을 불러오는 중이에요.</p> : rows.length===0 && visits.length===0 ? <p>오늘 등록된 일정이 없어요.</p> : rows.map(row=><div className="timeline-item" key={row.id}><span className="time">{new Date(row.startsAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</span><span className={`timeline-dot ${row.status === 'COMPLETED' ? 'done' : 'pink'}`}/><div><b>{row.title}</b><small className="today-schedule-status">{row.status === 'COMPLETED' ? '완료' : '예정'}</small></div></div>)}
-    {!failed && visits.map(visit=><button className="today-visit-row" key={visit.visitId} onClick={()=>onOpen('calendar')}><CalendarDays size={18}/><span><b>{visit.hospitalName || '병원 방문'}{visit.department ? ` · ${visit.department}` : ''}</b><small>{visitLabel(visit)} · 시간 정보 없음</small></span><ChevronRight size={16}/></button>)}
+    {failed ? <p>일정을 불러오지 못했어요. 캘린더에서 다시 확인해주세요.</p> : rows===null ? <p>일정을 불러오는 중이에요.</p> : rows.length===0 && visits.length===0 && !visitsFailed ? <p>오늘 등록된 일정이 없어요.</p> : rows.map(row=><div className="timeline-item" key={row.id}><span className="time">{new Date(row.startsAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</span><span className={`timeline-dot ${row.status === 'COMPLETED' ? 'done' : 'pink'}`}/><div><b>{row.title}</b><small className="today-schedule-status">{row.status === 'COMPLETED' ? '완료' : '예정'}</small></div></div>)}
+    {visitsFailed && <p role="status">병원 방문 기록을 불러오지 못했어요. 캘린더에서 다시 확인해주세요.</p>}
+    {visits.map(visit=><button className="today-visit-row" key={visit.visitId} onClick={()=>onOpen('calendar')}><CalendarDays size={18}/><span><b>{visit.hospitalName || '병원 방문'}{visit.department ? ` · ${visit.department}` : ''}</b><small>{visitLabel(visit)} · 시간 정보 없음</small></span><ChevronRight size={16}/></button>)}
   </section>;
 }
 

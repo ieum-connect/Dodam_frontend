@@ -152,7 +152,7 @@ export const api = {
   accounts: () => request('/api/accounts'),
   switchAccount: async (role) => {
     const { disablePush } = await import('./push');
-    await disablePush();
+    await disablePush().catch(() => {});
     return request('/api/accounts/switch', { method: 'POST', body: JSON.stringify({ role }) });
   },
   needsRole: () => request('/api/auth/needs-role'),
