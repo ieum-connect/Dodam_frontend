@@ -6,7 +6,7 @@ import {
   Plus, Search, ShieldCheck, Sparkles, Syringe, TrendingUp, Upload, X,
   CheckCircle2, Clock3, MapPin, Send, Baby, Scale, Ruler, Gift, BookOpen,
   Stethoscope, Camera, Menu, Mic, Square, Link2, UserRoundPlus, UsersRound,
-  Pencil, Save, Trash2, Settings2
+  Pencil, Save, Trash2, Settings2, TriangleAlert
 } from 'lucide-react';
 import './styles.css';
 import './care-workspace.css';
@@ -18,12 +18,14 @@ import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
 import ChildSheet from './ChildSheet';
+import ProfileEditSheet from './ProfileEditSheet';
 import { VaccinationScreen } from './vaccination/VaccinationScreen';
 import { currentBackScreen, pushBackScreen, useBackLayer, useRootBack } from './backNavigation';
 import { documentDisplayName, documentNoteKey } from './documentName';
 import PushSettings from './PushSettings';
 import { enablePush, disablePush, pushEnabled } from './push';
 import PushOnboarding from './PushOnboarding';
+import SheetHandle from './SheetHandle';
 
 function MarkdownText({ text }) {
   const lines = String(text || '').split(/\r?\n/);
@@ -69,21 +71,31 @@ function App() {
   const [authAttempt, setAuthAttempt] = useState(0);
   const [authConfig, setAuthConfig] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
-  const [{tab, detail}, setScreen] = useState(() => currentBackScreen() ?? {tab:'home', detail:null});
+  const [{tab, detail, calendarFocus}, setScreen] = useState(() => currentBackScreen() ?? {tab:'home', detail:null});
   const [profileOpen, setProfileOpen] = useState(false);
   const [childOpen, setChildOpen] = useState(false);
   const [childEditing, setChildEditing] = useState(false);
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const activeChildRef = React.useRef(null);
   const familyRequest = React.useRef(0);
   const [dataRevision, setDataRevision] = useState(0);
-  const chooseChild = child => { familyRequest.current++; activeChildRef.current = child; setVisits([]); setDocuments([]); setMedicationDraft(null); setActiveChild(child); };
+  const chooseChild = child => {
+    familyRequest.current++;
+    if (activeChildRef.current?.id !== child?.id) {
+      setVisits([]);
+      setDocuments([]);
+    }
+    activeChildRef.current = child;
+    setMedicationDraft(null);
+    setActiveChild(child);
+  };
   const [activeChild, setActiveChild] = useState(null);
   const [children, setChildren] = useState([]);
   const [me, setMe] = useState(null);
   const [notis, setNotis] = useState({ items: [], unreadCount: 0 });
   const [notiOpen, setNotiOpen] = useState(false);
   const [medicationDraft, setMedicationDraft] = useState(null);
-  const [calendarFocus, setCalendarFocus] = useState(null);
   const screenRef = React.useRef(null);
   const [visits, setVisits] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -233,6 +245,27 @@ function App() {
   React.useEffect(() => {
     if (!loggedIn || !backendOnline || !me) return;
     let canceled = false;
+    let accessCheck = 0;
+    const refreshFamilyAccess = async () => {
+      const check = ++accessCheck;
+      const familyVersion = familyRequest.current;
+      try {
+        const rows = await api.children();
+        if (canceled || check !== accessCheck || familyVersion !== familyRequest.current) return;
+        const next = rows.map(normalizeChild);
+        setChildren(next);
+        const current = activeChildRef.current;
+        const selected = next.find(child => child.id === current?.id);
+        if (current && !selected) {
+          chooseChild(next.find(isCompleteChild) || next[0] || null);
+          showToast('아이 기록 공유가 해제됐어요');
+        } else if (selected && selected.inviteCode !== current.inviteCode) {
+          const updated = { ...current, inviteCode: selected.inviteCode };
+          activeChildRef.current = updated;
+          setActiveChild(updated);
+        }
+      } catch { /* Keep the last confirmed access state when the network is unavailable. */ }
+    };
     const refresh = async () => {
       try {
         const page = await api.notifications();
@@ -240,8 +273,17 @@ function App() {
       } catch { /* Keep the last known notifications during a temporary connection failure. */ }
     };
     refresh();
-    const timer = window.setInterval(refresh, 15000);
-    return () => { canceled = true; window.clearInterval(timer); };
+    const timer = window.setInterval(() => {
+      refresh();
+      if (document.visibilityState === 'visible') refreshFamilyAccess();
+    }, 15000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') refreshFamilyAccess(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      canceled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [loggedIn, backendOnline, me?.id]);
   const restoreScreen = screen => {
     setScreen(screen ?? {tab:'home', detail:null});
@@ -265,8 +307,10 @@ function App() {
   };
   useRootBack(() => showToast('한 번 더 누르면 종료돼요'), restoreScreen);
   useBackLayer(!!welfareBackHandler, () => welfareBackHandler?.());
-  useBackLayer(notiOpen, () => setNotiOpen(false));
-  useBackLayer(profileOpen, () => setProfileOpen(false));
+  useBackLayer(notiOpen || profileOpen, () => {
+    if (notiOpen) setNotiOpen(false);
+    else setProfileOpen(false);
+  });
 
   return (
     <div className="app-shell">
@@ -302,7 +346,7 @@ function App() {
 
         <div className="screen-content" ref={screenRef} key={activeChild?.id || 'no-child'}>
           {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
-          {detail ? <DetailScreen medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});goToScreen('home','meds');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
+          {detail ? <DetailScreen calendarFocus={calendarFocus} medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});goToScreen('home','meds');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
 
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
@@ -318,24 +362,48 @@ function App() {
       </main>
 
       {loggedIn && backendOnline && me?.id && <PushOnboarding key={me.id} userId={me.id}
-        blocked={notiOpen || profileOpen || childOpen} />}
+        blocked={notiOpen || profileOpen || childOpen || childEditing} />}
       {notiOpen && <NotificationSheet notis={notis} userId={me?.id} onClose={() => setNotiOpen(false)} onToast={showToast}
         onOpen={notification => {
-          if (notification.type !== 'SCHEDULE_DUE') return;
+          if (notification.type.startsWith('RELATION_')) {
+            setNotiOpen(false);
+            setProfileOpen(true);
+            return;
+          }
+          if (notification.type === 'HEALTH_RECORD_CREATED') {
+            setNotiOpen(false);
+            navigate('memo');
+            return;
+          }
+          if (notification.type !== 'SCHEDULE_DUE' || !notification.path) return;
           const target = new URL(notification.path, window.location.origin);
+          if (target.origin !== window.location.origin || !['/calendar', '/meds'].includes(target.pathname)) return;
           const child = children.find(item => item.id === target.searchParams.get('patientId'));
           if (!child) { showToast('현재 접근할 수 있는 아이의 일정인지 확인해주세요'); return; }
           const date = target.searchParams.get('date');
-          if (!date || Number.isNaN(new Date(date).getTime())) return;
-          chooseChild(child);
-          setCalendarFocus(date);
+          if (!date || !Number.isFinite(Date.parse(date))) {
+            showToast('알림에 연결된 일정 날짜를 확인할 수 없어요');
+            return;
+          }
+          if (activeChild?.id !== child.id) chooseChild(child);
+          const medication = target.pathname === '/meds' || notification.message.endsWith(' — 복용 여부를 확인해주세요.');
+          const nextTab = medication ? 'medical' : 'calendar';
+          const nextDetail = medication ? 'meds' : null;
+          setMedicationDraft(null);
           setNotiOpen(false);
-          navigate('calendar');
+          if (tab !== nextTab || detail !== nextDetail || date !== calendarFocus) {
+            pushBackScreen({tab:nextTab, detail:nextDetail, calendarFocus:date}, setScreen);
+          }
         }}
         onRead={async (id) => { try { await api.readNotification(id); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); } catch {} }}
         onReadAll={async () => { try { await api.readAllNotifications(); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); showToast('모든 알림을 읽음 처리했어요'); } catch { showToast('알림을 처리하지 못했어요'); } }} />}
-      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onWithdraw={withdraw} onJoined={loadFamilyData} onProfileSaved={setMe} onEditChild={() => {setProfileOpen(false);setChildEditing(true);setChildOpen(true);}} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
-      {childOpen && <ChildSheet editing={childEditing} active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { chooseChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => {setChildOpen(false);setChildEditing(false);}} onToast={showToast} onCreated={loadFamilyData} />}
+      {profileOpen && <ProfileSheet hidden={childEditing || profileEditing || withdrawalOpen} child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onWithdraw={() => setWithdrawalOpen(true)} onJoined={loadFamilyData} onEditProfile={setProfileEditing} onEditChild={() => setChildEditing(true)} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
+      {profileOpen && profileEditing && <GuardianNameSheet me={me} onClose={() => setProfileEditing(false)} onSaved={updated => { setMe(updated); showToast('내 프로필을 수정했어요'); }}/>}
+      {profileOpen && withdrawalOpen && <WithdrawalSheet onClose={() => setWithdrawalOpen(false)} onWithdraw={withdraw}/>}
+      {(childOpen || childEditing) && <ChildSheet editing={childEditing} active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { chooseChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => {
+        if (childEditing) setChildEditing(false);
+        else setChildOpen(false);
+      }} onToast={showToast} onCreated={loadFamilyData} />}
       {toast && <div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
     </div>
   );
@@ -394,7 +462,7 @@ function HomeScreen({ onOpen, child, onChildOpen }) {
     <section className="section-block">
       <div className="section-heading"><div><h3>무엇을 도와드릴까요?</h3><p>필요한 건강 관리를 바로 시작해보세요</p></div></div>
       <div className="feature-grid">{featureCards.map(({ id, title, subtitle, icon: Icon, tone }) => (
-        <button className="feature-card" key={id} onClick={() => onOpen(id)}>
+        <button className={`feature-card${id === 'welfare' || id === 'chat' ? ' feature-title-single-line' : ''}`} key={id} onClick={() => onOpen(id)}>
           <span className={`feature-icon ${tone}`}><Icon/></span><span><b>{title}</b><small>{subtitle}</small></span><ChevronRight className="feature-arrow" size={17}/>
         </button>
       ))}</div>
@@ -402,7 +470,7 @@ function HomeScreen({ onOpen, child, onChildOpen }) {
 
     <section className="record-overview-card">
       <span className="record-overview-icon"><NotebookPen/></span>
-      <div><span className="eyebrow">OUR CHILD’S RECORDS</span><h3>흩어진 기록을 한눈에</h3><p>병원 방문, 건강 문서, 육아 메모와 일정을<br/>날짜별로 함께 살펴보세요.</p><button onClick={() => onOpen('timeline')}>아이 기록 모아보기 <ChevronRight size={16}/></button></div>
+      <div><h3>흩어진 기록을 한눈에</h3><p>병원 방문, 건강 문서, 육아 메모와 일정을<br/>날짜별로 함께 살펴보세요.</p><button onClick={() => onOpen('timeline')}>아이 기록 모아보기 <ChevronRight size={16}/></button></div>
     </section>
     <section className="tip-card"><span className="tip-icon"><Sparkles/></span><div><b>작은 변화도 기록해두세요</b><p>육아 메모에 관찰한 시각과 내용을 남기면, 병원 방문 기록과 함께 다시 살펴볼 수 있어요.</p></div></section>
   </>;
@@ -550,11 +618,11 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   </div>;
 }
 
-function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft, onWelfareBackChange }) {
+function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft, calendarFocus, onWelfareBackChange }) {
   if(type==='timeline') return <RecordTimeline key={child?.id || 'no-child'} child={child} onOpen={onOpen}/>;
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthScreen key={child?.id || 'no-child'} child={child} onToast={onToast}/>;
-  if(type==='meds') return <LiveCalendarScreen key={child?.id || 'none'} child={child} onToast={onToast} onChildOpen={onChildOpen} medicationOnly initialDraft={medicationDraft} />;
+  if(type==='meds') return <LiveCalendarScreen key={`${child?.id || 'none'}-${calendarFocus || ''}`} child={child} onToast={onToast} onChildOpen={onChildOpen} medicationOnly initialDate={calendarFocus} initialDraft={medicationDraft} />;
   if(type==='welfare') return <WelfarePrototype child={child} onChildOpen={onChildOpen} onBackChange={onWelfareBackChange}/>;
   if(type==='memo') return <MemoScreen key={child?.id || 'none'} onToast={onToast} child={child} backendOnline={backendOnline} onMedication={onMedication}/>;
   if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar} onChildOpen={onChildOpen}/>;
@@ -631,7 +699,7 @@ function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, 
   const save=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 수정할 수 있어요');return;}try{setSaving(true);const updated=await api.updateVisit(visit.visitId,{patientId:visit.patientId||child?.id,...form,visitStatus:visit.visitStatus||'DONE',version:visit.version});await onSaved(updated);setEditing(false);onToast('방문 기록을 수정했어요');}catch(error){onToast(error.message||'수정하지 못했어요');}finally{setSaving(false)}};
   const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}if(!window.confirm('이 방문 기록을 삭제할까요?'))return;try{setSaving(true);await api.deleteVisit(visit.visitId);onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
   if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast}/>;
-  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> 뒤로</button><div className="detail-title-row"><div><span className="eyebrow">VISIT DETAIL</span><h2>{form.department||form.hospitalName||'병원 방문'}</h2><p>{[form.hospitalName,form.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={saving} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel visit-compose"><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={save}><Save/>{saving?'저장 중…':'수정 내용 저장'}</button></div>:<><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
+  return <div className="nested-detail visit-detail"><button type="button" className="detail-back" onClick={onBack}><ChevronLeft aria-hidden="true"/> 방문 기록으로</button><div className="detail-title-row"><div><span className="eyebrow">방문 기록 상세</span><h2>{form.department||form.hospitalName||'병원 방문'}</h2><p>{[form.hospitalName,form.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={saving} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel visit-compose"><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={save}><Save/>{saving?'저장 중…':'수정 내용 저장'}</button></div>:<><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
     <div className="visit-docs"><div className="visit-docs-head"><b>연결된 문서</b><span>{linkedDocs.length}건</span></div>
       {docsLoading ? <p role="status">문서를 불러오는 중이에요.</p> : docsError ? <p role="alert">{docsError}</p> : linkedDocs.length ? <div className="visit-doc-list">{linkedDocs.map(doc=>(
         <button className="visit-doc visit-doc-link" key={doc.documentId} onClick={()=>setSelectedDocument(doc)}><span className="visit-doc-icon"><FileText/></span><span className="visit-doc-text"><b>{documentDisplayName(doc)}</b><small>문서 상세 및 원본 보기</small></span><ChevronRight size={18}/></button>
@@ -722,7 +790,7 @@ function DocumentItemDetail({ document, visits, onBack, onToast, backLabel = "�
   const linked=visits.find(v=>v.visitId===detail.visitId);
   const save=()=>{const name=meta.name.trim()||document.documentName||'';const next={...meta,name};localStorage.setItem(storageKey,JSON.stringify(next));setMeta(next);setEditing(false);onToast('문서 이름과 메모를 수정했어요');};
   const remove=async()=>{if(!window.confirm('이 문서를 삭제할까요?'))return;try{setRemoving(true);await api.deleteDocument(document.documentId);onToast('문서를 삭제했어요');onBack();}catch(e){onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
-  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">DOCUMENT DETAIL</span><h2>{meta.name||detail.documentName}</h2><p>{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
+  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p>{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
 }
 
 
@@ -731,7 +799,7 @@ const MEDICAL_CARDS = ['records','meds','vaccine','documents'];
 function MedicalHub({ onOpen, visits = [], documents = [] }) {
   const cards = MEDICAL_CARDS.map(id => featureCards.find(c => c.id === id)).filter(Boolean);
   const counts = { records: visits.length, documents: documents.length };
-  return <div className="page padded"><div className="page-title"><span className="eyebrow">MEDICAL RECORDS</span><h2>의료 기록</h2><p>병원 방문부터 복약·접종·검사 문서까지 한곳에서 관리해요.</p></div>
+  return <div className="page padded"><div className="page-title"><span className="eyebrow">건강 기록</span><h2>의료 기록</h2><p>병원 방문부터 복약·접종·검사 문서까지 한곳에서 관리해요.</p></div>
     <div className="all-list">{cards.map(({id,title,subtitle,icon:Icon,tone})=>(
       <button key={id} onClick={()=>onOpen(id)}><span className={`feature-icon ${tone}`}><Icon/></span><span><b>{title}</b><small>{subtitle}</small></span>{counts[id]!==undefined&&<em className="hub-count">{counts[id]}건</em>}<ChevronRight/></button>
     ))}</div></div>;
@@ -739,7 +807,7 @@ function MedicalHub({ onOpen, visits = [], documents = [] }) {
 
 function MoreScreen({onOpen, me, child, onProfile, onChild, onLogout}) {
   const relation = me?.role === 'PATIENT' ? '아이' : '보호자';
-  return <div className="page padded"><div className="page-title"><span className="eyebrow">ALL SERVICES</span><h2>전체</h2><p>내 프로필과 도담의 모든 기능을 한곳에서 관리하세요.</p></div>
+  return <div className="page padded"><div className="page-title"><span className="eyebrow">도담 메뉴</span><h2>전체</h2><p>내 프로필과 도담의 모든 기능을 한곳에서 관리하세요.</p></div>
     <button className="profile-banner" onClick={onProfile}>
       <span className="profile-banner-avatar">{(me?.name||'도').slice(0,1)}</span>
       <span className="profile-banner-text"><b>{me?.name || '보호자'}</b><small>{relation} · {child?.fullName || '아이 미선택'}</small></span>
@@ -762,7 +830,7 @@ function NotificationSheet({ notis, userId, onClose, onRead, onReadAll, onOpen }
   const [settingsOpen, setSettingsOpen] = useState(false);
   const shown = notis.items.filter(item => !unreadOnly || !item.readAt);
   const fmt = (iso) => { if (!iso) return ''; const d = new Date(iso); return `${d.getMonth()+1}.${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet notification-sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-handle"/><button className="sheet-close" aria-label="알림 닫기" onClick={onClose}><X/></button>
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet notification-sheet" onMouseDown={e=>e.stopPropagation()}><SheetHandle onClose={onClose}/><button className="sheet-close" aria-label="알림 닫기" onClick={onClose}><X/></button>
     <div className="notification-header">
       {settingsOpen ? <><button className="notification-back" aria-label="알림 목록으로 돌아가기" onClick={() => setSettingsOpen(false)}><ChevronLeft/></button><div><h3>알림 설정</h3><p>이 기기에서 받을 알림을 관리해요</p></div></> : <><Bell className="notification-header-icon"/><div><h3>알림</h3><p>읽지 않은 알림 {notis.unreadCount}건</p></div><button className="notification-settings-link" onClick={() => setSettingsOpen(true)}><Settings2 size={16}/> 설정</button></>}
     </div>
@@ -789,17 +857,85 @@ function NotificationSheet({ notis, userId, onClose, onRead, onReadAll, onOpen }
   </div></div>;
 }
 
-function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onWithdraw,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
+function GuardianNameSheet({ me, onClose, onSaved }) {
+  const needsName = me?.name === '이용자';
+  const [name, setName] = useState(needsName ? '' : me?.name || '');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const pending = React.useRef(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (pending.current || !name.trim()) return;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await api.updateMyProfile({ name: name.trim() });
+      onSaved(updated);
+      onClose();
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+
+  return <ProfileEditSheet title="내 프로필 수정" description="도담에서 표시할 이름을 수정할 수 있어요." icon={CircleUserRound} pending={pending} onClose={onClose}>
+    <form className="child-profile-form" onSubmit={submit}>
+      <fieldset className="child-profile-fields" disabled={busy}>
+        <label htmlFor="guardian-name">{needsName ? '도담에서 사용할 이름' : '보호자 이름'} <span>필수</span></label>
+        <input id="guardian-name" value={name} autoComplete="name" required maxLength={100} onChange={event => setName(event.target.value)}/>
+      </fieldset>
+      {error && <p className="child-form-error" role="alert">{error}</p>}
+      <div className="child-form-actions">
+        <button type="button" disabled={busy} onClick={onClose}>취소</button>
+        <button type="submit" className="child-save" disabled={busy || !name.trim()}>{busy ? '저장 중…' : '변경사항 저장'}</button>
+      </div>
+    </form>
+  </ProfileEditSheet>;
+}
+
+function WithdrawalSheet({ onClose, onWithdraw }) {
+  const pending = React.useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function confirm() {
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await onWithdraw();
+    } catch (error) {
+      pending.current = false;
+      setBusy(false);
+      setError(errorMessage(error, '회원 탈퇴를 완료하지 못했어요.'));
+    }
+  }
+
+  return <ProfileEditSheet title="회원 탈퇴" description="도담에서 탈퇴할까요?" icon={TriangleAlert} pending={pending} onClose={onClose}>
+    <div className="child-profile-form">
+      <p className="withdrawal-description">도담 프로필과 가족 연결이 해제돼요. 같은 카카오 계정으로 다시 가입해도 기존 연결은 복구되지 않아요.</p>
+      {error && <p className="child-form-error" role="alert">{error}</p>}
+      <div className="child-form-actions">
+        <button type="button" disabled={busy} onClick={onClose}>취소</button>
+        <button type="button" className="withdrawal-confirm" disabled={busy} onClick={confirm}>{busy ? '탈퇴 처리 중…' : '탈퇴하기'}</button>
+      </div>
+    </div>
+  </ProfileEditSheet>;
+}
+
+function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,onWithdraw,onJoined,onChildOpen,onEditChild,onEditProfile}) {
   const name = child?.fullName || '아이 미선택';
   const relation = me?.role === 'PATIENT' ? '아이' : '보호자';
-  const needsName = me?.name === '이용자';
-  const [editingName,setEditingName] = useState(needsName);
-  const [profileName,setProfileName] = useState(needsName ? '' : me?.name || '');
-  const [confirmWithdrawal, setConfirmWithdrawal] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
-  const [withdrawalError, setWithdrawalError] = useState('');
-  const [profileError,setProfileError] = useState('');
+  const [needsName] = useState(me?.name === '이용자');
+  React.useEffect(() => { if (needsName) onEditProfile(true); }, [needsName, onEditProfile]);
   const [parents,setParents] = useState(null);
+  const [disconnecting, setDisconnecting] = useState(null);
+  const [disconnectError, setDisconnectError] = useState('');
   const [codeOpen,setCodeOpen] = useState(false);
   const [joinOpen,setJoinOpen] = useState(false);
   const [code,setCode] = useState('');
@@ -811,8 +947,17 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onWithdra
 
   React.useEffect(() => {
     if (!child?.id || !backendOnline) { setParents([]); return; }
-    api.childParents(child.id).then(setParents).catch(()=>setParents([]));
-  }, [child?.id, backendOnline]);
+    let active = true;
+    setParents(null);
+    api.childParents(child.id).then(result => { if (active) setParents(result); })
+      .catch(() => { if (active) setParents([]); });
+    return () => { active = false; };
+  }, [child?.id, child?.inviteCode, backendOnline]);
+
+  React.useEffect(() => {
+    setDisconnecting(null);
+    setDisconnectError('');
+  }, [child?.id]);
 
   React.useEffect(() => {
     if (!backendOnline) { setAccounts([]); return; }
@@ -839,39 +984,61 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onWithdra
     try { await navigator.clipboard.writeText(child.inviteCode); onToast('연결 코드를 복사했어요'); }
     catch { onToast('코드를 길게 눌러 복사해주세요'); }
   };
+  const disconnectParent = async () => {
+    if (!disconnecting || busy) return;
+    const target = disconnecting;
+    setBusy(true);
+    setDisconnectError('');
+    try {
+      await api.disconnectChildParent(child.id, target.userId);
+      setParents(current => current?.filter(parent => parent.userId !== target.userId) ?? null);
+      setDisconnecting(null);
+      setCodeOpen(false);
+      await onJoined?.(child.id);
+      onToast('가족 연결을 해제했어요');
+    } catch (error) {
+      setDisconnectError(errorMessage(error, '연결을 해제하지 못했어요. 다시 시도해 주세요.'));
+    } finally { setBusy(false); }
+  };
   const join = async () => {
     if (!code.trim()) { onToast('연결 코드를 입력해주세요'); return; }
-    if (me?.role && me.role !== 'CAREGIVER') { onToast('가족 연결 요청은 보호자 계정에서 보낼 수 있어요'); return; }
-    try { setBusy(true); await api.requestCareRelation(code.trim());
-      onToast('가족 연결 요청을 보냈어요. 아이 계정에서 수락하면 연결됩니다.'); setCode(''); setJoinOpen(false); await onJoined?.(); }
+    if (me?.role && me.role !== 'CAREGIVER') { onToast('아이 기록은 보호자 계정에서 연결할 수 있어요'); return; }
+    try { setBusy(true); const linked = await api.joinChild(code.trim().toUpperCase());
+      onToast('가족 기록을 연결했어요.'); setCode(''); setJoinOpen(false); await onJoined?.(linked.id); }
     catch (e) { onToast(e.message || '연결 코드가 올바르지 않아요'); }
     finally { setBusy(false); }
   };
 
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-header"><div className="sheet-handle"/><button className="sheet-close" onClick={onClose}><X/></button>
+  return <div className="modal-backdrop profile-backdrop" hidden={hidden} onMouseDown={onClose}><div className="sheet profile-sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-header"><SheetHandle onClose={onClose}/><button className="sheet-close" aria-label="프로필 닫기" onClick={onClose}><X/></button>
     <div className="profile-head"><span className="big-avatar">{(me?.name||'도').slice(0,1)}</span><div><h3>{me?.name || '내 프로필'}</h3><p>{relation} · {name}</p></div></div>
   </div>
 
     <div className="profile-edit-actions">
-      <button className="outline-button" onClick={()=>setEditingName(v=>!v)}>내 프로필 수정</button>
+      <button className="outline-button" onClick={() => onEditProfile(true)}>내 프로필 수정</button>
       {child?.id && <button className="outline-button" onClick={onEditChild}>아이 정보 수정 · {child.name || child.fullName}</button>}
     </div>
-    {editingName && <form className="child-profile-form" onSubmit={async e=>{
-      e.preventDefault(); if(busy)return; setBusy(true);setProfileError('');
-      try {const updated=await api.updateMyProfile({name:profileName.trim()});onProfileSaved(updated);setEditingName(false);onToast('내 프로필을 수정했어요');}
-      catch(error){setProfileError(errorMessage(error));}finally{setBusy(false);}
-    }}><label htmlFor="guardian-name">{needsName ? '도담에서 사용할 이름' : '보호자 이름'}</label><input id="guardian-name" value={profileName} required maxLength={100} disabled={busy} onChange={e=>setProfileName(e.target.value)}/>
-    {profileError&&<p role="alert">{profileError}</p>}<div className="child-form-actions"><button type="button" disabled={busy} onClick={()=>setEditingName(false)}>취소</button><button className="child-save" disabled={busy}>{busy?'저장 중…':'변경사항 저장'}</button></div></form>}
-
     <div className="family-block">
       <div className="family-block-head"><b>연결된 가족</b><span>{parents===null?'…':`${parents.length}명`}</span></div>
       {parents===null ? <p className="family-empty">불러오는 중…</p>
         : parents.length ? <div className="family-members">{parents.map(p=>{
             const displayName = p.me ? (me?.name ?? p.name) : p.name;
             return <div className="family-member" key={p.userId}><span className="family-avatar">{(displayName||'?').slice(0,1)}</span>
-              <span className="family-text"><b>{displayName}{p.me && ' (나)'}</b><small>보호자</small></span></div>;
+              <span className="family-text"><b>{displayName}{p.me && ' (나)'}</b><small>보호자</small></span>
+              {p.canDisconnect && <button type="button" className="family-disconnect"
+                disabled={busy} aria-label={`${displayName} 연결 해제`}
+                onClick={() => { setDisconnectError(''); setDisconnecting(p); }}>연결 해제</button>}
+            </div>;
           })}</div>
         : <p className="family-empty">아직 연결된 가족이 없어요.</p>}
+      {disconnecting && <div className="withdrawal-panel" role="group" aria-label="가족 연결 해제 확인">
+        <strong>{disconnecting.name}님과 연결을 해제할까요?</strong>
+        <p>이 아이의 기록 공유가 즉시 종료되고 기존 공유 코드는 새 코드로 바뀌어요.</p>
+        {disconnectError && <p role="alert">{disconnectError}</p>}
+        <div className="child-form-actions">
+          <button type="button" disabled={busy} onClick={() => setDisconnecting(null)}>취소</button>
+          <button type="button" className="child-save" disabled={busy} onClick={disconnectParent}>{busy ? '해제 중…' : '연결 해제 확인'}</button>
+        </div>
+      </div>}
     </div>
 
     {pendingRelations.length > 0 && <div className="family-block relation-block">
@@ -902,21 +1069,8 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onWithdra
     </div>}
 
     <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 추가 · 전환</button>
-    <button className="logout-button" disabled={withdrawing} onClick={onLogout}>로그아웃</button>
-    {backendOnline && me?.id && (confirmWithdrawal ? <section className="withdrawal-panel" aria-label="회원 탈퇴 확인">
-      <strong>도담에서 탈퇴할까요?</strong>
-      <p>같은 카카오 계정에 연결된 도담 프로필과 가족 연결이 해제돼요. 다시 가입해도 기존 연결은 복구되지 않아요.</p>
-      {withdrawalError && <p role="alert">{withdrawalError}</p>}
-      <div className="child-form-actions">
-        <button type="button" disabled={withdrawing} onClick={() => { setConfirmWithdrawal(false); setWithdrawalError(''); }}>취소</button>
-        <button type="button" className="withdrawal-confirm" disabled={withdrawing} onClick={async () => {
-          setWithdrawing(true);
-          setWithdrawalError('');
-          try { await onWithdraw(); }
-          catch (error) { setWithdrawalError(errorMessage(error, '회원 탈퇴를 완료하지 못했어요.')); setWithdrawing(false); }
-        }}>{withdrawing ? '탈퇴 처리 중…' : '탈퇴하기'}</button>
-      </div>
-    </section> : <button type="button" className="withdrawal-link" onClick={() => setConfirmWithdrawal(true)}>회원 탈퇴</button>)}
+    <button className="logout-button" onClick={onLogout}>로그아웃</button>
+    {backendOnline && me?.id && <button type="button" className="withdrawal-link" onClick={onWithdraw}>회원 탈퇴</button>}
   </div></div>;
 }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Clock3, Pencil, X, Pill, Plus, Tag, Search, MoreHorizontal, Trash2 } from 'lucide-react';
+import { CalendarDays, Clock3, Pencil, X, Pill, Plus, Tag, Search, MoreHorizontal, Trash2, NotebookPen } from 'lucide-react';
 import { api, errorMessage } from './api';
+import CarePageHeader from './CarePageHeader';
 import { readTimelinePages } from './timeline';
 const day = (value = new Date()) => {const d = new Date(value); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const time = (value = new Date()) => {const d = new Date(value); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
@@ -50,7 +51,7 @@ export default function MemoScreen({ child, backendOnline, onToast, onMedication
     </form>
   </div>;
   return <div className="page padded memo-screen care-workspace">
-    <header className="care-page-header"><div><h2>육아 메모</h2><p>{child?.fullName || child?.name || '아이'} · {records.length}개</p></div><button className="care-add" disabled={busy || !backendOnline || !child?.id} onClick={()=>{reset();setWriting(true);}}><Plus size={18}/> 새 메모</button></header>
+    <CarePageHeader icon={NotebookPen} title="육아 메모" description={<>{child?.fullName || child?.name || '아이'} · 메모 {records.length}개</>}><button className="care-add" disabled={busy || !backendOnline || !child?.id} onClick={()=>{reset();setWriting(true);}}><Plus size={18}/> 새 메모</button></CarePageHeader>
     {!child?.id ? <p className="care-blank">아이를 먼저 선택해주세요.</p> : <>
       {!backendOnline && <p role="status" className="record-timeline-error">연결이 끊겼어요. 서버 연결 후 다시 시도해주세요.</p>}
       <div className="memo-tools"><div className="record-timeline-search"><Search size={18}/><input aria-label="메모 검색" value={query} onChange={e=>setQuery(e.target.value)} placeholder="메모 검색"/>{query && <button aria-label="검색어 지우기" onClick={()=>setQuery('')}><X size={16}/></button>}</div><button className="memo-tag-manage" aria-expanded={manager} onClick={()=>setManager(v=>!v)}><Tag size={16}/><span>태그 관리</span></button></div>
