@@ -572,3 +572,9 @@
 .visit-doc-link small{display:block;color:#9a818c;font-size:12px;margin-top:4px}
 .visit-doc-link>svg{color:#bb6b8b;flex-shrink:0}
 .visit-doc-link:focus-visible,.today-visit-row:focus-visible,.calendar-visit-row:focus-visible{outline:2px solid #bc4878;outline-offset:3px}
+
+.withdrawal-link { display: block; min-height: 44px; margin: 8px auto 0; padding: 0 12px; color: #a43855; background: transparent; font-size: 12px; text-decoration: underline; }
+.withdrawal-panel { margin-top: 12px; padding: 14px; border: 1px solid #eecdd8; border-radius: 14px; }
+.withdrawal-panel p { font-size: 13px; line-height: 1.55; }
+.withdrawal-panel .withdrawal-confirm { color: #fff; background: #a43855; }
+.login-actions a{display:flex;align-items:center;justify-content:center;text-decoration:none}

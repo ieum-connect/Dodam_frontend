@@ -69,6 +69,7 @@ export const api = {
   updateMyProfile: (body) => request('/api/me/profile', { method: 'PUT', body: JSON.stringify(body) }),
   demoLogin: (account) => request('/api/demo/login', { method: 'POST', body: JSON.stringify(account ? { account } : { role: 'CAREGIVER' }) }),
   kakaoLoginUrl: `${API_BASE}/oauth2/authorization/kakao`,
+  kakaoAccountLoginUrl: `${API_BASE}/oauth2/authorization/kakao?chooseAccount=1`,
   logout: () => request('/logout', { method: 'POST' }),
   children: () => request('/api/children'),
   createChild: (body) => request('/api/children', { method: 'POST', body: JSON.stringify(body) }),
@@ -154,5 +155,5 @@ export const api = {
   needsRole: () => request('/api/auth/needs-role'),
   setRole: (role) => request('/api/role', { method: 'POST', body: JSON.stringify({ role }) }),
   updateMyRole: (role) => request('/api/me/role', { method: 'PUT', body: JSON.stringify({ role }) }),
-  deleteMe: () => request('/api/me', { method: 'DELETE' }),
+  deleteMe: () => request('/api/me', { method: 'DELETE', body: JSON.stringify({ confirmed: true }) }),
 };

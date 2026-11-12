@@ -65,6 +65,8 @@ const detailCopy = {
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authAttempt, setAuthAttempt] = useState(0);
   const [authConfig, setAuthConfig] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
   const [tab, setTab] = useState('home');
@@ -135,13 +137,40 @@ function App() {
   };
 
   React.useEffect(() => {
-    Promise.all([api.authConfig().then(config => { setAuthConfig(config); return config; }).catch(() => null), api.needsRole().catch(() => null), api.me()])
-      .then(([, , user]) => { setMe(user); setLoggedIn(true); setBackendOnline(true); return loadFamilyData(); })
-      .catch(() => {}).finally(() => setAuthReady(true));
+    api.authConfig().then(setAuthConfig).catch(() => {});
+    const restore = event => {
+      if (!event.persisted) return;
+      setAuthReady(false);
+      setAuthAttempt(attempt => attempt + 1);
+    };
+    window.addEventListener('pageshow', restore);
+    return () => window.removeEventListener('pageshow', restore);
   }, []);
 
-  const login = async (mode, account) => {
-    if (mode === 'kakao') { window.location.href = api.kakaoLoginUrl; return; }
+  React.useEffect(() => {
+    let active = true;
+    setAuthReady(false);
+    setAuthError('');
+    api.me().then(user => {
+      if (!active) return;
+      setMe(user);
+      setLoggedIn(true);
+      setBackendOnline(true);
+      void loadFamilyData();
+    }).catch(error => {
+      if (!active) return;
+      if (error.status === 401) {
+        setMe(null);
+        setLoggedIn(false);
+        setBackendOnline(false);
+      } else {
+        setAuthError('로그인 상태를 확인하지 못했어요. 다시 시도해 주세요.');
+      }
+    }).finally(() => { if (active) setAuthReady(true); });
+    return () => { active = false; };
+  }, [authAttempt]);
+
+  const loginDemo = async (account) => {
     try {
       await api.demoLogin(account);
       const user = await api.me();
@@ -160,19 +189,18 @@ function App() {
       await disablePush().catch(() => {});
       if (backendOnline) await api.logout();
     } catch (error) {
-      // Clear local state even if the server session has already expired.
-    } finally {
-      setLoggedIn(false);
-      setMe(null);
-      setProfileOpen(false);
-      setChildOpen(false);
-      setTab('home');
-      setDetail(null);
-      setChildren([]);
-      setVisits([]);
-      setDocuments([]);
-      activeChildRef.current = null; familyRequest.current++; setActiveChild(null);
+      if (error.status !== 401) {
+        showToast('로그아웃을 완료하지 못했어요. 다시 시도해 주세요.');
+        return;
+      }
     }
+    window.location.replace('/login?mode=account');
+  };
+
+  const withdraw = async () => {
+    await api.deleteMe();
+    await disablePush().catch(() => {});
+    window.location.replace('/login?withdrawn=1');
   };
 
   React.useEffect(() => {
@@ -253,7 +281,11 @@ function App() {
       </aside>
 
       <main className={`phone-frame ${!loggedIn ? 'login-frame' : ''}`}>
-        {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} authConfig={authConfig} /> : <>
+        {!authReady || authError ? <div className="app-loading">
+          <span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span>
+          <p role={authError ? 'alert' : 'status'}>{authError || '로그인 상태를 확인하는 중이에요'}</p>
+          {authError && <button type="button" className="primary-button compact" onClick={() => setAuthAttempt(attempt => attempt + 1)}>다시 시도</button>}
+        </div> : !loggedIn ? <LoginScreen onDemoLogin={loginDemo} authConfig={authConfig} /> : <>
         <header className="topbar">
           {detail ? (
             <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
@@ -298,7 +330,7 @@ function App() {
         }}
         onRead={async (id) => { try { await api.readNotification(id); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); } catch {} }}
         onReadAll={async () => { try { await api.readAllNotifications(); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); showToast('모든 알림을 읽음 처리했어요'); } catch { showToast('알림을 처리하지 못했어요'); } }} />}
-      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onJoined={loadFamilyData} onProfileSaved={setMe} onEditChild={() => {setProfileOpen(false);setChildEditing(true);setChildOpen(true);}} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
+      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onWithdraw={withdraw} onJoined={loadFamilyData} onProfileSaved={setMe} onEditChild={() => {setProfileOpen(false);setChildEditing(true);setChildOpen(true);}} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
       {childOpen && <ChildSheet editing={childEditing} active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { chooseChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => {setChildOpen(false);setChildEditing(false);}} onToast={showToast} onCreated={loadFamilyData} />}
       {toast && <div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
     </div>
@@ -307,31 +339,34 @@ function App() {
 
 const DEMO_ACCOUNTS = [['MINJI','김민지','엄마','민'],['SOONJA','김순자','할머니','순'],['JIHUN','박지훈','아빠','지']];
 
-function LoginScreen({ onLogin, authConfig }) {
-  const [loginFailed, setLoginFailed] = useState(() => new URLSearchParams(window.location.search).has('error'));
-  React.useEffect(() => {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has('error')) return;
-    url.searchParams.delete('error');
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-  }, []);
-  const retryLogin = (...args) => { setLoginFailed(false); onLogin(...args); };
+function LoginScreen({ onDemoLogin, authConfig }) {
+  const params = new URLSearchParams(window.location.search);
+  const withdrawn = params.get('withdrawn') === '1';
+  const chooseAccount = !withdrawn && params.get('mode') === 'account';
+  const loginError = params.get('error');
   return <div className="login-screen">
     <div className="login-visual"><span className="login-glow one"/><span className="login-glow two"/><div className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt="도담"/></div><div className="login-badge badge-one"><Syringe/><span>예방접종</span></div><div className="login-badge badge-two"><TrendingUp/><span>성장 기록</span></div><div className="login-badge badge-three"><FileText/><span>건강 문서</span></div></div>
     <div className="login-content"><Logo/><span className="eyebrow">FAMILY HEALTH COMPANION</span><h1>아이의 건강한 성장을<br/><strong>도담</strong>과 함께 기록해요.</h1><p>병원 기록부터 예방접종, 성장 발달까지<br/>우리 가족의 건강 정보를 안전하게 관리하세요.</p>
-      <div className="login-actions"><button className="kakao-button" onClick={()=>retryLogin('kakao')}><span>💬</span> 카카오로 3초 만에 시작하기</button>{authConfig?.demoLogin && <button className="email-button" onClick={()=>retryLogin('demo')}>체험 계정으로 로그인</button>}</div>
+      {withdrawn && <p role="status">도담 회원 탈퇴를 완료했어요.</p>}
+      {loginError === 'canceled' && <p role="status">카카오 로그인을 취소했어요.</p>}
+      {loginError === 'fail' && <p role="alert">카카오 로그인을 완료하지 못했어요. 다시 시도해 주세요.</p>}
+      <div className="login-actions">
+        <a className="kakao-button" href={chooseAccount ? api.kakaoAccountLoginUrl : api.kakaoLoginUrl}>
+          <span aria-hidden="true">💬</span> 카카오로 시작하기
+        </a>
+        {authConfig?.demoLogin && <button className="email-button" onClick={() => onDemoLogin()}>체험 계정으로 로그인</button>}
+      </div>
       {authConfig?.demoLogin && <div className="demo-login">
         <div className="demo-login-head"><span>테스트 계정</span><em>비밀번호 없이 바로 입장</em></div>
         <div className="demo-list">
           {DEMO_ACCOUNTS.map(([key, name, relation, initial]) => (
-            <button key={key} className="demo-main" onClick={()=>retryLogin('demo', key)}>
+            <button key={key} className="demo-main" onClick={() => onDemoLogin(key)}>
               <span className="demo-avatar">{initial}</span>
               <span className="demo-text"><b>{name}</b><small>{relation} · 박도윤, 박다연</small></span>
             </button>
           ))}
         </div>
       </div>}
-      {loginFailed && <p role="alert">로그인을 완료하지 못했어요. 다시 시도해 주세요. 문제가 계속되면 운영팀에 문의해 주세요.</p>}
       <p>처음 이용하시면 카카오 로그인으로 가입할 수 있어요.</p><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
     </div>
   </div>;
@@ -750,11 +785,15 @@ function NotificationSheet({ notis, userId, onClose, onRead, onReadAll, onOpen }
   </div></div>;
 }
 
-function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
+function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onWithdraw,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
   const name = child?.fullName || '아이 미선택';
   const relation = me?.role === 'PATIENT' ? '아이' : '보호자';
-  const [editingName,setEditingName] = useState(false);
-  const [profileName,setProfileName] = useState(me?.name || '');
+  const needsName = me?.name === '이용자';
+  const [editingName,setEditingName] = useState(needsName);
+  const [profileName,setProfileName] = useState(needsName ? '' : me?.name || '');
+  const [confirmWithdrawal, setConfirmWithdrawal] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawalError, setWithdrawalError] = useState('');
   const [profileError,setProfileError] = useState('');
   const [parents,setParents] = useState(null);
   const [codeOpen,setCodeOpen] = useState(false);
@@ -817,7 +856,7 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
       e.preventDefault(); if(busy)return; setBusy(true);setProfileError('');
       try {const updated=await api.updateMyProfile({name:profileName.trim()});onProfileSaved(updated);setEditingName(false);onToast('내 프로필을 수정했어요');}
       catch(error){setProfileError(errorMessage(error));}finally{setBusy(false);}
-    }}><label htmlFor="guardian-name">보호자 이름</label><input id="guardian-name" value={profileName} required maxLength={100} disabled={busy} onChange={e=>setProfileName(e.target.value)}/>
+    }}><label htmlFor="guardian-name">{needsName ? '도담에서 사용할 이름' : '보호자 이름'}</label><input id="guardian-name" value={profileName} required maxLength={100} disabled={busy} onChange={e=>setProfileName(e.target.value)}/>
     {profileError&&<p role="alert">{profileError}</p>}<div className="child-form-actions"><button type="button" disabled={busy} onClick={()=>setEditingName(false)}>취소</button><button className="child-save" disabled={busy}>{busy?'저장 중…':'변경사항 저장'}</button></div></form>}
 
     <div className="family-block">
@@ -859,7 +898,21 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
     </div>}
 
     <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 추가 · 전환</button>
-    <button className="logout-button" onClick={onLogout}>로그아웃</button>
+    <button className="logout-button" disabled={withdrawing} onClick={onLogout}>로그아웃</button>
+    {backendOnline && me?.id && (confirmWithdrawal ? <section className="withdrawal-panel" aria-label="회원 탈퇴 확인">
+      <strong>도담에서 탈퇴할까요?</strong>
+      <p>같은 카카오 계정에 연결된 도담 프로필과 가족 연결이 해제돼요. 다시 가입해도 기존 연결은 복구되지 않아요.</p>
+      {withdrawalError && <p role="alert">{withdrawalError}</p>}
+      <div className="child-form-actions">
+        <button type="button" disabled={withdrawing} onClick={() => { setConfirmWithdrawal(false); setWithdrawalError(''); }}>취소</button>
+        <button type="button" className="withdrawal-confirm" disabled={withdrawing} onClick={async () => {
+          setWithdrawing(true);
+          setWithdrawalError('');
+          try { await onWithdraw(); }
+          catch (error) { setWithdrawalError(errorMessage(error, '회원 탈퇴를 완료하지 못했어요.')); setWithdrawing(false); }
+        }}>{withdrawing ? '탈퇴 처리 중…' : '탈퇴하기'}</button>
+      </div>
+    </section> : <button type="button" className="withdrawal-link" onClick={() => setConfirmWithdrawal(true)}>회원 탈퇴</button>)}
   </div></div>;
 }
 
