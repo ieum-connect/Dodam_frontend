@@ -19,7 +19,7 @@ import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
 import ChildSheet from './ChildSheet';
 import { VaccinationScreen } from './vaccination/VaccinationScreen';
-import { useBackLayer, useRootBack } from './backNavigation';
+import { currentBackScreen, pushBackScreen, useBackLayer, useRootBack } from './backNavigation';
 import { documentDisplayName, documentNoteKey } from './documentName';
 import PushSettings from './PushSettings';
 import { enablePush, disablePush, pushEnabled } from './push';
@@ -69,8 +69,7 @@ function App() {
   const [authAttempt, setAuthAttempt] = useState(0);
   const [authConfig, setAuthConfig] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
-  const [tab, setTab] = useState('home');
-  const [detail, setDetail] = useState(null);
+  const [{tab, detail}, setScreen] = useState(() => currentBackScreen() ?? {tab:'home', detail:null});
   const [profileOpen, setProfileOpen] = useState(false);
   const [childOpen, setChildOpen] = useState(false);
   const [childEditing, setChildEditing] = useState(false);
@@ -244,22 +243,27 @@ function App() {
     const timer = window.setInterval(refresh, 15000);
     return () => { canceled = true; window.clearInterval(timer); };
   }, [loggedIn, backendOnline, me?.id]);
+  const restoreScreen = screen => {
+    setScreen(screen ?? {tab:'home', detail:null});
+    setMedicationDraft(null);
+  };
+  const goToScreen = (nextTab, nextDetail = null) => {
+    if (nextTab !== tab || nextDetail !== detail) pushBackScreen({tab:nextTab, detail:nextDetail}, setScreen);
+  };
   const navigate = (id) => {
     setMedicationDraft(null);
-    if (['chat','home','calendar','medical','more'].includes(id)) { setDetail(null); setTab(id); return; }
-    setTab('home'); setDetail(id);
+    if (['chat','home','calendar','medical','more'].includes(id)) { goToScreen(id); return; }
+    goToScreen('home', id);
   };
   const MEDICAL_IDS = ['records','meds','vaccine','documents'];
   const activeNav = MEDICAL_IDS.includes(detail || tab) ? 'medical' : (detail || tab);
 
   const openFeature = (id) => {
     setMedicationDraft(null);
-    if (id === 'chat' || id === 'calendar') { setTab(id); setDetail(null); return; }
-    setDetail(id);
+    if (id === 'chat' || id === 'calendar') { goToScreen(id); return; }
+    goToScreen(tab, id);
   };
-  useRootBack(() => showToast('한 번 더 누르면 종료돼요'));
-  useBackLayer(tab !== 'home', () => navigate('home'));
-  useBackLayer(!!detail, () => setDetail(null));
+  useRootBack(() => showToast('한 번 더 누르면 종료돼요'), restoreScreen);
   useBackLayer(!!welfareBackHandler, () => welfareBackHandler?.());
   useBackLayer(notiOpen, () => setNotiOpen(false));
   useBackLayer(profileOpen, () => setProfileOpen(false));
@@ -288,7 +292,7 @@ function App() {
         </div> : !loggedIn ? <LoginScreen onDemoLogin={loginDemo} authConfig={authConfig} /> : <>
         <header className="topbar">
           {detail ? (
-            <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
+            <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : window.history.back()} aria-label="뒤로"><ChevronLeft/></button>
           ) : <Logo compact />}
           <div className="top-actions">
             <button className={`icon-button ${notis.unreadCount ? 'dot' : ''}`} onClick={() => setNotiOpen(true)} aria-label="알림"><Bell/></button>
@@ -298,7 +302,7 @@ function App() {
 
         <div className="screen-content" ref={screenRef} key={activeChild?.id || 'no-child'}>
           {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
-          {detail ? <DetailScreen medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});setDetail('meds');setTab('home');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
+          {detail ? <DetailScreen medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});goToScreen('home','meds');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
 
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
