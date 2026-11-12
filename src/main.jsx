@@ -13,15 +13,17 @@ import './care-workspace.css';
 import { api, ApiError, errorMessage } from './api';
 import { WelfarePrototype } from './welfare/WelfarePrototype';
 import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
+import ChildRequiredState from './ChildRequiredState';
 import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
 import ChildSheet from './ChildSheet';
 import { VaccinationScreen } from './vaccination/VaccinationScreen';
-import { useBackLayer, useRootBack } from './backNavigation';
+import { currentBackScreen, pushBackScreen, useBackLayer, useRootBack } from './backNavigation';
 import { documentDisplayName, documentNoteKey } from './documentName';
 import PushSettings from './PushSettings';
 import { enablePush, disablePush, pushEnabled } from './push';
+import PushOnboarding from './PushOnboarding';
 
 function MarkdownText({ text }) {
   const lines = String(text || '').split(/\r?\n/);
@@ -63,10 +65,11 @@ const detailCopy = {
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authAttempt, setAuthAttempt] = useState(0);
   const [authConfig, setAuthConfig] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
-  const [tab, setTab] = useState('home');
-  const [detail, setDetail] = useState(null);
+  const [{tab, detail}, setScreen] = useState(() => currentBackScreen() ?? {tab:'home', detail:null});
   const [profileOpen, setProfileOpen] = useState(false);
   const [childOpen, setChildOpen] = useState(false);
   const [childEditing, setChildEditing] = useState(false);
@@ -133,13 +136,40 @@ function App() {
   };
 
   React.useEffect(() => {
-    Promise.all([api.authConfig().then(config => { setAuthConfig(config); return config; }).catch(() => null), api.needsRole().catch(() => null), api.me()])
-      .then(([, , user]) => { setMe(user); setLoggedIn(true); setBackendOnline(true); return loadFamilyData(); })
-      .catch(() => {}).finally(() => setAuthReady(true));
+    api.authConfig().then(setAuthConfig).catch(() => {});
+    const restore = event => {
+      if (!event.persisted) return;
+      setAuthReady(false);
+      setAuthAttempt(attempt => attempt + 1);
+    };
+    window.addEventListener('pageshow', restore);
+    return () => window.removeEventListener('pageshow', restore);
   }, []);
 
-  const login = async (mode, account) => {
-    if (mode === 'kakao') { window.location.href = api.kakaoLoginUrl; return; }
+  React.useEffect(() => {
+    let active = true;
+    setAuthReady(false);
+    setAuthError('');
+    api.me().then(user => {
+      if (!active) return;
+      setMe(user);
+      setLoggedIn(true);
+      setBackendOnline(true);
+      void loadFamilyData();
+    }).catch(error => {
+      if (!active) return;
+      if (error.status === 401) {
+        setMe(null);
+        setLoggedIn(false);
+        setBackendOnline(false);
+      } else {
+        setAuthError('로그인 상태를 확인하지 못했어요. 다시 시도해 주세요.');
+      }
+    }).finally(() => { if (active) setAuthReady(true); });
+    return () => { active = false; };
+  }, [authAttempt]);
+
+  const loginDemo = async (account) => {
     try {
       await api.demoLogin(account);
       const user = await api.me();
@@ -158,24 +188,23 @@ function App() {
       await disablePush().catch(() => {});
       if (backendOnline) await api.logout();
     } catch (error) {
-      // Clear local state even if the server session has already expired.
-    } finally {
-      setLoggedIn(false);
-      setMe(null);
-      setProfileOpen(false);
-      setChildOpen(false);
-      setTab('home');
-      setDetail(null);
-      setChildren([]);
-      setVisits([]);
-      setDocuments([]);
-      activeChildRef.current = null; familyRequest.current++; setActiveChild(null);
+      if (error.status !== 401) {
+        showToast('로그아웃을 완료하지 못했어요. 다시 시도해 주세요.');
+        return;
+      }
     }
+    window.location.replace('/login?mode=account');
+  };
+
+  const withdraw = async () => {
+    await api.deleteMe();
+    await disablePush().catch(() => {});
+    window.location.replace('/login?withdrawn=1');
   };
 
   React.useEffect(() => {
     if (!loggedIn) return;
-    if (pushEnabled()) enablePush(false).catch(() => {});
+    if (pushEnabled()) enablePush({ ask: false, userId: me?.id }).catch(() => {});
     if (new URLSearchParams(location.search).has('push') || sessionStorage.getItem('dodam.open-notifications')) {
       setNotiOpen(true); sessionStorage.removeItem('dodam.open-notifications');
       const url = new URL(location.href); url.searchParams.delete('push'); history.replaceState(history.state, '', url);
@@ -214,22 +243,27 @@ function App() {
     const timer = window.setInterval(refresh, 15000);
     return () => { canceled = true; window.clearInterval(timer); };
   }, [loggedIn, backendOnline, me?.id]);
+  const restoreScreen = screen => {
+    setScreen(screen ?? {tab:'home', detail:null});
+    setMedicationDraft(null);
+  };
+  const goToScreen = (nextTab, nextDetail = null) => {
+    if (nextTab !== tab || nextDetail !== detail) pushBackScreen({tab:nextTab, detail:nextDetail}, setScreen);
+  };
   const navigate = (id) => {
     setMedicationDraft(null);
-    if (['chat','home','calendar','medical','more'].includes(id)) { setDetail(null); setTab(id); return; }
-    setTab('home'); setDetail(id);
+    if (['chat','home','calendar','medical','more'].includes(id)) { goToScreen(id); return; }
+    goToScreen('home', id);
   };
   const MEDICAL_IDS = ['records','meds','vaccine','documents'];
   const activeNav = MEDICAL_IDS.includes(detail || tab) ? 'medical' : (detail || tab);
 
   const openFeature = (id) => {
     setMedicationDraft(null);
-    if (id === 'chat' || id === 'calendar') { setTab(id); setDetail(null); return; }
-    setDetail(id);
+    if (id === 'chat' || id === 'calendar') { goToScreen(id); return; }
+    goToScreen(tab, id);
   };
-  useRootBack(() => showToast('한 번 더 누르면 종료돼요'));
-  useBackLayer(tab !== 'home', () => navigate('home'));
-  useBackLayer(!!detail, () => setDetail(null));
+  useRootBack(() => showToast('한 번 더 누르면 종료돼요'), restoreScreen);
   useBackLayer(!!welfareBackHandler, () => welfareBackHandler?.());
   useBackLayer(notiOpen, () => setNotiOpen(false));
   useBackLayer(profileOpen, () => setProfileOpen(false));
@@ -251,10 +285,14 @@ function App() {
       </aside>
 
       <main className={`phone-frame ${!loggedIn ? 'login-frame' : ''}`}>
-        {!authReady ? <div className="app-loading"><span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span><p>가족 건강 기록을 불러오는 중...</p></div> : !loggedIn ? <LoginScreen onLogin={login} authConfig={authConfig} /> : <>
+        {!authReady || authError ? <div className="app-loading">
+          <span className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt=""/></span>
+          <p role={authError ? 'alert' : 'status'}>{authError || '로그인 상태를 확인하는 중이에요'}</p>
+          {authError && <button type="button" className="primary-button compact" onClick={() => setAuthAttempt(attempt => attempt + 1)}>다시 시도</button>}
+        </div> : !loggedIn ? <LoginScreen onDemoLogin={loginDemo} authConfig={authConfig} /> : <>
         <header className="topbar">
           {detail ? (
-            <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : setDetail(null)} aria-label="뒤로"><ChevronLeft/></button>
+            <button className="icon-button" onClick={() => welfareBackHandler ? welfareBackHandler() : window.history.back()} aria-label="뒤로"><ChevronLeft/></button>
           ) : <Logo compact />}
           <div className="top-actions">
             <button className={`icon-button ${notis.unreadCount ? 'dot' : ''}`} onClick={() => setNotiOpen(true)} aria-label="알림"><Bell/></button>
@@ -264,11 +302,11 @@ function App() {
 
         <div className="screen-content" ref={screenRef} key={activeChild?.id || 'no-child'}>
           {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
-          {detail ? <DetailScreen medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});setDetail('meds');setTab('home');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
+          {detail ? <DetailScreen medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});goToScreen('home','meds');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
 
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
-            : tab === 'calendar' ? <LiveCalendarScreen key={`${activeChild?.id || 'none'}-${calendarFocus || ''}`} initialDate={calendarFocus} child={activeChild} onToast={showToast} renderVisit={(visit,back,saved)=><VisitItemDetail key={visit.visitId} visit={visit} child={activeChild} documents={documents} backendOnline={backendOnline} onBack={back} onSaved={saved} onToast={showToast}/>} />
+            : tab === 'calendar' ? <LiveCalendarScreen key={`${activeChild?.id || 'none'}-${calendarFocus || ''}`} initialDate={calendarFocus} child={activeChild} onToast={showToast} onChildOpen={() => setChildOpen(true)} renderVisit={(visit,back,saved)=><VisitItemDetail key={visit.visitId} visit={visit} child={activeChild} documents={documents} backendOnline={backendOnline} onBack={back} onSaved={saved} onToast={showToast}/>} />
             : tab === 'chat' ? <ChatScreen child={activeChild} documents={documents} backendOnline={backendOnline} onToast={showToast} />
             : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
             : tab === 'documents' ? <DetailScreen type="documents" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
@@ -279,7 +317,9 @@ function App() {
         </>}
       </main>
 
-      {notiOpen && <NotificationSheet notis={notis} onClose={() => setNotiOpen(false)} onToast={showToast}
+      {loggedIn && backendOnline && me?.id && <PushOnboarding key={me.id} userId={me.id}
+        blocked={notiOpen || profileOpen || childOpen} />}
+      {notiOpen && <NotificationSheet notis={notis} userId={me?.id} onClose={() => setNotiOpen(false)} onToast={showToast}
         onOpen={notification => {
           if (notification.type !== 'SCHEDULE_DUE') return;
           const target = new URL(notification.path, window.location.origin);
@@ -294,7 +334,7 @@ function App() {
         }}
         onRead={async (id) => { try { await api.readNotification(id); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); } catch {} }}
         onReadAll={async () => { try { await api.readAllNotifications(); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); showToast('모든 알림을 읽음 처리했어요'); } catch { showToast('알림을 처리하지 못했어요'); } }} />}
-      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onJoined={loadFamilyData} onProfileSaved={setMe} onEditChild={() => {setProfileOpen(false);setChildEditing(true);setChildOpen(true);}} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
+      {profileOpen && <ProfileSheet child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onWithdraw={withdraw} onJoined={loadFamilyData} onProfileSaved={setMe} onEditChild={() => {setProfileOpen(false);setChildEditing(true);setChildOpen(true);}} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
       {childOpen && <ChildSheet editing={childEditing} active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { chooseChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => {setChildOpen(false);setChildEditing(false);}} onToast={showToast} onCreated={loadFamilyData} />}
       {toast && <div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
     </div>
@@ -303,31 +343,34 @@ function App() {
 
 const DEMO_ACCOUNTS = [['MINJI','김민지','엄마','민'],['SOONJA','김순자','할머니','순'],['JIHUN','박지훈','아빠','지']];
 
-function LoginScreen({ onLogin, authConfig }) {
-  const [loginFailed, setLoginFailed] = useState(() => new URLSearchParams(window.location.search).has('error'));
-  React.useEffect(() => {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has('error')) return;
-    url.searchParams.delete('error');
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-  }, []);
-  const retryLogin = (...args) => { setLoginFailed(false); onLogin(...args); };
+function LoginScreen({ onDemoLogin, authConfig }) {
+  const params = new URLSearchParams(window.location.search);
+  const withdrawn = params.get('withdrawn') === '1';
+  const chooseAccount = !withdrawn && params.get('mode') === 'account';
+  const loginError = params.get('error');
   return <div className="login-screen">
     <div className="login-visual"><span className="login-glow one"/><span className="login-glow two"/><div className="login-heart"><img className="dodam-brand-icon" src="/favicon.png" alt="도담"/></div><div className="login-badge badge-one"><Syringe/><span>예방접종</span></div><div className="login-badge badge-two"><TrendingUp/><span>성장 기록</span></div><div className="login-badge badge-three"><FileText/><span>건강 문서</span></div></div>
     <div className="login-content"><Logo/><span className="eyebrow">FAMILY HEALTH COMPANION</span><h1>아이의 건강한 성장을<br/><strong>도담</strong>과 함께 기록해요.</h1><p>병원 기록부터 예방접종, 성장 발달까지<br/>우리 가족의 건강 정보를 안전하게 관리하세요.</p>
-      <div className="login-actions"><button className="kakao-button" onClick={()=>retryLogin('kakao')}><span>💬</span> 카카오로 3초 만에 시작하기</button>{authConfig?.demoLogin && <button className="email-button" onClick={()=>retryLogin('demo')}>체험 계정으로 로그인</button>}</div>
+      {withdrawn && <p role="status">도담 회원 탈퇴를 완료했어요.</p>}
+      {loginError === 'canceled' && <p role="status">카카오 로그인을 취소했어요.</p>}
+      {loginError === 'fail' && <p role="alert">카카오 로그인을 완료하지 못했어요. 다시 시도해 주세요.</p>}
+      <div className="login-actions">
+        <a className="kakao-button" href={chooseAccount ? api.kakaoAccountLoginUrl : api.kakaoLoginUrl}>
+          <span aria-hidden="true">💬</span> 카카오로 시작하기
+        </a>
+        {authConfig?.demoLogin && <button className="email-button" onClick={() => onDemoLogin()}>체험 계정으로 로그인</button>}
+      </div>
       {authConfig?.demoLogin && <div className="demo-login">
         <div className="demo-login-head"><span>테스트 계정</span><em>비밀번호 없이 바로 입장</em></div>
         <div className="demo-list">
           {DEMO_ACCOUNTS.map(([key, name, relation, initial]) => (
-            <button key={key} className="demo-main" onClick={()=>retryLogin('demo', key)}>
+            <button key={key} className="demo-main" onClick={() => onDemoLogin(key)}>
               <span className="demo-avatar">{initial}</span>
               <span className="demo-text"><b>{name}</b><small>{relation} · 박도윤, 박다연</small></span>
             </button>
           ))}
         </div>
       </div>}
-      {loginFailed && <p role="alert">로그인을 완료하지 못했어요. 다시 시도해 주세요. 문제가 계속되면 운영팀에 문의해 주세요.</p>}
       <p>처음 이용하시면 카카오 로그인으로 가입할 수 있어요.</p><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
     </div>
   </div>;
@@ -511,10 +554,10 @@ function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], chil
   if(type==='timeline') return <RecordTimeline key={child?.id || 'no-child'} child={child} onOpen={onOpen}/>;
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthScreen key={child?.id || 'no-child'} child={child} onToast={onToast}/>;
-  if(type==='meds') return <LiveCalendarScreen key={child?.id || 'none'} child={child} onToast={onToast} medicationOnly initialDraft={medicationDraft} />;
+  if(type==='meds') return <LiveCalendarScreen key={child?.id || 'none'} child={child} onToast={onToast} onChildOpen={onChildOpen} medicationOnly initialDraft={medicationDraft} />;
   if(type==='welfare') return <WelfarePrototype child={child} onChildOpen={onChildOpen} onBackChange={onWelfareBackChange}/>;
   if(type==='memo') return <MemoScreen key={child?.id || 'none'} onToast={onToast} child={child} backendOnline={backendOnline} onMedication={onMedication}/>;
-  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar}/>;
+  if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar} onChildOpen={onChildOpen}/>;
 
   if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
@@ -606,10 +649,6 @@ function useScrollTop(dep) {
 const DOC_STATUS = { UPLOADED:'분석 대기', PROCESSING:'분석 중', READY:'분석 완료', NEEDS_REVIEW:'일부 분석 완료 · 확인 필요', ANALYZING:'분석 중', DONE:'분석 완료', FAILED:'분석 실패' };
 
 function InfoRow({label,value}) { return <div className="info-row"><span>{label}</span><p>{value}</p></div>; }
-
-function ChildRequiredState({ icon: Icon, title, onChildOpen }) {
-  return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Icon/></span><div><h2>{title}</h2><p>아이별로 건강 기록을 안전하게 관리해요.</p></div></div><div className="child-required"><Baby/><h3>아이를 먼저 등록해 주세요</h3><p>방문 기록을 만들거나 건강 문서를 업로드하려면<br/>먼저 관리할 아이의 프로필이 필요해요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 등록하기</button></div></div>;
-}
 
 function DocumentDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft }) {
   const [uploading, setUploading] = useState(false);
@@ -718,7 +757,7 @@ function MoreScreen({onOpen, me, child, onProfile, onChild, onLogout}) {
   </div>;
 }
 
-function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
+function NotificationSheet({ notis, userId, onClose, onRead, onReadAll, onOpen }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const shown = notis.items.filter(item => !unreadOnly || !item.readAt);
@@ -727,7 +766,7 @@ function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
     <div className="notification-header">
       {settingsOpen ? <><button className="notification-back" aria-label="알림 목록으로 돌아가기" onClick={() => setSettingsOpen(false)}><ChevronLeft/></button><div><h3>알림 설정</h3><p>이 기기에서 받을 알림을 관리해요</p></div></> : <><Bell className="notification-header-icon"/><div><h3>알림</h3><p>읽지 않은 알림 {notis.unreadCount}건</p></div><button className="notification-settings-link" onClick={() => setSettingsOpen(true)}><Settings2 size={16}/> 설정</button></>}
     </div>
-    {settingsOpen ? <div className="notification-settings-view"><PushSettings/><p className="notification-settings-note">기기와 네트워크 상태에 따라 알림이 늦게 도착할 수 있어요.</p></div> : <>
+    {settingsOpen ? <div className="notification-settings-view"><PushSettings key={userId} userId={userId}/><p className="notification-settings-note">기기와 네트워크 상태에 따라 알림이 늦게 도착할 수 있어요.</p></div> : <>
     {notis.items.length ? <>
       <div className="notification-toolbar"><div className="noti-filters"><button aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>전체</button><button aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>안 읽음 <span>{notis.unreadCount}</span></button></div>{notis.unreadCount > 0 && <button className="notification-read-all" onClick={onReadAll}><CheckCircle2 size={14}/> 모두 읽기</button>}</div>
       {!shown.length && <p className="memo-empty">불러온 알림은 모두 확인했어요.</p>}
@@ -750,11 +789,15 @@ function NotificationSheet({ notis, onClose, onRead, onReadAll, onOpen }) {
   </div></div>;
 }
 
-function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
+function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onWithdraw,onJoined,onChildOpen,onEditChild,onProfileSaved}) {
   const name = child?.fullName || '아이 미선택';
   const relation = me?.role === 'PATIENT' ? '아이' : '보호자';
-  const [editingName,setEditingName] = useState(false);
-  const [profileName,setProfileName] = useState(me?.name || '');
+  const needsName = me?.name === '이용자';
+  const [editingName,setEditingName] = useState(needsName);
+  const [profileName,setProfileName] = useState(needsName ? '' : me?.name || '');
+  const [confirmWithdrawal, setConfirmWithdrawal] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawalError, setWithdrawalError] = useState('');
   const [profileError,setProfileError] = useState('');
   const [parents,setParents] = useState(null);
   const [codeOpen,setCodeOpen] = useState(false);
@@ -781,7 +824,7 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
   }, [backendOnline]);
 
   const switchAccount = async (role) => {
-    try { setBusy(true); await api.switchAccount(role); onToast('계정을 전환했어요. 알림 설정에서 이 기기 알림을 다시 켜주세요.'); await onJoined?.(); onClose(); }
+    try { setBusy(true); await disablePush().catch(() => {}); await api.switchAccount(role); onToast('계정을 전환했어요. 알림 설정에서 이 기기 알림을 다시 켜주세요.'); await onJoined?.(); onClose(); }
     catch (e) { onToast(e.message || '계정을 전환하지 못했어요'); }
     finally { setBusy(false); }
   };
@@ -817,7 +860,7 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
       e.preventDefault(); if(busy)return; setBusy(true);setProfileError('');
       try {const updated=await api.updateMyProfile({name:profileName.trim()});onProfileSaved(updated);setEditingName(false);onToast('내 프로필을 수정했어요');}
       catch(error){setProfileError(errorMessage(error));}finally{setBusy(false);}
-    }}><label htmlFor="guardian-name">보호자 이름</label><input id="guardian-name" value={profileName} required maxLength={100} disabled={busy} onChange={e=>setProfileName(e.target.value)}/>
+    }}><label htmlFor="guardian-name">{needsName ? '도담에서 사용할 이름' : '보호자 이름'}</label><input id="guardian-name" value={profileName} required maxLength={100} disabled={busy} onChange={e=>setProfileName(e.target.value)}/>
     {profileError&&<p role="alert">{profileError}</p>}<div className="child-form-actions"><button type="button" disabled={busy} onClick={()=>setEditingName(false)}>취소</button><button className="child-save" disabled={busy}>{busy?'저장 중…':'변경사항 저장'}</button></div></form>}
 
     <div className="family-block">
@@ -859,7 +902,21 @@ function ProfileSheet({child,me,backendOnline,onClose,onToast,onLogout,onJoined,
     </div>}
 
     <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 추가 · 전환</button>
-    <button className="logout-button" onClick={onLogout}>로그아웃</button>
+    <button className="logout-button" disabled={withdrawing} onClick={onLogout}>로그아웃</button>
+    {backendOnline && me?.id && (confirmWithdrawal ? <section className="withdrawal-panel" aria-label="회원 탈퇴 확인">
+      <strong>도담에서 탈퇴할까요?</strong>
+      <p>같은 카카오 계정에 연결된 도담 프로필과 가족 연결이 해제돼요. 다시 가입해도 기존 연결은 복구되지 않아요.</p>
+      {withdrawalError && <p role="alert">{withdrawalError}</p>}
+      <div className="child-form-actions">
+        <button type="button" disabled={withdrawing} onClick={() => { setConfirmWithdrawal(false); setWithdrawalError(''); }}>취소</button>
+        <button type="button" className="withdrawal-confirm" disabled={withdrawing} onClick={async () => {
+          setWithdrawing(true);
+          setWithdrawalError('');
+          try { await onWithdraw(); }
+          catch (error) { setWithdrawalError(errorMessage(error, '회원 탈퇴를 완료하지 못했어요.')); setWithdrawing(false); }
+        }}>{withdrawing ? '탈퇴 처리 중…' : '탈퇴하기'}</button>
+      </div>
+    </section> : <button type="button" className="withdrawal-link" onClick={() => setConfirmWithdrawal(true)}>회원 탈퇴</button>)}
   </div></div>;
 }
 

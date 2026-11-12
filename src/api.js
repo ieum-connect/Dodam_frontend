@@ -48,7 +48,7 @@ async function request(path, options = {}) {
 
 export const api = {
   pushConfig: () => request('/api/push/config'),
-  registerPush: token => request('/api/push/devices', { method: 'POST', body: JSON.stringify({ token }) }),
+  registerPush: (token, showDetails) => request('/api/push/devices', { method: 'POST', body: JSON.stringify({ token, showDetails }) }),
   unregisterPush: token => request('/api/push/devices', { method: 'DELETE', body: JSON.stringify({ token }) }),
   growthRecords: (patientId) => request(`/api/growth-records?${new URLSearchParams({ patientId })}`),
   createGrowth: (body) => request('/api/growth-records', { method: 'POST', body: JSON.stringify(body) }),
@@ -69,6 +69,7 @@ export const api = {
   updateMyProfile: (body) => request('/api/me/profile', { method: 'PUT', body: JSON.stringify(body) }),
   demoLogin: (account) => request('/api/demo/login', { method: 'POST', body: JSON.stringify(account ? { account } : { role: 'CAREGIVER' }) }),
   kakaoLoginUrl: `${API_BASE}/oauth2/authorization/kakao`,
+  kakaoAccountLoginUrl: `${API_BASE}/oauth2/authorization/kakao?chooseAccount=1`,
   logout: () => request('/logout', { method: 'POST' }),
   children: () => request('/api/children'),
   createChild: (body) => request('/api/children', { method: 'POST', body: JSON.stringify(body) }),
@@ -150,13 +151,9 @@ export const api = {
   checkVaccination: (patientId, doseId) => request(`/api/vaccinations/checks/${encodeURIComponent(doseId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'PUT' }),
   uncheckVaccination: (patientId, doseId) => request(`/api/vaccinations/checks/${encodeURIComponent(doseId)}?patientId=${encodeURIComponent(patientId)}`, { method: 'DELETE' }),
   accounts: () => request('/api/accounts'),
-  switchAccount: async (role) => {
-    const { disablePush } = await import('./push');
-    await disablePush().catch(() => {});
-    return request('/api/accounts/switch', { method: 'POST', body: JSON.stringify({ role }) });
-  },
+  switchAccount: (role) => request('/api/accounts/switch', { method: 'POST', body: JSON.stringify({ role }) }),
   needsRole: () => request('/api/auth/needs-role'),
   setRole: (role) => request('/api/role', { method: 'POST', body: JSON.stringify({ role }) }),
   updateMyRole: (role) => request('/api/me/role', { method: 'PUT', body: JSON.stringify({ role }) }),
-  deleteMe: () => request('/api/me', { method: 'DELETE' }),
+  deleteMe: () => request('/api/me', { method: 'DELETE', body: JSON.stringify({ confirmed: true }) }),
 };
