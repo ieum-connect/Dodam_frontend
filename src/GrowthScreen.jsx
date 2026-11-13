@@ -1,13 +1,35 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Ruler, Scale, TrendingUp, Pencil, Trash2, X, MoreHorizontal } from 'lucide-react';
 import { api, errorMessage } from './api';
+import CarePageHeader from './CarePageHeader';
+import { growthPositionByAge, growthReferenceSource } from './growthReference';
 import { growthRange, growthPoints, growthPosition, stamp, newestGrowthFirst } from './growth';
 import { useBackLayer } from './backNavigation';
 
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
 const blank = () => ({ measuredOn: today(), heightCm: '', weightKg: '', note: '' });
 const metrics = { heightCm: { name: '키', unit: 'cm', icon: Ruler }, weightKg: { name: '몸무게', unit: 'kg', icon: Scale } };
-function GrowthChart({ rows, metric, range }) {
+function GrowthComparison({ child, row, metric }) {
+  const value = Number(row[metric]);
+  const comparison = growthPositionByAge(metric, child.gender, child.birthDate, row.measuredOn, value);
+  const { name, unit } = metrics[metric];
+  if (!comparison) return null;
+  const { age, label, median } = comparison;
+  const difference = Number((value - median).toFixed(1));
+  const relative = metric === 'heightCm'
+    ? (difference < 0 ? '작아요' : '커요')
+    : (difference < 0 ? '가벼워요' : '무거워요');
+  return <div className="growth-comparison">
+    <div className="growth-comparison-reference">
+      <span>{age}개월 {child.gender === 'MALE' ? '남아' : '여아'}의 {name} 중앙값</span>
+      <strong>{median.toFixed(1)} {unit}</strong>
+    </div>
+    <p>{difference === 0 ? '또래 중앙값과 같아요' : `또래 중앙값보다 ${Math.abs(difference).toFixed(1)} ${unit} ${relative}`}</p>
+    <span className="growth-reference-position">또래 {name} 분포 · {label}</span>
+  </div>;
+}
+
+function GrowthChart({ rows, metric, range, child }) {
   const points = growthPoints(rows, metric, range);
   const [selectedId, setSelectedId] = useState(null);
   const selected = points.find(row => row.id === selectedId) || points.at(-1);
@@ -27,8 +49,11 @@ function GrowthChart({ rows, metric, range }) {
       {points.length > 1 && <polyline points={points.map(row => `${x(row)},${y(row)}`).join(' ')} fill="none" stroke="#b44873" strokeWidth="2.5"/>}
       {points.map(row => <g key={row.id} role="button" tabIndex="0" aria-label={`${row.measuredOn} ${row[metric]} ${metrics[metric].unit}`} aria-pressed={selected.id === row.id} onClick={() => setSelectedId(row.id)} onKeyDown={event => {if (event.key === 'Enter' || event.key === ' ') {event.preventDefault(); setSelectedId(row.id);}}}><circle cx={x(row)} cy={y(row)} r="12" fill="transparent"/><circle cx={x(row)} cy={y(row)} r={selected.id === row.id ? 6 : 4} fill="#b44873" stroke="white" strokeWidth="2"/></g>)}
     </svg>
-    <div className="growth-point-detail" aria-live="polite"><span>{selected.measuredOn} 측정</span><b>{Number(selected[metric]).toFixed(1)} {metrics[metric].unit}</b></div>
-    <p className="growth-chart-note">점을 누르면 측정값을 확인할 수 있어요. 기록이 없는 기간은 빈 공간으로 표시해요. 세로축은 측정값에 맞춰 조정돼요.</p>
+    <div className="growth-selected-comparison" aria-live="polite">
+      <div className="growth-point-detail"><span>{selected.measuredOn} 측정</span><b>{Number(selected[metric]).toFixed(1)} {metrics[metric].unit}</b></div>
+      <GrowthComparison child={child} row={selected} metric={metric}/>
+    </div>
+    <p className="growth-chart-note">그래프의 점을 누르면 그날의 측정값을 또래와 비교할 수 있어요.</p>
   </>;
 }
 
@@ -71,7 +96,7 @@ export default function GrowthScreen({ child, onToast }) {
     finally { setBusy(false); }
   };
   return <div className="page padded detail-page growth-live care-workspace">
-    <header className="care-page-header"><div><h2>성장 기록</h2><p>{child?.fullName || child?.name || '아이'}</p></div><button className="care-add" disabled={busy || !child?.id} onClick={()=>{setForm(blank());setFormError('');}}><Plus size={18}/> 기록 추가</button></header>
+    <CarePageHeader icon={TrendingUp} title="성장 기록" description={child?.fullName || child?.name || '아이의 키와 몸무게를 기록해요.'}><button className="care-add" disabled={busy || !child?.id} onClick={()=>{setForm(blank());setFormError('');}}><Plus size={18}/> 기록 추가</button></CarePageHeader>
     {!child?.id ? <div className="growth-empty">아이를 먼저 등록하거나 선택해주세요.</div> : <>
       {error && <div role="alert" className="record-timeline-error">{error}<button onClick={() => setRevision(r => r + 1)}>다시 불러오기</button></div>}
       {form && <form className="growth-editor" onSubmit={save} ref={editor}>
@@ -89,13 +114,18 @@ export default function GrowthScreen({ child, onToast }) {
           const measured = records.filter(row => row[key] != null), latest = measured[0], previous = measured[1];
           const delta = previous ? Number((latest[key] - previous[key]).toFixed(1)) : null;
           const Icon = info.icon;
-          return <div key={key}><span><Icon size={16}/> 최근 {info.name}</span><b>{latest ? Number(latest[key]).toFixed(1) : '—'}<small>{info.unit}</small></b><p>{latest?.measuredOn || '아직 기록이 없어요'}</p>{delta != null && <em>직전 측정 대비 {delta > 0 ? '+' : ''}{delta.toFixed(1)} {info.unit}</em>}</div>;
+          return <div key={key}><span><Icon size={16}/> 최근 {info.name}</span><b>{latest ? Number(latest[key]).toFixed(1) : '—'}<small>{info.unit}</small></b><p>{latest?.measuredOn || '아직 기록이 없어요'}</p>
+            {latest && <GrowthComparison child={child} row={latest} metric={key}/>}
+            {delta != null && <em>직전 측정 대비 {delta > 0 ? '+' : ''}{delta.toFixed(1)} {info.unit}</em>}</div>;
         })}</div>
         <section className="growth-graph-panel"><div className="growth-metric-tabs">{Object.entries(metrics).map(([key, info]) => <button key={key} aria-pressed={metric === key} onClick={() => setMetric(key)}>{info.name}</button>)}</div>
           <div className="growth-periods" aria-label="조회 기간">{[[3,'3개월'],[6,'6개월'],[12,'1년'],[0,'전체']].map(([value,label]) => <button key={value} aria-pressed={period === value} onClick={() => setPeriod(value)}>{label}</button>)}</div>
-          <p className="growth-range-label">{range.from.replaceAll('-', '.')} — {range.to.replaceAll('-', '.')}</p><GrowthChart rows={visible} metric={metric} range={range}/>
+          <p className="growth-range-label">{range.from.replaceAll('-', '.')} — {range.to.replaceAll('-', '.')}</p><GrowthChart rows={visible} metric={metric} range={range} child={child}/>
         </section>
-        <p className="growth-chart-note">입력한 측정값의 변화예요. 또래 평균이나 정상 범위를 판단하는 그래프는 아니에요.</p>
+        <p className="growth-chart-note">
+          {records.length > 0 && !child.gender && '아이 정보에 성별을 입력하면 같은 월령의 성장 기준과 비교할 수 있어요. '}
+          중앙값은 같은 월령·성별의 측정값을 순서대로 놓았을 때 가운데 값(50백분위)이에요. 24개월 미만 키는 누워서 잰 키 기준이에요. <a href={growthReferenceSource} target="_blank" rel="noreferrer">질병관리청·대한소아청소년과학회 2017 소아청소년 성장도표</a>
+        </p>
         <div className="list-header"><h3>측정 기록</h3><span>{visible.length}건 · {period ? `최근 ${period}개월` : '전체 기간'}</span></div>
         {!visible.length && <div className="growth-empty">이 기간에 등록된 기록이 없어요.</div>}
         {visible.map(row => <article className="growth-history" key={row.id}><h4>{row.measuredOn}</h4><div className="growth-history-values"><span>키 <b>{row.heightCm ?? '—'}</b> cm</span><span>몸무게 <b>{row.weightKg ?? '—'}</b> kg</span></div>{row.note && <p>{row.note}</p>}<details className="record-menu growth-history-actions"><summary aria-label={`${row.measuredOn} 성장 기록 더보기`}><MoreHorizontal size={20}/></summary><div><button disabled={busy} onClick={() => {setForm({...row, heightCm: row.heightCm ?? '', weightKg: row.weightKg ?? '', note: row.note || ''});setFormError('');}}><Pencil size={14}/> 수정</button><button disabled={busy} onClick={() => setDeleting(row)}><Trash2 size={14}/> 삭제</button></div></details></article>)}

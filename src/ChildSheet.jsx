@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { X, ChevronRight, CheckCircle2, UserRoundPlus, Link2, UsersRound } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ChevronRight, CheckCircle2, UserRoundPlus, Link2, UsersRound } from 'lucide-react';
 import { api, errorMessage } from './api';
-import './child-sheet.css';
-import { useBackLayer } from './backNavigation';
+import ProfileEditSheet from './ProfileEditSheet';
 
 const seoulDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
 
@@ -15,7 +14,6 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
   const [inviteCode, setInviteCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const sheet = useRef(null);
   const pending = useRef(false);
   const today = seoulDate.format(new Date());
   const [year, month, day] = today.split('-').map(Number);
@@ -23,27 +21,6 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
   const oldest = new Date(Date.UTC(year - 19, month - 1, Math.min(day, lastDay))).toISOString().slice(0, 10);
   const changeMode = (next) => { setError(''); setMode(next); };
   const close = () => { if (!pending.current) onClose(); };
-  useBackLayer(true, () => (pending.current ? false : onClose()));
-
-  useEffect(() => {
-    const previous = document.activeElement;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    sheet.current?.focus();
-    return () => { document.body.style.overflow = overflow; previous?.focus?.(); };
-  }, []);
-
-  const handleKeyDown = (event) => {
-    if (event.key === 'Escape') { event.preventDefault(); close(); }
-    if (event.key !== 'Tab') return;
-    const controls = [...sheet.current.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]')];
-    const first = controls[0], last = controls.at(-1);
-    if (!first) { event.preventDefault(); return; }
-    if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet.current)) {
-      event.preventDefault(); last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-  };
-
   const submit = async (event) => {
     event.preventDefault();
     if (pending.current) return;
@@ -80,14 +57,9 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
     onClose();
   };
 
-  return <div className="modal-backdrop child-sheet-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
-    <section className="sheet child-profile-sheet" role="dialog" aria-modal="true" aria-labelledby="child-sheet-title" tabIndex={-1} ref={sheet} onKeyDown={handleKeyDown}>
-      <header className="child-sheet-header">
-        <span className="child-sheet-emblem" aria-hidden="true"><UsersRound size={26}/></span>
-        <div><h2 id="child-sheet-title">{mode === 'edit' ? '아이 정보 수정' : mode === 'create' ? '아이 등록' : mode === 'join' ? '가족 기록 연결' : '아이 선택'}</h2>
-          <p>{mode === 'edit' ? '이름과 생년월일, 성별을 수정할 수 있어요.' : mode === 'create' ? '아이의 기본 정보를 알려주세요.' : mode === 'join' ? '가족에게 받은 공유 코드로 함께 돌봐요.' : '건강 기록을 확인할 아이를 선택해 주세요.'}</p></div>
-        <button type="button" className="child-sheet-close" disabled={busy} onClick={close} aria-label="닫기"><X size={22}/></button>
-      </header>
+  const title = mode === 'edit' ? '아이 정보 수정' : mode === 'create' ? '아이 등록' : mode === 'join' ? '가족 기록 연결' : '아이 선택';
+  const description = mode === 'edit' ? '이름과 생년월일, 성별을 수정할 수 있어요.' : mode === 'create' ? '아이의 기본 정보를 알려주세요.' : mode === 'join' ? '가족에게 받은 공유 코드로 함께 돌봐요.' : '건강 기록을 확인할 아이를 선택해 주세요.';
+  return <ProfileEditSheet title={title} description={description} icon={UsersRound} pending={pending} onClose={onClose}>
       {mode === 'list' ? <>
         <div className="child-list">{children.map(child => <button key={child.id} onClick={() => onSelect(child)} className={active?.id === child.id ? 'selected' : ''}>
           <span className="child-face">{child.emoji || '👶🏻'}</span><span><b>{child.fullName || child.name}</b><small>{child.age}{child.gender === 'MALE' ? ' · 남아' : child.gender === 'FEMALE' ? ' · 여아' : ''}</small></span>{active?.id === child.id ? <CheckCircle2/> : <ChevronRight/>}
@@ -118,6 +90,5 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
         {error && <p role="alert" className="child-form-error">{error}</p>}
         <div className="child-form-actions"><button type="button" disabled={busy} onClick={() => mode === 'edit' ? close() : children.length ? changeMode('list') : close()}>취소</button><button type="submit" disabled={busy} className="child-save">{busy ? '저장 중…' : mode === 'edit' ? '변경사항 저장' : mode === 'create' ? '아이 등록' : '가족 기록 연결'}</button></div>
       </form></>}
-    </section>
-  </div>;
+  </ProfileEditSheet>;
 }

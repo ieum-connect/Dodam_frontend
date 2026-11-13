@@ -3,7 +3,7 @@
 .child-sheet-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:28px}
 .child-sheet-header h2{font-size:22px;line-height:1.4;margin:0 0 6px;font-weight:700}
 .child-sheet-header p{font-size:14px;line-height:1.6;color:#756971;margin:0}
-.child-sheet-close{display:grid;place-items:center;min-width:44px;height:44px;margin:-8px -8px 0 0;border-radius:50%;background:transparent;color:#51454b}
+.child-sheet-close{display:grid;place-items:center;flex:0 0 44px;height:44px;border-radius:50%;background:transparent;color:#51454b}
 .child-profile-fields{border:0;padding:0;margin:0;min-width:0;display:flex;flex-direction:column}
 .child-profile-fields>label,.child-gender legend{font-size:15px;font-weight:650;margin:0 0 10px}
 .child-profile-fields label span,.child-gender legend span{font-size:12px;color:#81767c;font-weight:400;margin-left:6px}
@@ -12,11 +12,11 @@
 .child-profile-fields input[type=date]::-webkit-date-and-time-value{text-align:left;min-height:1.2em}
 .child-field-help{font-size:13px;line-height:1.5;color:#756971;margin:-4px 0 10px}
 .child-gender{border:0;margin:0;padding:0;min-width:0}
-.child-gender>div{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px}
-.child-gender label{display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;border:1px solid #dcd5d8;border-radius:12px;font-size:14px;cursor:pointer;white-space:nowrap}
-.child-gender input{accent-color:#cb5074;margin:0;width:16px;height:16px}
+.child-gender>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr);gap:8px}
+.child-gender label{display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:4px;border:1px solid #dcd5d8;border-radius:12px;font-size:14px;cursor:pointer;word-break:keep-all;text-align:center}
+.child-gender input{accent-color:#cb5074;margin:0;width:16px;height:16px;flex:none}
 .child-gender label.selected{border-color:#ce5276;background:#fff3f7;color:#a73859;font-weight:650}
-.child-form-actions{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:28px}
+.child-form-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:10px;margin-top:28px}
 .child-form-actions button{min-height:52px;border-radius:12px;background:#f4f1f2;color:#574c52;font-size:16px;font-weight:650}
 .child-form-actions .child-save{background:#d6517a;color:#fff}
 .child-profile-sheet button:disabled{opacity:.55;cursor:wait}
@@ -49,6 +49,8 @@
 .child-sheet-options button{padding:14px 16px;border:1px solid #e8cbd8;border-radius:16px;background:#fff4f8;color:#aa4a70}
 .child-profile-sheet .child-list>button{background:#fff;border:1px solid #efd7e2;border-radius:16px}
 .child-profile-sheet .child-list>button.selected{background:#fce7ef;border-color:#dc8cab}
+.child-profile-sheet .child-list>button>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+.child-profile-sheet :is(.child-list,.child-mode-switch,.child-sheet-options) button>svg{flex:none}
 @media(max-width:360px){.child-profile-form{padding:14px}.child-sheet-emblem{flex-basis:40px;height:40px}.child-sheet-header h2{font-size:21px}.child-mode-switch button{font-size:13px;gap:5px}.child-gender label{font-size:12px;gap:4px}}
 
 .profile-edit-actions{display:grid;gap:10px;margin:16px 0}.child-profile-form>input{display:block;width:100%;height:48px;border:1px solid #e8d4dd;border-radius:12px;padding:12px;background:#fff;font-size:16px;margin-top:10px}.care-schedule-actions{flex-wrap:wrap;gap:10px}.care-schedule-actions>button{min-height:44px;padding:8px 14px;border-radius:12px;border:1px solid #ead4de}
