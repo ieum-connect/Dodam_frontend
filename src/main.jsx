@@ -127,7 +127,7 @@ function App() {
     child?.birthDate && child?.name && child.name !== '이름 확인 필요'
   );
 
-  const loadFamilyData = async (preferredId) => {
+  const loadFamilyData = async (preferredId, user = me) => {
     const request = ++familyRequest.current;
     try {
       const childRows = await api.children();
@@ -136,9 +136,12 @@ function App() {
       const ordered = [...mapped].sort((a, b) => Number(isCompleteChild(b)) - Number(isCompleteChild(a)));
       setChildren(ordered);
       const current = ordered.find((child) => child.id === (typeof preferredId === 'string' ? preferredId : activeChildRef.current?.id));
+      const showcaseChild = user?.loginProvider === 'DEMO'
+        ? ordered.find(child => child.name === '박도윤 (시연)' && isCompleteChild(child))
+        : null;
       const selected = (current && isCompleteChild(current))
         ? current
-        : ordered.find(isCompleteChild) || current || ordered[0];
+        : showcaseChild || ordered.find(isCompleteChild) || current || ordered[0];
       chooseChild(selected || null);
       setDataRevision(r => r + 1);
       api.notifications().then(p => setNotis({ items: p?.items || [], unreadCount: p?.unreadCount || 0 })).catch(()=>{});
@@ -167,7 +170,7 @@ function App() {
       setMe(user);
       setLoggedIn(true);
       setBackendOnline(true);
-      void loadFamilyData();
+      void loadFamilyData(undefined, user);
     }).catch(error => {
       if (!active) return;
       if (error.status === 401) {
@@ -186,7 +189,7 @@ function App() {
       await api.demoLogin(account);
       const user = await api.me();
       setMe(user); setBackendOnline(true); setLoggedIn(true);
-      await loadFamilyData();
+      await loadFamilyData(undefined, user);
       showToast(`${user?.name || '테스트 계정'}(으)로 로그인했어요`);
     } catch (error) {
       setLoggedIn(false);
