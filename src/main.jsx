@@ -740,6 +740,8 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
   const [docKind, setDocKind] = useState('MEDICAL');
   const [query, setQuery] = useState('');
   const [kindFilter, setKindFilter] = useState('');
+  const [expandedFor, setExpandedFor] = useState(null); // 펼친 아이 id. 아이가 바뀌면 자동으로 접힌다
+  const expanded = !!child?.id && expandedFor === child.id;
   React.useEffect(()=>{ if(visits.length && !visit) setVisit(visits[0].visitId); },[visits]);
   // 검색·필터를 처음 쓰면 남은 페이지를 이어서 불러온다. 키가 같으면 다시 부르지 않는다.
   const [wantAll, setWantAll] = useState(false);
@@ -749,7 +751,7 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
   const moreKey = `${child?.id || ''}|${documentsCursor || ''}|${moreRev}`;
   const onDeleted = (id) => { setRemovedIds(s => new Set(s).add(id)); setMoreRev(n => n + 1); onDataChange?.(); };
   const moreNow = more.key === moreKey ? more : { items: [], loading: false, done: false }; // 다른 아이·이전 커서 결과는 쓰지 않는다
-  React.useEffect(()=>{ if(query.trim() || kindFilter) setWantAll(true); },[query, kindFilter]);
+  React.useEffect(()=>{ if(query.trim() || kindFilter || expanded) setWantAll(true); },[query, kindFilter, expanded]);
   React.useEffect(()=>{
     if (!wantAll || !child?.id || !documentsCursor || (more.key === moreKey && (more.done || more.loading))) return;
     let active = true;
@@ -800,24 +802,26 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
   useBackLayer(uploading, () => (saving ? false : closeSheet()));
   if (!child?.id) return <ChildRequiredState icon={FileText} title="건강 문서" onChildOpen={onChildOpen}/>;
   if(selectedDocument) return <DocumentItemDetail document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={onDeleted}/>;
-  // 불러온 첫 페이지 안에서만 거른다. 조건이 없으면 최근 5건.
+  // 첫 페이지 + 이어 부른 페이지(검색·필터·더 보기 때) 기준. 조건이 없으면 최근 5건, 펼치면 전체.
   const q = query.trim().toLowerCase();
   const seenIds = new Set(); // 첫 페이지와 이어 부른 페이지 전체에서 documentId 중복 제거
   const allDocs = [...documents, ...moreNow.items].filter(d => !removedIds.has(d.documentId) && !seenIds.has(d.documentId) && seenIds.add(d.documentId));
   const shownDocs = q || kindFilter
     ? allDocs.filter(doc => (!q || documentDisplayName(doc).toLowerCase().includes(q)) && (!kindFilter || documentKind(doc) === kindFilter))
-    : documents.slice(0,5);
+    : expanded ? allDocs : allDocs.slice(0,5);
+  const canMore = !q && !kindFilter && (allDocs.length > 5 || !!documentsCursor);
   return <div className="page padded detail-page">
     <div className="detail-hero"><span className="detail-icon"><FileText/></span><div><h2>건강 문서</h2><p>진료·검사 문서를 방문 기록과 연결해 맥락까지 함께 보관해요.</p></div></div>
     <div className="link-info"><Link2/><div><b>문서와 방문 기록을 연결하세요</b><p>진료별 문서와 AI 설명을 한 화면에서 다시 확인할 수 있어요.</p></div></div>
     {tracked && <div className="upload-done" role="status"><b>문서를 올렸어요</b>{onChat && <button type="button" onClick={onChat}>AI에게 물어보기<ChevronRight/></button>}</div>}
     <div className="list-header"><h3>최근 문서</h3></div>
-    {documents.length > 0 && <div className="doc-filter">
+    {allDocs.length > 0 && <div className="doc-filter">
       <label className="search-box"><Search/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="문서명으로 검색" aria-label="문서명으로 검색"/></label>
       <div className="doc-chips" role="group" aria-label="문서 종류 필터">{[['','전체'],...Object.entries(DOCUMENT_KINDS)].map(([id,label])=><button type="button" key={id||'all'} aria-pressed={kindFilter===id} onClick={()=>setKindFilter(id)}>{label}</button>)}</div>
     </div>}
-    <div className="record-list doc-list">{!documents.length ? <div className="empty-record">아직 등록된 건강 문서가 없어요.</div> : !shownDocs.length ? <div className="empty-record">조건에 맞는 문서가 없어요</div> : shownDocs.map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{documentDisplayName(doc)}</b><small><KindChip kind={documentKind(doc)}/>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>})}</div>
-    {moreNow.loading && (q || kindFilter) && <p className="doc-loading-more" role="status">문서를 더 불러오는 중이에요</p>}
+    <div className="record-list doc-list">{!allDocs.length ? <div className="empty-record">아직 등록된 건강 문서가 없어요.</div> : !shownDocs.length ? <div className="empty-record">조건에 맞는 문서가 없어요</div> : shownDocs.map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{documentDisplayName(doc)}</b><small><KindChip kind={documentKind(doc)}/>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>})}</div>
+    {moreNow.loading && (q || kindFilter || expanded) && <p className="doc-loading-more" role="status">문서를 더 불러오는 중이에요</p>}
+    {canMore && <button type="button" className="doc-more" aria-expanded={expanded} onClick={()=>setExpandedFor(expanded ? null : child.id)}>{expanded ? '접기' : '더 보기'}<ChevronRight/></button>}
     <button className="primary-button" onClick={()=>setUploading(true)}><Upload/> 문서 업로드</button>
     {uploading && <div className="modal-backdrop" onMouseDown={closeSheet}><div className="sheet upload-sheet" role="dialog" aria-modal="true" aria-label="문서 업로드" onMouseDown={e=>e.stopPropagation()}>
       <div className="sheet-handle"/><button className="sheet-close" onClick={closeSheet} disabled={saving} aria-label="닫기"><X/></button>
