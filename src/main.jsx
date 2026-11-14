@@ -21,7 +21,7 @@ import ChildSheet from './ChildSheet';
 import ProfileEditSheet from './ProfileEditSheet';
 import { VaccinationScreen } from './vaccination/VaccinationScreen';
 import { currentBackScreen, pushBackScreen, useBackLayer, useRootBack } from './backNavigation';
-import { documentDisplayName, documentNoteKey } from './documentName';
+import { DOCUMENT_KINDS, documentDisplayName, documentKind, fileBaseName, readDocumentNote, removeDocumentNote, saveDocumentNote } from './documentName';
 import PushSettings from './PushSettings';
 import { enablePush, disablePush, pushEnabled } from './push';
 import PushOnboarding from './PushOnboarding';
@@ -80,6 +80,7 @@ function App() {
   const activeChildRef = React.useRef(null);
   const familyRequest = React.useRef(0);
   const [dataRevision, setDataRevision] = useState(0);
+  const loadedChildRef = React.useRef(null); // visits·documents를 마지막으로 채운 아이 id
   const chooseChild = child => {
     familyRequest.current++;
     if (activeChildRef.current?.id !== child?.id) {
@@ -99,6 +100,7 @@ function App() {
   const screenRef = React.useRef(null);
   const [visits, setVisits] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [documentsCursor, setDocumentsCursor] = useState(null); // 첫 페이지 다음 커서. 문서 검색이 이어서 불러올 때 쓴다.
   const [toast, setToast] = useState('');
   const [welfareBackHandler, setWelfareBackHandler] = useState(null);
 
@@ -236,11 +238,13 @@ function App() {
   }, [loggedIn]);
 
   React.useEffect(() => {
-    let current = true;
-    setVisits([]); setDocuments([]);
-    if (!loggedIn || !backendOnline || !activeChild?.id) return;
+    let current = true; // 아이가 바뀌거나 다시 부르면 이전 요청의 늦은 응답은 버린다
+    const clear = () => { setVisits([]); setDocuments([]); setDocumentsCursor(null); };
+    if (!loggedIn || !backendOnline || !activeChild?.id) { clear(); loadedChildRef.current = null; return; }
+    // 다른 아이로 바뀔 때만 비운다. 같은 아이를 다시 부를 때는 응답이 오면 교체하고, 실패하면 기존 목록을 둔다.
+    if (loadedChildRef.current !== activeChild.id) { clear(); loadedChildRef.current = activeChild.id; }
     Promise.all([api.visits(activeChild.id), api.documents(activeChild.id)])
-      .then(([v,d]) => { if(current){setVisits(v?.items||[]); setDocuments(d?.items||[]);} })
+      .then(([v,d]) => { if(current){setVisits(v?.items||[]); setDocuments(d?.items||[]); setDocumentsCursor(d?.nextCursor||null);} })
       .catch(() => {if(current) showToast('기록을 불러오지 못했어요. 다시 시도해 주세요.');});
     return () => { current = false; };
   }, [activeChild?.id, loggedIn, backendOnline, dataRevision]);
@@ -349,14 +353,14 @@ function App() {
 
         <div className="screen-content" ref={screenRef} key={activeChild?.id || 'no-child'}>
           {import.meta.env.VITE_AI_TEST_MODE === 'true' && <p className="ai-test-banner" role="status">연동 테스트 모드 · AI 응답은 검증용 예시입니다.</p>}
-          {detail ? <DetailScreen calendarFocus={calendarFocus} medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});goToScreen('home','meds');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
+          {detail ? <DetailScreen calendarFocus={calendarFocus} medicationDraft={medicationDraft} onMedication={record=>{setMedicationDraft({id:crypto.randomUUID(),patientId:activeChild.id,notes:record.body.slice(0,500),truncated:record.body.length>500});goToScreen('home','meds');}} onWelfareBackChange={setWelfareBackHandler} onOpen={openFeature} type={detail} onCalendar={()=>navigate('calendar')} onChat={()=>navigate('chat')} onToast={showToast} visits={visits} documents={documents} documentsCursor={documentsCursor} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} /> : tab === 'home' ? (
 
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
-            : tab === 'calendar' ? <LiveCalendarScreen key={`${activeChild?.id || 'none'}-${calendarFocus || ''}`} initialDate={calendarFocus} child={activeChild} onToast={showToast} onChildOpen={() => setChildOpen(true)} renderVisit={(visit,back,saved)=><VisitItemDetail key={visit.visitId} visit={visit} child={activeChild} documents={documents} backendOnline={backendOnline} onBack={back} onSaved={saved} onToast={showToast}/>} />
+            : tab === 'calendar' ? <LiveCalendarScreen key={`${activeChild?.id || 'none'}-${calendarFocus || ''}`} initialDate={calendarFocus} child={activeChild} onToast={showToast} onChildOpen={() => setChildOpen(true)} renderVisit={(visit,back,saved)=><VisitItemDetail key={visit.visitId} visit={visit} child={activeChild} documents={documents} backendOnline={backendOnline} onBack={back} onSaved={saved} onToast={showToast} onDataChange={loadFamilyData}/>} />
             : tab === 'chat' ? <ChatScreen child={activeChild} documents={documents} backendOnline={backendOnline} onToast={showToast} />
-            : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
-            : tab === 'documents' ? <DetailScreen type="documents" onToast={showToast} visits={visits} documents={documents} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
+            : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} documentsCursor={documentsCursor} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
+            : tab === 'documents' ? <DetailScreen type="documents" onChat={()=>navigate('chat')} onToast={showToast} visits={visits} documents={documents} documentsCursor={documentsCursor} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
             : <MoreScreen onOpen={openFeature} me={me} child={activeChild} onProfile={()=>setProfileOpen(true)} onChild={()=>setChildOpen(true)} onLogout={logout} />}
         </div>
 
@@ -621,7 +625,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   </div>;
 }
 
-function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft, calendarFocus, onWelfareBackChange }) {
+function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], documentsCursor, child, onDataChange, backendOnline, onChildOpen, onCalendar, onChat, onMedication, medicationDraft, calendarFocus, onWelfareBackChange }) {
   if(type==='timeline') return <RecordTimeline key={child?.id || 'no-child'} child={child} onOpen={onOpen}/>;
   const [title, desc] = detailCopy[type];
   if(type==='growth') return <GrowthScreen key={child?.id || 'no-child'} child={child} onToast={onToast}/>;
@@ -630,7 +634,7 @@ function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], chil
   if(type==='memo') return <MemoScreen key={child?.id || 'none'} onToast={onToast} child={child} backendOnline={backendOnline} onMedication={onMedication}/>;
   if(type==='vaccine') return <VaccinationScreen key={child?.id || 'none'} child={child} onToast={onToast} onCalendar={onCalendar} onChildOpen={onChildOpen}/>;
 
-  if(type==='documents') return <DocumentDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
+  if(type==='documents') return <DocumentDetail onChat={onChat} onToast={onToast} visits={visits} documents={documents} documentsCursor={documentsCursor} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen} onCalendar={onCalendar}/>;
   if(type==='records') return <VisitRecordsDetail onToast={onToast} visits={visits} documents={documents} child={child} onDataChange={onDataChange} backendOnline={backendOnline} onChildOpen={onChildOpen}/>;
   const Icon = featureCards.find(x=>x.id===type)?.icon || FileText;
   const items = {
@@ -669,7 +673,7 @@ function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDat
   };
   useBackLayer(!!selectedVisit, () => setSelectedVisit(null));
   if (!child?.id) return <ChildRequiredState icon={Stethoscope} title="병원 방문 기록" onChildOpen={onChildOpen}/>;
-  if (selectedVisit) return <VisitItemDetail visit={selectedVisit} child={child} documents={documents} backendOnline={backendOnline} onBack={()=>setSelectedVisit(null)} onSaved={async(updated)=>{await onDataChange?.();setSelectedVisit(updated)}} onToast={onToast}/>;
+  if (selectedVisit) return <VisitItemDetail visit={selectedVisit} child={child} documents={documents} backendOnline={backendOnline} onBack={()=>setSelectedVisit(null)} onSaved={async(updated)=>{await onDataChange?.();setSelectedVisit(updated)}} onToast={onToast} onDataChange={onDataChange}/>;
   const visibleVisits = selectedDate ? visits.filter(v=>v.visitedOn===selectedDate) : visits;
   return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Stethoscope/></span><div><h2>병원 방문 기록</h2><p>진료 내용과 다음 예약을 잊지 않도록 정리해드려요.</p></div></div>
     <VisitCalendar visits={visits} month={month} setMonth={setMonth} selectedDate={selectedDate} setSelectedDate={setSelectedDate}/>
@@ -688,7 +692,7 @@ function VisitCalendar({ visits, month, setMonth, selectedDate, setSelectedDate 
   return <div className="calendar-card visit-calendar"><div className="calendar-head"><button onClick={()=>move(-1)} aria-label="이전 달"><ChevronLeft/></button><b>{year}년 {monthNo+1}월</b><button onClick={()=>move(1)} aria-label="다음 달"><ChevronRight/></button></div><div className="week-row">{['일','월','화','수','목','금','토'].map(d=><span key={d}>{d}</span>)}</div><div className="date-grid">{cells.map((day,i)=>day===null?<span key={`blank-${i}`}/>:<button key={day} className={`${selectedDate===`${year}-${String(monthNo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`?'selected':''} ${marked.has(`${year}-${String(monthNo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`)?'has-event':''}`} onClick={()=>setSelectedDate(`${year}-${String(monthNo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`)}>{day}</button>)}</div><p className="calendar-legend"><i/> 방문 기록이 있는 날</p></div>;
 }
 
-function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, onSaved, onToast }) {
+function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, onSaved, onToast, onDataChange }) {
   const [editing,setEditing]=useState(false), [saving,setSaving]=useState(false);
   const [form,setForm]=useState({visitedOn:visit.visitedOn||'',hospitalName:visit.hospitalName||'',department:visit.department||'',memo:visit.memo||''});
   useScrollTop(visit.visitId);
@@ -701,7 +705,7 @@ function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, 
   },[visit.visitId,child?.id,selectedDocument]);
   const save=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 수정할 수 있어요');return;}try{setSaving(true);const updated=await api.updateVisit(visit.visitId,{patientId:visit.patientId||child?.id,...form,visitStatus:visit.visitStatus||'DONE',version:visit.version});await onSaved(updated);setEditing(false);onToast('방문 기록을 수정했어요');}catch(error){onToast(error.message||'수정하지 못했어요');}finally{setSaving(false)}};
   const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}if(!window.confirm('이 방문 기록을 삭제할까요?'))return;try{setSaving(true);await api.deleteVisit(visit.visitId);onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
-  if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast}/>;
+  if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={()=>onDataChange?.()}/>;
   return <div className="nested-detail visit-detail"><button type="button" className="detail-back" onClick={onBack}><ChevronLeft aria-hidden="true"/> 방문 기록으로</button><div className="detail-title-row"><div><span className="eyebrow">방문 기록 상세</span><h2>{form.department||form.hospitalName||'병원 방문'}</h2><p>{[form.hospitalName,form.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={saving} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel visit-compose"><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={save}><Save/>{saving?'저장 중…':'수정 내용 저장'}</button></div>:<><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
     <div className="visit-docs"><div className="visit-docs-head"><b>연결된 문서</b><span>{linkedDocs.length}건</span></div>
       {docsLoading ? <p role="status">문서를 불러오는 중이에요.</p> : docsError ? <p role="alert">{docsError}</p> : linkedDocs.length ? <div className="visit-doc-list">{linkedDocs.map(doc=>(
@@ -720,8 +724,10 @@ function useScrollTop(dep) {
 const DOC_STATUS = { UPLOADED:'분석 대기', PROCESSING:'분석 중', READY:'분석 완료', NEEDS_REVIEW:'일부 분석 완료 · 확인 필요', ANALYZING:'분석 중', DONE:'분석 완료', FAILED:'분석 실패' };
 
 function InfoRow({label,value}) { return <div className="info-row"><span>{label}</span><p>{value}</p></div>; }
+const KindChip = ({ kind }) => <em className={`doc-kind-chip ${kind ? '' : 'none'}`}>{DOCUMENT_KINDS[kind] || '종류 미지정'}</em>;
+const KindSegment = ({ value, onChange }) => <div className="doc-segment" role="group" aria-label="문서 종류">{Object.entries(DOCUMENT_KINDS).map(([id,label])=><button type="button" key={id} aria-pressed={value===id} onClick={()=>onChange(id)}>{label}</button>)}</div>;
 
-function DocumentDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft }) {
+function DocumentDetail({ onChat, onToast, visits = [], documents = [], documentsCursor, child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft }) {
   const [uploading, setUploading] = useState(false);
   const [visit, setVisit] = useState('');
   const [newVisit, setNewVisit] = useState(false);
@@ -730,7 +736,46 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
   const [saving, setSaving] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [tracked, setTracked] = useState(null);
+  const [docName, setDocName] = useState('');
+  const [docKind, setDocKind] = useState('MEDICAL');
+  const [query, setQuery] = useState('');
+  const [kindFilter, setKindFilter] = useState('');
+  const [expandedFor, setExpandedFor] = useState(null); // 펼친 아이 id. 아이가 바뀌면 자동으로 접힌다
+  const expanded = !!child?.id && expandedFor === child.id;
   React.useEffect(()=>{ if(visits.length && !visit) setVisit(visits[0].visitId); },[visits]);
+  // 검색·필터를 처음 쓰면 남은 페이지를 이어서 불러온다. 키가 같으면 다시 부르지 않는다.
+  const [wantAll, setWantAll] = useState(false);
+  const [more, setMore] = useState({ key: '', items: [], loading: false, done: false });
+  const [removedIds, setRemovedIds] = useState(() => new Set()); // 삭제 직후 바로 빼서 다시 불러오는 동안 깜빡이지 않게
+  const [moreRev, setMoreRev] = useState(0); // 올리면 이어 부른 캐시를 버리고 다시 부른다
+  const moreKey = `${child?.id || ''}|${documentsCursor || ''}|${moreRev}`;
+  const onDeleted = (id) => { setRemovedIds(s => new Set(s).add(id)); setMoreRev(n => n + 1); onDataChange?.(); };
+  const moreNow = more.key === moreKey ? more : { items: [], loading: false, done: false }; // 다른 아이·이전 커서 결과는 쓰지 않는다
+  React.useEffect(()=>{ if(query.trim() || kindFilter || expanded) setWantAll(true); },[query, kindFilter, expanded]);
+  React.useEffect(()=>{
+    if (!wantAll || !child?.id || !documentsCursor || (more.key === moreKey && (more.done || more.loading))) return;
+    let active = true;
+    setMore({ key: moreKey, items: [], loading: true, done: false });
+    (async()=>{
+      const items = [], seen = new Set([documentsCursor]);
+      let cursor = documentsCursor, failed = false;
+      try {
+        for (let page = 0; page < 10 && cursor; page++) { // ponytail: 최대 10페이지(50건씩), 넘으면 거기까지만
+          const res = await api.documents(child.id, null, cursor, 50);
+          if (!active) return;
+          items.push(...(res?.items || []));
+          cursor = res?.nextCursor || null;
+          if (cursor && seen.has(cursor)) throw new Error('repeated cursor');
+          if (cursor) seen.add(cursor);
+        }
+      } catch { failed = true; }
+      if (!active) return;
+      setMore({ key: moreKey, items, loading: false, done: true });
+      if (failed) onToast('일부 문서를 불러오지 못했어요');
+    })();
+    // 중간에 버리면 loading 표시를 풀어서, 같은 키로 돌아왔을 때 다시 부를 수 있게 한다.
+    return () => { active = false; setMore(m => m.key === moreKey && m.loading ? { key: '', items: [], loading: false, done: false } : m); };
+  },[wantAll, moreKey]);
   const complete = async () => {
     if (!child?.id) { onToast('아이를 먼저 등록해 주세요'); return; }
     if (!file) { onToast('먼저 업로드할 문서를 선택해주세요'); return; }
@@ -747,7 +792,8 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
       if (!visitId) { onToast('연결할 방문 기록을 선택해주세요'); return; }
       const uploaded=await api.uploadDocument(visitId, file);
       setTracked(uploaded.documentId);
-      onToast('문서를 방문 기록에 연결해 업로드했어요'); setUploading(false); setFileName(''); setFile(null); await onDataChange?.();
+      if (uploaded?.documentId) saveDocumentNote(uploaded.documentId, { name: docName.trim(), kind: docKind });
+      onToast('문서를 방문 기록에 연결해 업로드했어요'); setUploading(false); setFileName(''); setFile(null); setDocName(''); setDocKind('MEDICAL'); await onDataChange?.();
     } catch (error) { onToast(error.message || '문서를 업로드하지 못했어요'); if (createdVisit) onDataChange?.(); }
     finally { setSaving(false); }
   };
@@ -755,45 +801,67 @@ function DocumentDetail({ onToast, visits = [], documents = [], child, onDataCha
   useBackLayer(!!selectedDocument, () => setSelectedDocument(null));
   useBackLayer(uploading, () => (saving ? false : closeSheet()));
   if (!child?.id) return <ChildRequiredState icon={FileText} title="건강 문서" onChildOpen={onChildOpen}/>;
-  if(selectedDocument) return <DocumentItemDetail document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast}/>;
+  if(selectedDocument) return <DocumentItemDetail document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={onDeleted}/>;
+  // 첫 페이지 + 이어 부른 페이지(검색·필터·더 보기 때) 기준. 조건이 없으면 최근 5건, 펼치면 전체.
+  const q = query.trim().toLowerCase();
+  const seenIds = new Set(); // 첫 페이지와 이어 부른 페이지 전체에서 documentId 중복 제거
+  const allDocs = [...documents, ...moreNow.items].filter(d => !removedIds.has(d.documentId) && !seenIds.has(d.documentId) && seenIds.add(d.documentId));
+  const shownDocs = q || kindFilter
+    ? allDocs.filter(doc => (!q || documentDisplayName(doc).toLowerCase().includes(q)) && (!kindFilter || documentKind(doc) === kindFilter))
+    : expanded ? allDocs : allDocs.slice(0,5);
+  const canMore = !q && !kindFilter && (allDocs.length > 5 || !!documentsCursor);
   return <div className="page padded detail-page">
     <div className="detail-hero"><span className="detail-icon"><FileText/></span><div><h2>건강 문서</h2><p>진료·검사 문서를 방문 기록과 연결해 맥락까지 함께 보관해요.</p></div></div>
     <div className="link-info"><Link2/><div><b>문서와 방문 기록을 연결하세요</b><p>진료별 문서와 AI 설명을 한 화면에서 다시 확인할 수 있어요.</p></div></div>
-    {tracked && <div className="inline-panel" role="status"><b>문서를 올렸어요.</b><p>AI 도담에서 이 문서에 대해 물어볼 수 있어요.</p></div>}
-    {onCalendar && <button className="create-link" onClick={onCalendar}><CalendarDays/> 할 일 후보와 캘린더 확인</button>}
-    <div className="list-header"><h3>최근 문서</h3><button>전체보기</button></div>
-    <div className="record-list">{documents.length ? documents.slice(0,5).map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{documentDisplayName(doc)}</b><small>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>}) : <div className="empty-record">아직 등록된 건강 문서가 없어요.</div>}</div>
+    {tracked && <div className="upload-done" role="status"><b>문서를 올렸어요</b>{onChat && <button type="button" onClick={onChat}>AI에게 물어보기<ChevronRight/></button>}</div>}
+    <div className="list-header"><h3>최근 문서</h3></div>
+    {allDocs.length > 0 && <div className="doc-filter">
+      <label className="search-box"><Search/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="문서명으로 검색" aria-label="문서명으로 검색"/></label>
+      <div className="doc-chips" role="group" aria-label="문서 종류 필터">{[['','전체'],...Object.entries(DOCUMENT_KINDS)].map(([id,label])=><button type="button" key={id||'all'} aria-pressed={kindFilter===id} onClick={()=>setKindFilter(id)}>{label}</button>)}</div>
+    </div>}
+    <div className="record-list doc-list">{!allDocs.length ? <div className="empty-record">아직 등록된 건강 문서가 없어요.</div> : !shownDocs.length ? <div className="empty-record">조건에 맞는 문서가 없어요</div> : shownDocs.map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{documentDisplayName(doc)}</b><small><KindChip kind={documentKind(doc)}/>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>})}</div>
+    {moreNow.loading && (q || kindFilter || expanded) && <p className="doc-loading-more" role="status">문서를 더 불러오는 중이에요</p>}
+    {canMore && <button type="button" className="doc-more" aria-expanded={expanded} onClick={()=>setExpandedFor(expanded ? null : child.id)}>{expanded ? '접기' : '더 보기'}<ChevronRight/></button>}
     <button className="primary-button" onClick={()=>setUploading(true)}><Upload/> 문서 업로드</button>
     {uploading && <div className="modal-backdrop" onMouseDown={closeSheet}><div className="sheet upload-sheet" role="dialog" aria-modal="true" aria-label="문서 업로드" onMouseDown={e=>e.stopPropagation()}>
       <div className="sheet-handle"/><button className="sheet-close" onClick={closeSheet} disabled={saving} aria-label="닫기"><X/></button>
       <div className="sheet-heading"><Upload/><div><h3>문서 업로드</h3><p>문서가 속한 병원 방문 기록을 선택해주세요.</p></div></div>
-      <label className={`upload-drop ${fileName?'filled':''}`}><input type="file" onChange={e=>{const picked=e.target.files?.[0];setFile(picked||null);setFileName(picked?.name||'')}} accept="image/*,.pdf"/><Upload/><b>{fileName || '파일을 선택하거나 촬영하세요'}</b><small>PDF, JPG, PNG · 최대 20MB</small></label>
+      <label className={`upload-drop ${fileName?'filled':''}`}><input type="file" onChange={e=>{const picked=e.target.files?.[0];setFile(picked||null);setFileName(picked?.name||'');setDocName(fileBaseName(picked?.name||''))}} accept="image/*,.pdf"/><Upload/><b>{fileName || '파일을 선택하거나 촬영하세요'}</b><small>PDF, JPG, PNG · 최대 20MB</small></label>
+      <label className="field-label">문서명<input className="select-field" value={docName} onChange={e=>setDocName(e.target.value)} placeholder="파일을 고르면 자동으로 채워져요"/></label>
+      <span className="field-label">문서 종류</span>
+      <KindSegment value={docKind} onChange={setDocKind}/>
       <label className="field-label">연결할 병원 방문 기록</label>
       {!newVisit ? <select className="select-field" value={visit} onChange={e=>setVisit(e.target.value)}>{visits.length?visits.map(v=><option value={v.visitId} key={v.visitId}>{v.visitedOn} · {v.hospitalName||'병원 방문'}</option>):<option value="">방문 기록이 없습니다</option>}</select> : <div className="new-visit-form"><input type="date" defaultValue="2026-10-24"/><input placeholder="병원명" defaultValue="동네봄 소아청소년과"/><input placeholder="방문 목적 (예: 정기 검진)"/></div>}
       <button className="create-link" onClick={()=>setNewVisit(!newVisit)}>{newVisit?<ChevronLeft/>:<Plus/>}{newVisit?' 기존 방문 기록 선택':' 방문 기록이 없나요? 새로 만들기'}</button>
-      <button className="primary-button upload-sheet-submit" disabled={saving || !file} onClick={complete}><Upload/> {saving?'올리는 중…':'업로드'}</button>
+      <button className="primary-button upload-sheet-submit" disabled={saving || !file || !docName.trim()} onClick={complete}><Upload/> {saving?'올리는 중…':'업로드'}</button>
       <p className="upload-sheet-hint">방문 기록에 연결해 저장돼요</p>
     </div></div>}
   </div>;
 }
 
-function DocumentItemDetail({ document, visits, onBack, onToast, backLabel = "건강 문서로" }) {
-  const storageKey=documentNoteKey(document.documentId);
+const DOCUMENT_GONE = '삭제된 문서예요';
+function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, backLabel = "건강 문서로" }) {
+  // 삭제됐거나 이미 없는 문서: 이 기기의 이름·종류·메모를 지우고 목록 갱신을 알린다.
+  const forget=()=>{removeDocumentNote(document.documentId);onDeleted?.(document.documentId);};
   const [detail,setDetail]=useState(document), [editing,setEditing]=useState(false);
   const [detailError,setDetailError]=useState(''), [detailLoading,setDetailLoading]=useState(true), [detailRetry,setDetailRetry]=useState(0);
   const [ai,setAi]=useState(null); const [removing,setRemoving]=useState(false);
-  const [meta,setMeta]=useState(()=>{try{return JSON.parse(localStorage.getItem(storageKey))||{name:document.documentName||'',note:''}}catch{return{name:document.documentName||'',note:''}}});
+  // meta.kind는 사용자가 고른 값만. 화면 표시는 documentKind(detail)(고른 값 → AI 분류 순).
+  const [meta,setMeta]=useState(()=>{const saved=readDocumentNote(document.documentId);return{name:saved.name||document.documentName||'',note:saved.note||'',kind:saved.kind};});
   React.useEffect(()=>{let active=true;setDetail(document);setDetailError('');
     if(String(document.documentId).startsWith('sample')){setDetailLoading(false);return;}
     setDetailLoading(true);api.document(document.documentId).then(value=>{if(active)setDetail(value);})
-      .catch(error=>{if(active)setDetailError(errorMessage(error));}).finally(()=>{if(active)setDetailLoading(false);});
+      .catch(error=>{if(!active)return;if(error?.code==='MEDICAL_DOCUMENT_001'||error?.status===404){setDetailError(DOCUMENT_GONE);forget();}else setDetailError(errorMessage(error));}).finally(()=>{if(active)setDetailLoading(false);});
     return()=>{active=false;};
   },[document.documentId,detailRetry]);
   React.useEffect(()=>{if(String(document.documentId).startsWith('sample'))return; Promise.all([api.aiDocument(document.documentId),api.aiDocumentStatus(document.documentId),api.aiDocumentSections(document.documentId),api.aiDocumentFacts(document.documentId),api.aiDocumentCitations(document.documentId)]).then(([doc,status,sections,facts,citations])=>setAi({doc,status,sections,facts,citations})).catch(()=>setAi(null));},[document.documentId]);
   const linked=visits.find(v=>v.visitId===detail.visitId);
-  const save=()=>{const name=meta.name.trim()||document.documentName||'';const next={...meta,name};localStorage.setItem(storageKey,JSON.stringify(next));setMeta(next);setEditing(false);onToast('문서 이름과 메모를 수정했어요');};
-  const remove=async()=>{if(!window.confirm('이 문서를 삭제할까요?'))return;try{setRemoving(true);await api.deleteDocument(document.documentId);onToast('문서를 삭제했어요');onBack();}catch(e){onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
-  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p>{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
+  const kind=documentKind(detail);
+  const save=()=>{const name=meta.name.trim()||document.documentName||'';const next=saveDocumentNote(document.documentId,{name,note:meta.note,...(meta.kind?{kind:meta.kind}:{})});setMeta({...meta,...next});setEditing(false);onToast('문서 정보를 수정했어요');};
+  const remove=async()=>{if(!window.confirm('이 문서를 삭제할까요?'))return;try{setRemoving(true);await api.deleteDocument(document.documentId);forget();onToast('문서를 삭제했어요');onBack();}catch(e){onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
+  // 삭제된 문서(404): 문구와 뒤로 가기만. 다른 오류는 아래 기본 화면에서 버튼을 그대로 둔다.
+  if(detailError===DOCUMENT_GONE) return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><p className="empty-record" role="alert">{DOCUMENT_GONE}</p></div>;
+  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span><KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/><label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
 }
 
 
