@@ -745,17 +745,24 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
   React.useEffect(()=>{ if(visits.length && !visit) setVisit(visits[0].visitId); },[visits]);
   // 검색·필터를 처음 쓰면 남은 페이지를 이어서 불러온다. 키가 같으면 다시 부르지 않는다.
   const [wantAll, setWantAll] = useState(false);
-  const [more, setMore] = useState({ key: '', items: [], loading: false, done: false });
+  const [more, setMore] = useState({ key: '', items: [], loading: false, done: false, failed: false });
+  const [moreRetry, setMoreRetry] = useState(0);
   const [removedIds, setRemovedIds] = useState(() => new Set()); // 삭제 직후 바로 빼서 다시 불러오는 동안 깜빡이지 않게
   const [moreRev, setMoreRev] = useState(0); // 올리면 이어 부른 캐시를 버리고 다시 부른다
   const moreKey = `${child?.id || ''}|${documentsCursor || ''}|${moreRev}`;
   const onDeleted = (id) => { setRemovedIds(s => new Set(s).add(id)); setMoreRev(n => n + 1); onDataChange?.(); };
-  const moreNow = more.key === moreKey ? more : { items: [], loading: false, done: false }; // 다른 아이·이전 커서 결과는 쓰지 않는다
+  const moreNow = more.key === moreKey ? more : { items: [], loading: false, failed: false }; // 다른 아이·이전 커서 결과는 쓰지 않는다
   React.useEffect(()=>{ if(query.trim() || kindFilter || expanded) setWantAll(true); },[query, kindFilter, expanded]);
   React.useEffect(()=>{
     if (!wantAll || !child?.id || !documentsCursor || (more.key === moreKey && (more.done || more.loading))) return;
     let active = true;
-    setMore({ key: moreKey, items: [], loading: true, done: false });
+    setMore(previous => ({
+      key: moreKey,
+      items: previous.key === moreKey ? previous.items : [],
+      loading: true,
+      done: false,
+      failed: false,
+    }));
     (async()=>{
       const items = [], seen = new Set([documentsCursor]);
       let cursor = documentsCursor, failed = false;
@@ -770,12 +777,16 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
         }
       } catch { failed = true; }
       if (!active) return;
-      setMore({ key: moreKey, items, loading: false, done: true });
-      if (failed) onToast('일부 문서를 불러오지 못했어요');
+      setMore(previous => ({
+        key: moreKey,
+        items: failed && previous.items.length > items.length ? previous.items : items,
+        loading: false,
+        done: !failed,
+        failed,
+      }));
     })();
-    // 중간에 버리면 loading 표시를 풀어서, 같은 키로 돌아왔을 때 다시 부를 수 있게 한다.
-    return () => { active = false; setMore(m => m.key === moreKey && m.loading ? { key: '', items: [], loading: false, done: false } : m); };
-  },[wantAll, moreKey]);
+    return () => { active = false; };
+  },[wantAll, moreKey, moreRetry]);
   const complete = async () => {
     if (!child?.id) { onToast('아이를 먼저 등록해 주세요'); return; }
     if (!file) { onToast('먼저 업로드할 문서를 선택해주세요'); return; }
@@ -810,6 +821,7 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
     ? allDocs.filter(doc => (!q || documentDisplayName(doc).toLowerCase().includes(q)) && (!kindFilter || documentKind(doc) === kindFilter))
     : expanded ? allDocs : allDocs.slice(0,5);
   const canMore = !q && !kindFilter && (allDocs.length > 5 || !!documentsCursor);
+  const checkingMore = !!documentsCursor && (q || kindFilter || expanded) && (more.key !== moreKey || moreNow.loading);
   return <div className="page padded detail-page">
     <div className="detail-hero"><span className="detail-icon"><FileText/></span><div><h2>건강 문서</h2><p>진료·검사 문서를 방문 기록과 연결해 맥락까지 함께 보관해요.</p></div></div>
     <div className="link-info"><Link2/><div><b>문서와 방문 기록을 연결하세요</b><p>진료별 문서와 AI 설명을 한 화면에서 다시 확인할 수 있어요.</p></div></div>
@@ -819,8 +831,12 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
       <label className="search-box"><Search/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="문서명으로 검색" aria-label="문서명으로 검색"/></label>
       <div className="doc-chips" role="group" aria-label="문서 종류 필터">{[['','전체'],...Object.entries(DOCUMENT_KINDS)].map(([id,label])=><button type="button" key={id||'all'} aria-pressed={kindFilter===id} onClick={()=>setKindFilter(id)}>{label}</button>)}</div>
     </div>}
-    <div className="record-list doc-list">{!allDocs.length ? <div className="empty-record">아직 등록된 건강 문서가 없어요.</div> : !shownDocs.length ? <div className="empty-record">조건에 맞는 문서가 없어요</div> : shownDocs.map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{documentDisplayName(doc)}</b><small><KindChip kind={documentKind(doc)}/>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>})}</div>
-    {moreNow.loading && (q || kindFilter || expanded) && <p className="doc-loading-more" role="status">문서를 더 불러오는 중이에요</p>}
+    <div className="record-list doc-list">{shownDocs.length ? shownDocs.map(doc=>{const linked=visits.find(v=>v.visitId===doc.visitId);return <button type="button" onClick={()=>setSelectedDocument(doc)} key={doc.documentId}><span className="record-date">{String(doc.visitedOn||doc.createdAt||'').slice(0,10)}</span><span><b>{documentDisplayName(doc)}</b><small><KindChip kind={documentKind(doc)}/>{doc.visitId?<><Link2/> {linked?.hospitalName||'병원 방문'} 기록에 연결됨</>:'연결된 방문 기록 없음'}</small></span><ChevronRight/></button>}) : !checkingMore && !moreNow.failed && <div className="empty-record">{allDocs.length ? '조건에 맞는 문서가 없어요' : '아직 등록된 건강 문서가 없어요.'}</div>}</div>
+    {checkingMore && <p className="doc-loading-more" role="status">문서를 더 불러오는 중이에요</p>}
+    {moreNow.failed && <>
+      <p className="doc-loading-more" role="alert">일부 문서를 불러오지 못했어요.</p>
+      <button type="button" className="doc-more" onClick={() => setMoreRetry(retry => retry + 1)}>다시 불러오기</button>
+    </>}
     {canMore && <button type="button" className="doc-more" aria-expanded={expanded} onClick={()=>setExpandedFor(expanded ? null : child.id)}>{expanded ? '접기' : '더 보기'}<ChevronRight/></button>}
     <button className="primary-button" onClick={()=>setUploading(true)}><Upload/> 문서 업로드</button>
     {uploading && <div className="modal-backdrop" onMouseDown={closeSheet}><div className="sheet upload-sheet" role="dialog" aria-modal="true" aria-label="문서 업로드" onMouseDown={e=>e.stopPropagation()}>
