@@ -30,7 +30,7 @@ export default function ProfileEditSheet({ title, description, icon: Icon, pendi
 
   return <div className="modal-backdrop child-sheet-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
     <section className="sheet child-profile-sheet" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" tabIndex={-1} ref={sheet} onKeyDown={handleKeyDown}>
-      <SheetHandle onClose={close}/>
+      <SheetHandle onClose={close} disabled={pending.current}/>
       <header className="child-sheet-header">
         <span className="child-sheet-emblem" aria-hidden="true"><Icon size={26}/></span>
         <div><h2 id="profile-edit-title">{title}</h2><p>{description}</p></div>
