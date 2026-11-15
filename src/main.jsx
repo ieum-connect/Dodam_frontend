@@ -6,7 +6,7 @@ import {
   Plus, Search, ShieldCheck, Sparkles, Syringe, TrendingUp, Upload, X,
   CheckCircle2, Clock3, MapPin, Send, Baby, Scale, Ruler, Gift, BookOpen,
   Stethoscope, Camera, Menu, Mic, Square, Link2, UserRoundPlus, UsersRound,
-  Pencil, Save, Trash2, Settings2, TriangleAlert
+  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw
 } from 'lucide-react';
 import './styles.css';
 import './care-workspace.css';
@@ -702,7 +702,7 @@ function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, 
   },[visit.visitId,child?.id,selectedDocument]);
   const save=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 수정할 수 있어요');return;}try{setSaving(true);const updated=await api.updateVisit(visit.visitId,{patientId:visit.patientId||child?.id,...form,visitStatus:visit.visitStatus||'DONE',version:visit.version});await onSaved(updated);setEditing(false);onToast('방문 기록을 수정했어요');}catch(error){onToast(error.message||'수정하지 못했어요');}finally{setSaving(false)}};
   const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}if(!window.confirm('이 방문 기록을 삭제할까요?'))return;try{setSaving(true);await api.deleteVisit(visit.visitId);onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
-  if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={()=>onDataChange?.()}/>;
+  if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={()=>onDataChange?.()} onReanalyzed={onDataChange}/>;
   return <div className="nested-detail visit-detail"><button type="button" className="detail-back" onClick={onBack}><ChevronLeft aria-hidden="true"/> 방문 기록으로</button><div className="detail-title-row"><div><span className="eyebrow">방문 기록 상세</span><h2>{form.department||form.hospitalName||'병원 방문'}</h2><p>{[form.hospitalName,form.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={saving} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel visit-compose"><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={save}><Save/>{saving?'저장 중…':'수정 내용 저장'}</button></div>:<><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
     <div className="visit-docs"><div className="visit-docs-head"><b>연결된 문서</b><span>{linkedDocs.length}건</span></div>
       {docsLoading ? <p role="status">문서를 불러오는 중이에요.</p> : docsError ? <p role="alert">{docsError}</p> : linkedDocs.length ? <div className="visit-doc-list">{linkedDocs.map(doc=>(
@@ -830,7 +830,7 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
   useBackLayer(!!selectedDocument, () => setSelectedDocument(null));
   useBackLayer(uploading, () => (saving ? false : closeSheet()));
   if (!child?.id) return <ChildRequiredState icon={FileText} title="건강 문서" onChildOpen={onChildOpen}/>;
-  if(selectedDocument) return <DocumentItemDetail document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={onDeleted}/>;
+  if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={visits} onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={onDeleted} onReanalyzed={onDataChange}/>;
   // 첫 페이지 + 이어 부른 페이지(검색·필터·더 보기 때) 기준. 조건이 없으면 최근 5건, 펼치면 전체.
   const q = query.trim().toLowerCase();
   const seenIds = new Set(); // 첫 페이지와 이어 부른 페이지 전체에서 documentId 중복 제거
@@ -881,29 +881,87 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
 }
 
 const DOCUMENT_GONE = '삭제된 문서예요';
-function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, backLabel = "건강 문서로" }) {
+function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onReanalyzed, backLabel = "건강 문서로" }) {
   // 삭제됐거나 이미 없는 문서: 이 기기의 이름·종류·메모를 지우고 목록 갱신을 알린다.
   const forget=()=>{removeDocumentNote(document.documentId);onDeleted?.(document.documentId);};
   const [detail,setDetail]=useState(document), [editing,setEditing]=useState(false);
   const [detailError,setDetailError]=useState(''), [detailLoading,setDetailLoading]=useState(true), [detailRetry,setDetailRetry]=useState(0);
   const [ai,setAi]=useState(null); const [removing,setRemoving]=useState(false);
+  const [reanalysisSubmitting, setReanalysisSubmitting] = useState(false);
+  const [reanalysisError, setReanalysisError] = useState('');
+  const isSample = String(document.documentId).startsWith('sample');
+  const analysisPending = ['UPLOADED', 'PROCESSING'].includes(detail.documentStatus);
   // meta.kind는 사용자가 고른 값만. 화면 표시는 documentKind(detail)(고른 값 → AI 분류 순).
   const [meta,setMeta]=useState(()=>{const saved=readDocumentNote(document.documentId);return{name:saved.name||document.documentName||'',note:saved.note||'',kind:saved.kind};});
-  React.useEffect(()=>{let active=true;setDetail(document);setDetailError('');
-    if(String(document.documentId).startsWith('sample')){setDetailLoading(false);return;}
+  React.useEffect(()=>{let active=true;setDetailError('');
+    if(isSample){setDetailLoading(false);return;}
     setDetailLoading(true);api.document(document.documentId).then(value=>{if(active)setDetail(value);})
       .catch(error=>{if(!active)return;if(error?.code==='MEDICAL_DOCUMENT_001'||error?.status===404){setDetailError(DOCUMENT_GONE);forget();}else setDetailError(errorMessage(error));}).finally(()=>{if(active)setDetailLoading(false);});
     return()=>{active=false;};
-  },[document.documentId,detailRetry]);
-  React.useEffect(()=>{if(String(document.documentId).startsWith('sample'))return; Promise.all([api.aiDocument(document.documentId),api.aiDocumentStatus(document.documentId),api.aiDocumentSections(document.documentId),api.aiDocumentFacts(document.documentId),api.aiDocumentCitations(document.documentId)]).then(([doc,status,sections,facts,citations])=>setAi({doc,status,sections,facts,citations})).catch(()=>setAi(null));},[document.documentId]);
+  },[document.documentId,detailRetry,isSample]);
+  React.useEffect(() => {
+    if (isSample || detailLoading || !analysisPending || detailError) return;
+    let active = true;
+    let timer;
+    const refresh = async () => {
+      try {
+        const result = await api.document(document.documentId);
+        if (!active) return;
+        setDetail(result);
+        setReanalysisError('');
+        if (['UPLOADED', 'PROCESSING'].includes(result.documentStatus)) timer = setTimeout(refresh, 2000);
+      } catch (error) {
+        if (active) setReanalysisError(errorMessage(error, '분석 상태를 확인하지 못했어요.'));
+      }
+    };
+    timer = setTimeout(refresh, 1500);
+    return () => { active = false; clearTimeout(timer); };
+  }, [document.documentId, isSample, analysisPending, detailLoading, detailError, detailRetry]);
+  React.useEffect(() => {
+    let active = true;
+    setAi(null);
+    if (!isSample && !analysisPending) {
+      Promise.all([api.aiDocumentStatus(document.documentId), api.aiDocumentSections(document.documentId), api.aiDocumentFacts(document.documentId), api.aiDocumentCitations(document.documentId)])
+        .then(([status, sections, facts, citations]) => { if (active) setAi({status, sections, facts, citations}); })
+        .catch(() => {});
+    }
+    return () => { active = false; };
+  }, [document.documentId, isSample, analysisPending, detail.statusChangedAt]);
   const linked=visits.find(v=>v.visitId===detail.visitId);
   const kind=documentKind(detail);
   const declaredKind=declaredDocumentKind(detail);
+  const reanalyze = async () => {
+    setReanalysisSubmitting(true);
+    setReanalysisError('');
+    try {
+      await api.reanalyzeAsPrescription(document.documentId);
+      setDetailRetry(value => value + 1);
+      onReanalyzed?.();
+      onToast('복약문서 분석을 요청했어요');
+    } catch (error) {
+      setReanalysisError(errorMessage(error, '복약문서 분석을 요청하지 못했어요.'));
+    } finally {
+      setReanalysisSubmitting(false);
+    }
+  };
+  const canRequestReanalysis = detail.canReanalyze && !detailLoading && !detailError
+    && !analysisPending && (detail.declaredDocType !== 'PRESCRIPTION' || detail.documentStatus === 'FAILED');
+  const analysisControls = detail.documentStatus && <div className="detail-info-card">
+    <InfoRow label="문서 분석 상태" value={DOC_STATUS[detail.documentStatus] || '상태 확인 필요'}/>
+    {canRequestReanalysis && <button className="primary-button compact" disabled={reanalysisSubmitting || removing} onClick={reanalyze}>
+      <RefreshCw/> {detail.declaredDocType === 'PRESCRIPTION' ? '복약 분석 다시 시도' : '복약문서로 변경하고 재분석'}
+    </button>}
+    {reanalysisError && <p role="alert">{reanalysisError}</p>}
+    {analysisPending && reanalysisError && <button className="outline-button" onClick={() => {
+      setReanalysisError('');
+      setDetailRetry(value => value + 1);
+    }}>분석 상태 다시 확인</button>}
+  </div>;
   const save=()=>{const name=meta.name.trim()||document.documentName||'';const next=saveDocumentNote(document.documentId,{name,note:meta.note,...(meta.kind?{kind:meta.kind}:{})});setMeta({...meta,...next});setEditing(false);onToast('문서 정보를 수정했어요');};
   const remove=async()=>{if(!window.confirm('이 문서를 삭제할까요?'))return;try{setRemoving(true);await api.deleteDocument(document.documentId);forget();onToast('문서를 삭제했어요');onBack();}catch(e){onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
   // 삭제된 문서(404): 문구와 뒤로 가기만. 다른 오류는 아래 기본 화면에서 버튼을 그대로 둔다.
   if(detailError===DOCUMENT_GONE) return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><p className="empty-record" role="alert">{DOCUMENT_GONE}</p></div>;
-  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
+  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{analysisControls}{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
 }
 
 
