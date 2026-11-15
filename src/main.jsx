@@ -412,9 +412,14 @@ function App() {
   );
 }
 
-const DEMO_ACCOUNTS = [['MINJI','김민지','엄마','민'],['SOONJA','김순자','할머니','순'],['JIHUN','박지훈','아빠','지']];
-
 function LoginScreen({ onDemoLogin, authConfig }) {
+  const [demoBusy, setDemoBusy] = useState(false);
+  const startDemo = async account => {
+    if (demoBusy) return;
+    setDemoBusy(true);
+    try { await onDemoLogin(account); }
+    finally { setDemoBusy(false); }
+  };
   const params = new URLSearchParams(window.location.search);
   const withdrawn = params.get('withdrawn') === '1';
   const chooseAccount = !withdrawn && params.get('mode') === 'account';
@@ -429,19 +434,11 @@ function LoginScreen({ onDemoLogin, authConfig }) {
         <a className="kakao-button" href={chooseAccount ? api.kakaoAccountLoginUrl : api.kakaoLoginUrl}>
           <span aria-hidden="true">💬</span> 카카오로 시작하기
         </a>
-        {authConfig?.demoLogin && <button className="email-button" onClick={() => onDemoLogin()}>체험 계정으로 로그인</button>}
+        {authConfig?.demoLogin && <>
+          <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('MINJI')}>김민지로 시작하기</button>
+          <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('JIHUN')}>박지훈으로 시작하기</button>
+        </>}
       </div>
-      {authConfig?.demoLogin && <div className="demo-login">
-        <div className="demo-login-head"><span>테스트 계정</span><em>비밀번호 없이 바로 입장</em></div>
-        <div className="demo-list">
-          {DEMO_ACCOUNTS.map(([key, name, relation, initial]) => (
-            <button key={key} className="demo-main" onClick={() => onDemoLogin(key)}>
-              <span className="demo-avatar">{initial}</span>
-              <span className="demo-text"><b>{name}</b><small>{relation} · 박도윤, 박다연</small></span>
-            </button>
-          ))}
-        </div>
-      </div>}
       <p>처음 이용하시면 카카오 로그인으로 가입할 수 있어요.</p><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
     </div>
   </div>;
