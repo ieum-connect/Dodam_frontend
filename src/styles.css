@@ -588,8 +588,9 @@
 .visit-detail .detail-title-row > div { flex: 1 1 170px; min-width: 0; overflow-wrap: anywhere; }
 .visit-detail .detail-actions { margin-inline-start: auto; }
 .visit-detail .detail-back { min-height: 44px; padding-inline: 0; }
-.sheet.sheet-expanded { max-height: 94dvh; }
-.sheet-drag-handle { width: 64px; height: 24px; top: 0; background: none; touch-action: none; cursor: grab; }
+.sheet.sheet-expanded { max-height: min(94dvh, calc(100dvh - env(safe-area-inset-top))); }
+.sheet:has(> .sheet-drag-handle) { overscroll-behavior: contain; }
+.sheet-drag-handle { width: 64px; height: 24px; top: 0; background: none; touch-action: none; -webkit-user-select: none; user-select: none; cursor: grab; }
 .sheet-drag-handle::before { content: ""; position: absolute; top: 10px; left: 12px; width: 40px; height: 4px; border-radius: 9px; background: #e4d7db; }
 .feature-title-single-line b { white-space: nowrap; }
 .growth-live .growth-summary .growth-reference-position { color: #9b4166; font-weight: 600; line-height: 1.5; }
@@ -609,7 +610,7 @@
 .profile-sheet .new-child-form input { width: 100%; min-width: 0; }
 
 @media (pointer: coarse) {
-  :is(.visit-compose, .child-profile-form) input:is([type="date"], [type="time"], [type="datetime-local"]) {
+  :is(.visit-compose, .child-profile-form, .upload-sheet) input:is([type="date"], [type="time"], [type="datetime-local"]) {
     -webkit-appearance: none;
     appearance: none;
     display: block;
@@ -619,7 +620,7 @@
     min-height: 44px;
     font-size: 16px;
   }
-  :is(.visit-compose, .child-profile-form) input::-webkit-date-and-time-value {
+  :is(.visit-compose, .child-profile-form, .upload-sheet) input::-webkit-date-and-time-value {
     min-width: 0;
     text-align: start;
   }

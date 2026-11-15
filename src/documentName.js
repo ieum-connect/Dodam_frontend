@@ -39,9 +39,16 @@ export function documentDisplayName(doc, fallback = '이름 없는 문서') {
 
 // 화면에 보이는 문서 종류는 두 개뿐이다. 사용자가 고른 값이 먼저, 없으면 AI 분류(documentType)로 정한다.
 export const DOCUMENT_KINDS = { MEDICAL: '의료문서', MEDICATION: '복약문서' };
+export const DECLARED_DOCUMENT_TYPES = { MEDICAL: 'MEDICAL', MEDICATION: 'PRESCRIPTION' };
 const AI_KIND = { PRESCRIPTION: 'MEDICATION', LAB_RESULT: 'MEDICAL', DIAGNOSIS: 'MEDICAL', DISCHARGE_GUIDE: 'MEDICAL' };
 
+export function declaredDocumentKind(doc) {
+  return doc?.declaredDocType === 'MEDICAL' ? 'MEDICAL' : AI_KIND[doc?.declaredDocType] ?? null;
+}
+
 export function documentKind(doc) {
+  const declared = declaredDocumentKind(doc);
+  if (declared) return declared;
   const saved = readDocumentNote(doc?.documentId).kind;
   if (DOCUMENT_KINDS[saved]) return saved;
   return AI_KIND[doc?.documentType] ?? null; // UNKNOWN·값 없음은 종류 미지정
