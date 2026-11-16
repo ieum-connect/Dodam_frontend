@@ -3,6 +3,7 @@ import { CalendarPlus, ChevronDown, ChevronRight, Clock, ExternalLink, Syringe }
 import './vaccination.css';
 import { api, errorMessage } from '../api';
 import ChildRequiredState from '../ChildRequiredState';
+import { buildRecordGroups } from './recordGroups.js';
 
 const DAY = 86400000;
 // 날짜는 모두 'YYYY-MM-DD' 문자열을 UTC 자정으로 바꿔 계산한다. 기기 시간대와 무관하다.
@@ -11,14 +12,6 @@ const days = (to, from) => Math.round((utc(to) - utc(from)) / DAY);
 const ddayLabel = (n) => !Number.isFinite(n) ? '' : n === 0 ? 'D-day' : n > 0 ? `D-${n}` : `D+${-n}`;
 const dot = (value) => String(value || '').slice(0, 10).replaceAll('-', '.');
 const ageLabel = (m) => m == null ? '' : m < 24 ? `생후 ${m}개월` : `만 ${Math.floor(m / 12)}세 ${m % 12}개월`;
-// 접종 기록 묶음용 월령. recFrom = 생일 + 일정표 from(0·Nm·Ny)이라 연·월 차이가 곧 from 개월 수다.
-// ponytail: 일정표 from에 주(w)·일(d) 단위가 생기면 engine.age_months처럼 일 단위 보정이 필요하다.
-const monthsFrom = (birth, date) => {
-  const [y1, m1] = String(birth || '').split('-').map(Number);
-  const [y2, m2] = String(date || '').split('-').map(Number);
-  return (y2 - y1) * 12 + (m2 - m1);
-};
-const ageGroupLabel = (m) => m === 0 ? '출생 시' : m < 24 || m % 12 ? `${m}개월` : `만 ${m / 12}세`;
 const isLate = (dose, asOf) => days(dose.recTo, asOf) < 0;
 // 같은 백신의 바로 앞 차수가 DONE이 아니면 그 차수({doseId, label, state})를 준다. 1차·못 찾으면 null.
 const prevNeeded = (dose, vaccines) => {
@@ -324,18 +317,8 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     <small>{busyDose === dose.doseId ? '저장 중…' : checked ? '맞음' : `${dot(dose.recFrom)} ~ ${dot(dose.recTo)}`}</small>
   </label>;
 
-  // 접종 기록 확인: 권장 시작이 지났거나 지금인 차수(now·past·DONE)를 월령별로 묶는다. 시작 전 차수는 넣지 않는다.
-  // recFrom이 없는 DONE(AI 응답에 아직 없음)은 맨 아래 "체크한 접종" 묶음에 임시로 둔다.
-  const recordGroups = [];
-  [...now, ...past, ...doneDoses.filter((d) => !d.recFrom || days(d.recFrom, asOf) <= 0)].forEach((dose) => {
-    const m = dose.recFrom ? monthsFrom(child?.birthDate, dose.recFrom) : NaN;
-    const key = Number.isFinite(m) ? m : Infinity;
-    let group = recordGroups.find((g) => g.key === key);
-    if (!group) recordGroups.push(group = { key, label: Number.isFinite(m) ? ageGroupLabel(m) : '체크한 접종', doses: [] });
-    group.doses.push(dose);
-  });
-  recordGroups.sort((a, b) => a.key - b.key)
-    .forEach((g) => g.doses.sort((a, b) => (utc(a.recFrom) - utc(b.recFrom)) || String(a.name).localeCompare(String(b.name), 'ko')));
+  // 접종 기록 확인 월령 묶음. 미체크는 now·past만, DONE은 시기와 관계없이 모두.
+  const recordGroups = buildRecordGroups({ now, past, done: doneDoses, birthDate: child?.birthDate });
 
   const renderRecordGroup = (group) => {
     const id = `g-${group.key}`;
