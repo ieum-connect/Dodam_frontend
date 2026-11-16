@@ -37,11 +37,11 @@ const documentReadyForChat = doc => !['FAILED', 'DELETED'].includes(doc?.documen
 const chatDocumentStatusLabel = doc => {
   if (doc?.documentStatus === 'FAILED') return '문서 분석 실패';
   return ({
-    PENDING: 'AI 답변 준비 대기 중',
-    INDEXING: 'AI 답변 준비 중',
-    READY: 'AI 채팅 사용 가능',
-    FAILED: 'AI 답변 준비 실패',
-  })[doc?.embeddingStatus] || 'AI 답변 준비 상태 확인 중';
+    PENDING: '문서 분석 대기 중',
+    INDEXING: '문서 분석 중',
+    READY: '문서 분석 완료',
+    FAILED: '문서 분석 실패',
+  })[doc?.embeddingStatus] || '문서 분석 상태 확인 중';
 };
 const CHAT_QUESTION_SUGGESTIONS = [
   { label: '내용 쉽게 설명', question: '선택한 건강 문서의 내용을 쉽게 설명해줘' },
