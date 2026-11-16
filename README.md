@@ -286,18 +286,17 @@ flowchart LR
     <td align="center"><b>가족 건강 일정</b></td>
   </tr>
   <tr>
-    <td><img src="./docs/screenshots/readme-memo-current.jpg" alt="현재 육아 메모 화면" /></td>
-    <td><img src="./docs/screenshots/readme-calendar-current.jpg" alt="현재 가족 건강 일정 화면" /></td>
+    **추후 추가**
   </tr>
 </table>
 
 ### 📄 건강 문서 업로드
 
-<img src="./docs/screenshots/readme-document-upload-current.jpg" alt="현재 건강 문서 업로드 화면" />
+**추후 추가**
 
 ### 🤖 문서 기반 AI 채팅
 
-<img src="./docs/screenshots/readme-ai-chat-current.jpg" alt="현재 AI 건강 상담 화면" />
+**추후 추가**
 
 ---
 
@@ -485,7 +484,7 @@ flowchart LR
 
 <div align="center">
 
-### 아이의 기록을 잇고, 가족의 돌봄을 이어가는 도담 💗
+### 아이의 검진 결과를 읽고, 필요한 돌봄으로 💗
 
 Made by **Team IEUM**
 
