@@ -139,12 +139,7 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     if (busyDose || addingDose) return;
     setBusyDose(dose.doseId);
     setCalendarFor(null); // 체크 후 목록에서 빠졌다가 해제로 돌아올 때 낡은 날짜 패널이 다시 열리지 않게
-    try {
-      await (checked ? api.checkVaccination : api.uncheckVaccination)(childId, dose.doseId);
-      onToast(checked
-        ? `${dose.name} ${dose.label}를 접종 완료로 기록했어요.`
-        : `${dose.name} ${dose.label}의 접종 완료 기록을 취소했어요.`);
-    }
+    try { await (checked ? api.checkVaccination : api.uncheckVaccination)(childId, dose.doseId); }
     catch (e) { onToast(errorMessage(e, '접종 체크를 저장하지 못했어요.')); }
     finally { setRevision((n) => n + 1); }
   };
@@ -199,7 +194,6 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
   [next, ...now, ...soon, ...past].forEach((d) => { if (d?.vaccineId && d.name) shortNames[d.vaccineId] ??= d.name; });
   const vaccineName = (v) => shortNames[v.vaccineId] || v.name;
   const doneDoses = vaccines.flatMap((v) => (v.doses || []).filter((d) => d.state === 'DONE').map((d) => ({ ...d, name: vaccineName(v) })));
-  const recordableCount = now.length + past.length;
   const ageMonths = data.ageMonths;
 
   const renderNext = () => {
@@ -295,15 +289,15 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
   };
 
   const renderCheck = (dose, checked) => <label className="vax-check" key={dose.doseId}>
-    <input type="checkbox" checked={checked} disabled={busy} aria-label={`${dose.name} ${dose.label} 접종 완료로 기록`} onChange={() => toggleCheck(dose, !checked)}/>
+    <input type="checkbox" checked={checked} disabled={busy} onChange={() => toggleCheck(dose, !checked)}/>
     <span>{dose.name} {dose.label}</span>
-    <small>{busyDose === dose.doseId ? '저장 중…' : checked ? '접종 완료' : `${dot(dose.recFrom)} ~ ${dot(dose.recTo)}`}</small>
+    <small>{busyDose === dose.doseId ? '저장 중…' : checked ? '맞음' : `${dot(dose.recFrom)} ~ ${dot(dose.recTo)}`}</small>
   </label>;
 
   return <div className="page padded detail-page">
     {hero}
     {(counts.pastUnchecked >= 1 || now.length > 0) && <button className={`vax-past-notice ${counts.pastUnchecked >= 1 ? '' : 'calm'}`} type="button" onClick={openPast}>
-      <span>{counts.pastUnchecked >= 1 ? `지난 접종 ${counts.pastUnchecked}건을 확인하면 일정이 더 정확해져요` : '이미 맞은 접종을 체크해 접종 완료로 기록해 주세요'}</span><ChevronRight/>
+      <span>{counts.pastUnchecked >= 1 ? `지난 접종 ${counts.pastUnchecked}건을 확인하면 일정이 더 정확해져요` : "맞은 접종은 '접종 기록 확인'에서 체크해 주세요"}</span><ChevronRight/>
     </button>}
     {renderNext()}
     <div className="vax-stats">
@@ -333,17 +327,15 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     </section>
 
     <section className="vax-section vax-past-section" ref={pastRef}>
-    <div className="list-header"><h3>맞은 접종 기록하기</h3><span className="list-count">선택 가능 {recordableCount}건</span></div>
-    <p className="vax-record-help">이미 접종을 마친 항목을 선택해 주세요. 체크하면 접종 완료로 바로 저장돼요.</p>
+    <div className="list-header"><h3>접종 기록 확인</h3><span className="list-count">확인 필요 {counts.pastUnchecked ?? past.length}건</span></div>
     <details className="vax-past" open={pastOpen} onToggle={(e) => setPastOpen(e.currentTarget.open)}>
-      <summary><b>{pastOpen ? '접기' : '맞은 접종 선택하기'}</b><ChevronDown/></summary>
-      <h4>현재 접종 시기인 항목</h4>
-      <p className="vax-check-help">이 중 이미 맞은 접종이 있다면 체크해 주세요.</p>
-      {now.length ? now.map((d) => renderCheck(d, false)) : <p className="vax-note">현재 접종 시기인 항목이 없어요.</p>}
-      <h4>지난 접종 확인</h4>
-      {past.length ? past.map((d) => renderCheck(d, false)) : <p className="vax-note">확인할 지난 접종이 없어요.</p>}
-      <h4>접종 완료로 기록한 항목</h4>
-      {doneDoses.length ? doneDoses.map((d) => renderCheck(d, true)) : <p className="vax-note">아직 접종 완료로 기록한 항목이 없어요.</p>}
+      <summary><b>{pastOpen ? '접기' : '접종 체크하기'}</b><ChevronDown/></summary>
+      <h4>지금 맞을 수 있는 접종</h4>
+      {now.length ? now.map((d) => renderCheck(d, false)) : <p className="vax-note">지금 맞을 수 있는 접종이 없어요.</p>}
+      <h4>확인이 필요한 지난 접종</h4>
+      {past.length ? past.map((d) => renderCheck(d, false)) : <p className="vax-note">확인이 필요한 지난 접종이 없어요.</p>}
+      <h4>맞았다고 체크한 접종</h4>
+      {doneDoses.length ? doneDoses.map((d) => renderCheck(d, true)) : <p className="vax-note">아직 체크한 접종이 없어요.</p>}
     </details>
     </section>
 
