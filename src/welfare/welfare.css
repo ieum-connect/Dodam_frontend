@@ -30,7 +30,8 @@
 .welfare-detail-loading{margin:0 2px 12px;font-size:12px;color:#a2919a}.welfare-empty p{margin:6px 0 0;font-size:11.5px;line-height:1.6;color:#a2919a}
 
 /* Mobile interaction fixes: exclusive selects, draggable sheet, favorites, and long metadata. */
-.welfare-profile-sheet{overscroll-behavior:contain;padding-bottom:max(35px,env(safe-area-inset-bottom))}
+.welfare-profile-sheet{overscroll-behavior:contain;padding-bottom:max(35px,env(safe-area-inset-bottom));scrollbar-width:none;-ms-overflow-style:none}
+.welfare-profile-sheet::-webkit-scrollbar{display:none}
 .welfare-profile-sheet.dragging{user-select:none;overflow:hidden}
 .welfare-profile-sheet .sheet-handle{top:0;width:76px;height:30px;background:transparent;cursor:grab;touch-action:none;z-index:6}
 .welfare-profile-sheet .sheet-handle:active{cursor:grabbing}
