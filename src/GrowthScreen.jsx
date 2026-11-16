@@ -79,12 +79,13 @@ export default function GrowthScreen({ child, onToast }) {
   const save = async event => {
     event.preventDefault();
     if (!form.heightCm && !form.weightKg) { setFormError('키 또는 몸무게를 하나 이상 입력해주세요.'); return; }
-    const measuredOn = new FormData(event.currentTarget).get('measuredOn');
+    const { measuredOn } = form;
     if (records.some(row => row.measuredOn === measuredOn && row.id !== form.id)) { setFormError('같은 날의 기록이 있어요. 아래 목록에서 해당 기록을 수정해주세요.'); return; }
     setBusy(true); setFormError('');
     const body = { ...form, measuredOn, patientId: child.id, heightCm: form.heightCm === '' ? null : Number(form.heightCm), weightKg: form.weightKg === '' ? null : Number(form.weightKg) };
     try {
       if (form.id) await api.updateGrowth(form.id, body); else await api.createGrowth(body);
+      if (measuredOn < range.from) setPeriod(0);
       setForm(null); setRevision(r => r + 1); onToast('성장 기록을 저장했어요');
     } catch (e) { setFormError(e.status === 409 ? '같은 날짜에 기록이 있거나 가족이 내용을 변경했어요. 새로 불러온 뒤 다시 수정해주세요.' : errorMessage(e)); }
     finally { setBusy(false); }
@@ -101,7 +102,8 @@ export default function GrowthScreen({ child, onToast }) {
       {error && <div role="alert" className="record-timeline-error">{error}<button onClick={() => setRevision(r => r + 1)}>다시 불러오기</button></div>}
       {form && <form className="growth-editor" onSubmit={save} ref={editor}>
         <div className="growth-editor-heading"><h3>{form.id ? '측정 기록 수정' : '새 측정 기록'}</h3><button type="button" aria-label="입력 닫기" disabled={busy} onClick={() => setForm(null)}><X/></button></div>
-        <label>측정일<input type="date" name="measuredOn" key={form.id || 'new'} required defaultValue={form.measuredOn} max={today()} min={child.birthDate || undefined} disabled={busy} onChange={e => setForm({...form, measuredOn: e.target.value})}/></label>
+        <label>측정일<input type="date" name="measuredOn" required value={form.measuredOn} max={today()} min={child.birthDate || undefined} disabled={busy} aria-describedby="growth-measured-on-help" onChange={e => setForm({...form, measuredOn: e.target.value})}/></label>
+        <p className="growth-chart-note" id="growth-measured-on-help">실제로 키나 몸무게를 잰 날짜를 선택해 주세요. 지난 측정일도 입력할 수 있어요.</p>
         <div className="growth-input-pair">{Object.entries(metrics).map(([key, info]) => <label key={key}>{info.name} ({info.unit})<input aria-label={`${info.name} (${info.unit})`} type="number" inputMode="decimal" min="0.1" max={key === 'heightCm' ? '300' : '500'} step="0.1" placeholder={key === 'heightCm' ? '예: 85.2' : '예: 12.3'} value={form[key]} disabled={busy} onChange={e => setForm({...form, [key]: e.target.value})}/></label>)}</div>
         <p className="growth-chart-note">키와 몸무게 중 하나만 입력해도 저장할 수 있어요.</p>
         <label>메모 (선택)<textarea value={form.note} maxLength={500} placeholder="측정 장소나 기억할 내용을 남겨주세요" disabled={busy} onChange={e => setForm({...form, note: e.target.value})}/></label>

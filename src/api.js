@@ -80,8 +80,9 @@ export const api = {
   visit: (visitId) => request(`/api/visits/${visitId}`),
   createVisit: (body) => request('/api/visits', { method: 'POST', body: JSON.stringify(body) }),
   updateVisit: (visitId, body) => request(`/api/visits/${visitId}`, { method: 'PUT', body: JSON.stringify(body) }),
-  documents: (patientId, visitId, cursor) => request(`/api/documents?${new URLSearchParams({...(patientId?{patientId}:{}),...(visitId?{visitId}:{}),...(cursor?{cursor}:{})})}`),
+  documents: (patientId, visitId, cursor, size) => request(`/api/documents?${new URLSearchParams({...(patientId?{patientId}:{}),...(visitId?{visitId}:{}),...(cursor?{cursor}:{}),...(size?{size:String(size)}:{})})}`),
   document: (documentId) => request(`/api/documents/${documentId}`),
+  reanalyzeAsPrescription: (documentId) => request(`/api/documents/${documentId}/reanalyze-as-prescription`, { method: 'POST' }),
   uploadDocument: (visitId, file, declaredDocType) => {
     const form = new FormData(); form.append('file', file);
     if (declaredDocType) form.append('declaredDocType', declaredDocType);
