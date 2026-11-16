@@ -1,0 +1,521 @@
+/* Personal care screens share the existing Dodam palette and typography.
+   Keep layout changes scoped so the home, AI and welfare pages stay independent. */
+@font-face {
+  font-family: Pretendard;
+  src: url('/fonts/PretendardVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:is(.care-workspace, .profile-sheet, .child-profile-sheet, .visit-compose, .visit-detail, .upload-sheet) {
+  font-family: Pretendard, 'Apple SD Gothic Neo', sans-serif;
+  --care-accent: var(--pink-dark);
+}
+:is(.care-workspace, .profile-sheet, .child-profile-sheet, .visit-compose, .visit-detail, .upload-sheet) :is(input, textarea, select, button) {
+  font-family: inherit;
+}
+.care-workspace {
+  padding: 24px 20px 32px;
+  line-height: 1.6;
+}
+.care-page-header { gap: 16px; }
+.care-page-header .detail-hero { gap: 14px; }
+.care-page-header .detail-hero p { font-size: 13px; line-height: 1.5; }
+.care-workspace .care-add {
+  min-height: 44px;
+  padding: 10px 15px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #ed7b9a, #dc6083);
+  box-shadow: 0 5px 14px #df668824;
+  font-size: 14px;
+  font-weight: 600;
+}
+.care-workspace .primary-button {
+  min-height: 52px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #ed7b9a, #dc6083);
+  box-shadow: 0 8px 20px #df668824;
+  font-size: 14px;
+}
+.care-workspace :is(.care-editor, .growth-editor, .memo-tag-manager) {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 8px 24px #78445306;
+}
+.care-workspace :is(.care-editor, .growth-editor) :is(h2, h3) {
+  font-family: 'Gowun Dodum', Pretendard, sans-serif;
+  font-size: 22px;
+  line-height: 1.4;
+}
+.care-workspace :is(.care-editor, .growth-editor) label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.care-workspace :is(.care-editor, .growth-editor) :is(input, select, textarea),
+.visit-compose :is(input, textarea), .visit-detail input[type=date] {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fffafc;
+  color: var(--ink);
+  padding: 12px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.care-workspace textarea { resize: none; }
+.care-workspace :is(input, textarea, select):focus-visible,
+.child-profile-sheet :is(input, button):focus-visible {
+  outline: 2px solid var(--pink-dark);
+  outline-offset: 3px;
+}
+.memo-writing .memo-compose {
+  padding: 0 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #fff;
+}
+.memo-writing .care-editor-bar {
+  position: static;
+  padding: 14px 0;
+  margin: 0 0 16px;
+  background: #fff;
+}
+.memo-writing .care-editor-bar h2 {
+  font-family: 'Gowun Dodum', Pretendard, sans-serif;
+  font-size: 22px;
+}
+.memo-writing .memo-datetime {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.memo-writing .date-picker {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fffafc;
+  padding: 10px 12px;
+}
+.memo-writing .date-picker input { font-size: 16px; color: var(--ink); }
+.memo-writing .memo-compose textarea {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fffafc;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.8;
+}
+.memo-writing .memo-compose textarea:focus-visible {
+  outline: 2px solid var(--pink-dark);
+  outline-offset: 2px;
+}
+.memo-screen.care-workspace .memo-tag-manager {
+  padding: 20px;
+  border-color: var(--line);
+  border-radius: 24px;
+  background: #fff;
+}
+.memo-writing .memo-compose-hint { font-size: 12px; padding-top: 14px; }
+.memo-writing .care-muted { font-size: 12px; line-height: 1.7; }
+.care-workspace .record-timeline-search {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  min-height: 46px;
+}
+.care-workspace .care-blank {
+  margin-top: 20px;
+  padding: 36px 18px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #fff;
+}
+.care-workspace .memo-entry,
+.growth-live.care-workspace .growth-history {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+  padding: 18px;
+  margin-bottom: 12px;
+}
+.growth-live.care-workspace .growth-history { padding-right: 60px; }
+.growth-live .growth-history-actions { top: 12px; right: 12px; }
+.growth-live .growth-history-actions[open] { z-index: 12; }
+.growth-live .growth-history-actions > div { top: auto; bottom: calc(100% + 6px); }
+.care-workspace .record-menu > div { border-color: var(--line); border-radius: 15px; }
+.growth-live.care-workspace .growth-summary {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #fff;
+  padding: 18px;
+}
+.growth-live .growth-periods { background: var(--blush); border-radius: 14px; }
+.growth-live .growth-periods button { border-radius: 10px; }
+.growth-live .growth-chart-note { line-height: 1.7; }
+
+.sheet.child-profile-sheet {
+  width: min(560px, 100%);
+  max-width: 560px;
+  padding: 28px 24px max(28px, env(safe-area-inset-bottom));
+  border: 0;
+  border-radius: 28px 28px 0 0;
+  background: #fffafc;
+  color: var(--ink);
+}
+.child-sheet-header h2 {
+  font-family: 'Gowun Dodum', Pretendard, sans-serif;
+  font-size: 23px;
+  font-weight: 400;
+}
+.child-sheet-header p { color: var(--muted); font-size: 13px; }
+.child-sheet-emblem { background: var(--blush); color: var(--pink-dark); }
+.child-profile-form { padding: 18px; background: #fff; border-color: var(--line); border-radius: 20px; }
+.child-profile-fields > label, .child-gender legend { font-size: 13px; }
+.child-profile-fields > input { height: 48px; margin-bottom: 20px; border-color: var(--line); background: #fffafc; }
+.child-form-actions { margin-top: 22px; }
+.child-form-actions button { font-size: 14px; min-height: 48px; border-radius: 15px; }
+.child-form-actions .child-save { background: linear-gradient(135deg, #ed7b9a, #dc6083); }
+.child-sheet-options button { font-size: 14px; color: var(--pink-dark); background: #fff; border-color: var(--line); }
+.child-profile-sheet .child-list > button.selected { background: var(--blush); border-color: var(--pink); }
+.profile-sheet .profile-head h3 { font-size: 22px; }
+.profile-sheet :is(.outline-button, .logout-button) { min-height: 48px; font-size: 14px; }
+.profile-sheet .family-text b { font-size: 14px; }
+.profile-sheet .family-text small { font-size: 12px; }
+.profile-sheet .new-child-form input { font-size: 16px; }
+
+@media (min-width: 640px) {
+  .sheet.child-profile-sheet { border-radius: 28px; }
+}
+@media (max-width: 360px) {
+  .care-workspace { padding-inline: 16px; }
+  .care-workspace :is(.care-editor, .growth-editor), .child-profile-form { padding: 14px; }
+  .sheet.child-profile-sheet { padding-inline: 18px; }
+}
+
+.growth-chart-legend { display:flex; flex-wrap:wrap; gap:10px 18px; font-size:12px; color:var(--ink); }
+.growth-chart-legend span { display:flex; align-items:center; gap:6px; }
+.growth-chart-legend i { width:18px; border-top:3px solid #b44873; }
+.growth-chart-legend i.peer { border-top:3px dashed #628d86; }
+
+
+
+.growth-chart-viewport { width:100%; min-width:0; margin:8px 0 16px; }
+.growth-chart-viewport .growth-live-chart { display:block; width:100%; max-width:100%; height:auto; margin:0; }
+
+.growth-aggregation-note { margin:12px 0; font-size:12px; color:var(--muted); line-height:1.6; }
+.growth-group-records { margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+.growth-group-records h4 { margin:0; font-size:13px; font-weight:600; }
+.growth-group-records p { margin:6px 0 12px; font-size:12px; color:var(--muted); }
+.growth-group-records ul { list-style:none; margin:0; padding:0; }
+.growth-group-records li { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; padding:10px 0; font-size:13px; }
+.growth-group-records li strong { margin-left:auto; }
+.growth-group-records li small { width:100%; text-align:right; color:var(--pink-dark); font-size:11px; }
+
+.growth-chart-viewport .growth-live-chart { touch-action:pan-y; cursor:crosshair; user-select:none; }
+.growth-crosshair-date { fill:var(--muted); font-size:12px; }
+.growth-crosshair-value { fill:var(--ink); font-size:19px; font-weight:700; }
+.growth-live .growth-chart-viewport { margin:18px 0 4px; }
+.growth-live .growth-range-label { margin:10px 0 20px; }
+.growth-live .growth-periods { margin-top:0; }
+
+/* Match the typography hierarchy of the shared record lists. */
+.growth-live .growth-list-heading { margin:24px 0 12px; gap:12px; }
+.growth-live .growth-list-heading h3 { display:flex; align-items:center; gap:8px; margin:0; font-size:15px; font-weight:600; line-height:1.5; letter-spacing:-.02em; color:var(--ink); }
+.growth-live .growth-record-count { padding:3px 8px; border-radius:12px; background:var(--blush); color:#b44873; font-size:11px; font-weight:600; line-height:1.4; }
+.growth-live .growth-record-period { font-size:12px; font-weight:400; line-height:1.5; color:var(--muted); letter-spacing:-.01em; }
+.growth-live.care-workspace .growth-history h4 { margin:0 0 14px; font-size:13px; font-weight:500; line-height:1.5; color:#74656c; font-variant-numeric:tabular-nums; }
+.growth-live.care-workspace .growth-history-values { gap:18px; font-size:12px; line-height:1.5; color:var(--muted); }
+.growth-live.care-workspace .growth-history-values b { font-size:20px; font-weight:600; color:var(--ink); letter-spacing:-.025em; font-variant-numeric:tabular-nums; }
+.growth-live.care-workspace .growth-history-actions { top:10px; right:10px; margin:0; padding:0; border:0; }
+
+/* Shared text hierarchy across personal care pages and sheets. */
+:is(.care-typography, .care-workspace, .record-timeline, .profile-sheet, .child-profile-sheet, .upload-sheet) {
+  font-family:Pretendard, 'Apple SD Gothic Neo', sans-serif;
+  font-size:14px;
+  line-height:1.6;
+  color:var(--ink);
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+:is(.care-typography, .care-workspace, .record-timeline, .profile-sheet, .child-profile-sheet, .upload-sheet) :is(button, input, select, textarea, summary, legend) {
+  font-family:inherit;
+}
+:is(.care-typography, .care-workspace, .record-timeline) .list-header { gap:12px; margin:20px 0 12px; }
+:is(.care-typography, .care-workspace, .record-timeline) .list-header h3 { margin:0; font-size:15px; line-height:1.5; font-weight:600; letter-spacing:-.02em; }
+:is(.care-typography, .care-workspace, .record-timeline) .list-header > span { font-size:12px; line-height:1.5; font-weight:400; color:var(--muted); }
+:is(.care-typography, .record-timeline) :is(.detail-hero > div > p, .detail-title-row p) { font-size:13px; line-height:1.6; color:var(--muted); }
+:is(.care-typography, .care-workspace, .record-timeline) :is(.empty-record, .care-blank, .growth-empty) { font-size:14px; line-height:1.7; }
+:is(.care-typography, .care-workspace, .record-timeline) :is(.record-date, .record-entry-time, .calendar-legend, .care-count, .memo-result-count, .memo-entry-meta, .record-timeline-help) { font-size:12px; line-height:1.5; font-weight:400; color:var(--muted); }
+:is(.care-typography, .record-timeline) :is(.record-list b, .record-timeline-content h4) { font-size:14px; font-weight:600; line-height:1.5; }
+:is(.care-typography, .record-timeline) :is(.record-list small, .record-timeline-content small, .info-row > span) { font-size:12px; line-height:1.6; color:var(--muted); }
+.care-typography .info-row > p { font-size:14px; line-height:1.7; font-weight:400; }
+.care-workspace :is(.care-day-heading h3, .memo-day h3, .memo-tag-manager h3, .medication-rules > summary) { font-size:15px; line-height:1.5; font-weight:600; }
+.care-workspace :is(.care-day-heading p, .medication-rules > p, .medication-rules article > p, .medication-repeat-hint, .care-editor > p) { font-size:12px; line-height:1.7; color:var(--muted); }
+.care-workspace :is(.care-schedule h4, .care-schedule b, .medication-rules article > b) { font-size:14px; line-height:1.5; font-weight:600; }
+.care-workspace :is(.care-schedule small, .medication-rules article > small, .memo-tag-labels, .memo-day h3 > span) { font-size:12px; line-height:1.5; color:var(--muted); }
+:is(.care-typography, .upload-sheet, .child-profile-sheet) :is(.field-label, legend) { font-size:13px; line-height:1.5; font-weight:600; }
+:is(.care-typography, .upload-sheet, .child-profile-sheet) :is(input, select, textarea) { font-size:16px; line-height:1.5; }
+:is(.care-typography, .upload-sheet) :is(.upload-sheet-hint, .doc-loading-more, .visit-doc-empty, .new-visit-form > p, .link-info p) { font-size:12px; line-height:1.7; color:var(--muted); }
+.profile-sheet :is(.profile-head p, .family-text small, .invite-code-box p, .invite-code-box small) { font-size:12px; line-height:1.6; color:var(--muted); }
+.profile-sheet .family-block-head b { font-size:15px; font-weight:600; }
+.profile-sheet .family-count { font-size:11px; font-weight:600; }
+.child-profile-sheet :is(.child-list small, .child-field-help, .child-alternative p) { font-size:12px; line-height:1.6; color:var(--muted); }
+.child-profile-sheet .child-list b { font-size:14px; font-weight:600; line-height:1.5; }
+
+/* Sheet geometry and form headings follow the existing welfare/upload sheets. */
+.sheet.child-profile-sheet {
+  width:min(560px, calc(100% - 32px));
+  max-height:78dvh;
+  padding:28px 24px max(35px, env(safe-area-inset-bottom));
+}
+.sheet.child-profile-sheet.sheet-expanded { max-height:min(94dvh, calc(100dvh - env(safe-area-inset-top))); }
+.child-sheet-header h2,
+.memo-writing .care-editor-bar h2,
+.care-workspace :is(.care-editor, .growth-editor) :is(h2, h3) {
+  font-family:Pretendard, 'Apple SD Gothic Neo', sans-serif;
+  font-size:17px;
+  font-weight:700;
+  line-height:1.5;
+  letter-spacing:-.02em;
+}
+.child-sheet-header { gap:12px; }
+.child-sheet-emblem { flex-basis:30px; height:36px; border-radius:0; background:transparent; }
+.child-sheet-header p { font-size:12px; }
+.care-calendar-page:not(.medication-workspace) .care-page-header .detail-hero { flex-basis:100%; }
+.care-calendar-page:not(.medication-workspace) .care-page-header > .care-add { margin-left:auto; }
+.sheet:has(.sheet-drag-handle) { transition:transform .18s ease; }
+.sheet.sheet-dragging { transition:none; }
+.sheet-drag-handle:active { cursor:grabbing; }
+.sheet-drag-handle:focus-visible { outline:2px solid var(--pink-dark); outline-offset:2px; }
+@media (prefers-reduced-motion:reduce) { .sheet:has(.sheet-drag-handle) { transition:none; } }
+@media (max-width:360px) { .sheet.child-profile-sheet { padding-inline:18px; } }
+
+/* Native details keep a stable heading; SVG arrows avoid font-baseline drift. */
+.care-calendar-page :is(.medication-rules, .care-ai-section) { width:100%; min-width:0; box-sizing:border-box; }
+.care-calendar-page :is(.medication-rules, .care-ai-section) > summary {
+  display:grid; grid-template-columns:minmax(0,1fr) auto 28px; align-items:center; gap:10px;
+  width:100%; min-height:60px; padding:12px 0; box-sizing:border-box;
+}
+.care-calendar-page :is(.medication-rules, .care-ai-section) > summary::after { content:none; display:none; }
+.care-calendar-page :is(.medication-rules, .care-ai-section) > summary > .care-disclosure-title { margin:0; font-size:14px; font-weight:600; line-height:1.5; color:var(--ink); }
+.care-calendar-page :is(.medication-rules, .care-ai-section) > summary > .care-disclosure-count { margin:0; font-size:12px; font-weight:400; line-height:18px; color:var(--muted); white-space:nowrap; }
+.care-disclosure-chevron { justify-self:center; display:block; width:18px; height:18px; color:var(--muted); transition:transform .15s ease; }
+.care-calendar-page details[open] > summary > .care-disclosure-chevron { transform:rotate(180deg); }
+.care-calendar-page :is(.medication-rules, .care-ai-section) > p { margin:0 0 16px; padding:12px; border-radius:12px; background:var(--blush); }
+.care-calendar-page .care-ai-empty { padding:12px; margin-bottom:16px; border-radius:12px; background:var(--blush); }
+@media(prefers-reduced-motion:reduce) { .care-disclosure-chevron { transition:none; } }
+
+/* Hints should be quieter than entered values; controls retain mobile-safe text size. */
+.care-workspace .care-editor :is(input, textarea, select) { font-weight:400; letter-spacing:-.01em; }
+.care-workspace .care-editor :is(input, textarea)::placeholder { font-size:14px; font-weight:400; line-height:1.6; color:#a4969c; opacity:1; }
+
+/* One text scale for form values, native date controls and custom selects. */
+:is(.care-workspace, .care-typography, .record-timeline, .profile-sheet, .child-profile-sheet, .upload-sheet) { --care-input-size:14px; }
+:is(.care-workspace, .care-typography, .record-timeline, .profile-sheet, .child-profile-sheet, .upload-sheet) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select, .medication-repeat-trigger) {
+  font-family:Pretendard, 'Apple SD Gothic Neo', sans-serif;
+  font-size:var(--care-input-size);
+  font-weight:400;
+  line-height:1.5;
+  letter-spacing:-.01em;
+  color:#51464c;
+}
+.care-workspace :is(.care-editor, .growth-editor, .medication-rule-form) :is(input, textarea, select),
+.memo-writing .memo-compose textarea, .memo-writing .date-picker input,
+.child-profile-fields > input {
+  font-size:var(--care-input-size);
+  font-weight:400;
+  line-height:1.5;
+  color:#51464c;
+}
+:is(.care-workspace, .care-typography, .record-timeline, .profile-sheet, .child-profile-sheet, .upload-sheet) :is(input, textarea)::placeholder,
+.care-workspace .care-editor :is(input, textarea)::placeholder {
+  font-family:inherit; font-size:13px; font-weight:400; color:#a4969c; opacity:1; letter-spacing:-.01em;
+}
+.care-workspace :is(.care-editor, .growth-editor, .medication-rule-form) label,
+.care-workspace .medication-repeat > span,
+:is(.care-typography, .upload-sheet) .field-label,
+.child-profile-fields > label, .child-gender legend {
+  font-size:13px; font-weight:500; line-height:1.5; color:#655860;
+}
+.care-workspace .medication-repeat-trigger { min-height:48px; padding:12px; border-radius:13px; }
+.care-workspace .medication-repeat-trigger > span { font:inherit; color:inherit; }
+.care-workspace .medication-repeat-options strong { font-size:14px; font-weight:500; }
+.care-workspace .medication-repeat-options small { font-size:12px; font-weight:400; }
+@media(pointer:coarse) {
+  :is(.care-workspace, .care-typography, .record-timeline, .profile-sheet, .child-profile-sheet, .upload-sheet) { --care-input-size:16px; }
+}
+
+/* Keep medication date/time and repeat values at the same scale as field labels. */
+.care-workspace :is(.care-editor, .medication-rule-form) input:is([type=date], [type=time], [type=datetime-local]),
+.care-workspace .medication-repeat-trigger,
+.care-workspace .medication-repeat-options strong {
+  font-size:13px;
+  font-weight:400;
+  line-height:1.5;
+}
+.care-workspace .medication-repeat-trigger > span { font-size:13px; font-weight:400; }
+
+.care-calendar-page.care-workspace :is(.care-editor, .medication-rule-form) input:is([type=date], [type=time], [type=datetime-local]),
+.care-calendar-page.care-workspace .medication-repeat > button.medication-repeat-trigger { font-size:13px; font-weight:400; }
+
+.growth-reference-source { display:flex; flex-direction:column; align-items:flex-start; gap:5px; margin:10px 0 20px; font-size:11px; line-height:1.7; color:var(--muted); word-break:keep-all; }
+.growth-source-publisher > span { display:inline-block; white-space:nowrap; }
+.growth-reference-source a { color:#a3486b; text-decoration:underline; text-underline-offset:3px; overflow-wrap:normal; }
+
+/* Align graph guidance, reference explanation and attribution to one text edge. */
+.growth-live .growth-graph-panel > .growth-chart-note,
+.growth-live > .growth-chart-note { padding:0 18px; margin:12px 0 0; }
+.growth-live > .growth-reference-source { padding:0 18px; margin:12px 0 0; }
+
+.care-calendar-page .child-profile-sheet .care-modal-editor { margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.care-calendar-page .care-modal-editor > label:first-child { margin-top:0; }
+.care-calendar-page .child-profile-sheet { overscroll-behavior:contain; }
+/* Calendar registration follows the document-upload bottom sheet. */
+.modal-backdrop.care-upload-backdrop { align-items:flex-end; backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+.sheet.child-profile-sheet.care-upload-sheet { max-height:min(85dvh,680px); border:0; border-radius:28px 28px 0 0; background:#fffafc; padding:28px 24px 35px; line-height:normal; }
+.care-upload-sheet .child-sheet-header { margin:9px 0 22px; padding-right:26px; gap:12px; }
+.care-upload-sheet .child-sheet-header h2 { margin:0 0 3px; }
+.care-upload-sheet .child-sheet-header p { font-size:11px; line-height:1.5; }
+.care-upload-sheet .child-sheet-close { position:absolute; right:14px; top:12px; }
+.care-upload-sheet .child-sheet-emblem { color:#d76082; flex-basis:31px; }
+.care-calendar-page .care-upload-sheet .care-modal-editor { display:flex; flex-direction:column; gap:18px; }
+.care-calendar-page .care-upload-sheet .care-modal-editor > label { margin:0; gap:6px; }
+.care-calendar-page .care-upload-sheet .care-modal-editor input { min-height:42px; padding:10px 12px; background:#fff; }
+.care-calendar-page .care-upload-sheet .care-modal-editor textarea { min-height:76px; background:#fff; }
+.care-calendar-page .care-upload-sheet .care-editor-actions { margin:6px 0 0; padding:0; border:0; }
+.sheet.care-upload-sheet.sheet-expanded { max-height:min(94dvh,calc(100dvh - env(safe-area-inset-top))); }
+
+/* Visit registration uses the same upload-style sheet without an inner card. */
+.care-upload-sheet .visit-registration-form { margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; display:flex; flex-direction:column; gap:18px; }
+.care-upload-sheet .visit-registration-form .field-label { margin:0; display:flex; flex-direction:column; gap:6px; }
+.care-upload-sheet .visit-registration-form :is(input,textarea) { margin:0; width:100%; background:#fff; font-weight:400; }
+.care-upload-sheet .visit-registration-form input { min-height:42px; }
+.care-upload-sheet .visit-registration-form input[type=date] { font-size:13px; }
+.care-upload-sheet .visit-registration-form textarea { min-height:90px; resize:none; }
+.care-upload-sheet .visit-registration-form > .primary-button { width:100%; min-height:52px; margin:6px 0 0; }
+
+/* Growth entry shares the document-upload sheet layout. */
+.care-workspace .care-upload-sheet .growth-registration-form { margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; display:flex; flex-direction:column; gap:16px; }
+.care-upload-sheet .growth-registration-form label { margin:0; display:flex; flex-direction:column; gap:6px; }
+.care-upload-sheet .growth-registration-form :is(input,textarea) { margin:0; background:#fff; font-weight:400; }
+.care-upload-sheet .growth-registration-form .growth-input-pair { gap:12px; }
+.care-workspace .care-upload-sheet .growth-registration-form input[type=date] { font-size:13px; }
+.care-upload-sheet .growth-registration-form .growth-chart-note { padding:0; margin:-8px 0 0; font-size:11px; line-height:1.7; }
+.care-upload-sheet .growth-registration-form textarea { min-height:90px; }
+.care-upload-sheet .growth-registration-form > .primary-button { width:100%; margin:6px 0 0; }
+
+/* Record overview uses the same header, warm surfaces and text hierarchy as care pages. */
+.record-timeline.care-workspace { padding:24px 20px 32px; color:var(--ink); }
+.record-timeline .care-page-header { margin-bottom:24px; }
+.record-timeline .care-page-header .detail-hero { margin:0; }
+.record-timeline .record-timeline-month { display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:10px; border:1px solid var(--line); border-radius:20px; background:#fff; }
+.record-month-navigation { display:grid; grid-template-columns:40px minmax(0,1fr) 40px; align-items:center; flex:1; min-width:0; }
+.record-timeline .record-timeline-month h3 { font-size:15px; font-weight:600; line-height:1.5; white-space:nowrap; }
+.record-timeline .record-month-navigation button { border:0; min-width:40px; min-height:44px; color:var(--muted); background:transparent; }
+.record-month-navigation svg { width:18px; height:18px; }
+.record-timeline .record-timeline-month .record-timeline-today { background:var(--blush); color:#a3486b; border:0; font-size:12px; padding:0 10px; white-space:nowrap; }
+.record-timeline .record-timeline-filters { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin:0 0 16px; }
+.record-timeline .record-timeline-filters button { grid-column:span 2; min-width:0; padding:9px 4px; border:1px solid var(--line); border-radius:14px; font-size:13px; font-weight:500; color:#81717a; background:#fff; box-shadow:none; }
+.record-timeline .record-timeline-filters button:nth-last-child(-n+2) { grid-column:span 3; }
+.record-timeline .record-timeline-filters button[aria-pressed=true] { background:#fce8ef; border-color:#e6a1b9; color:#ac3f66; font-weight:600; }
+.record-timeline.care-workspace .record-timeline-search { min-height:48px; margin:0; padding:0 12px; border:0; border-radius:14px; background:#f5f3f5; }
+.record-timeline .record-timeline-help { margin:12px 0 20px; font-size:11px; color:var(--muted); }
+.record-timeline .list-header { margin:0 0 18px; }
+.record-timeline .list-header > span { background:#fff0f5; color:#cc5c83; font-size:11px; padding:3px 9px; }
+.record-timeline .record-timeline-day > h3 { margin:20px 0 10px; gap:9px; color:#81717a; font-size:12px; }
+.record-timeline .record-day-number { width:36px; min-width:36px; height:36px; font-size:17px; font-weight:600; border-radius:12px; background:#fff0f5; color:#b64b73; }
+.record-timeline .record-timeline-day > h3 small { color:var(--muted); font-size:11px; }
+.record-timeline .record-timeline-entry { padding:16px; border:1px solid var(--line); border-radius:20px; box-shadow:none; gap:12px; margin:10px 0; }
+.record-timeline .record-timeline-icon { width:36px; height:36px; border-radius:12px; }
+.record-timeline .record-timeline-meta { min-height:20px; font-size:11px; }
+.record-timeline .record-kind { font-weight:500; color:var(--muted); }
+.record-timeline .record-timeline-content h4 { margin:7px 0; font-size:14px; font-weight:600; color:var(--ink); }
+.record-timeline .record-timeline-content p { margin:6px 0; font-size:13px; line-height:1.7; color:#81717a; }
+.record-timeline .record-entry-time, .record-timeline .record-timeline-content small { font-size:11px; color:var(--muted); }
+.record-timeline .record-timeline-content button { font-size:12px; font-weight:500; color:#b95078; border-color:var(--line); margin-top:12px; }
+.record-timeline .empty-record { border:1px solid var(--line); border-radius:20px; color:var(--muted); font-size:13px; }
+@media(max-width:360px) { .record-timeline .record-timeline-month { gap:4px; padding:8px; } .record-timeline .record-timeline-entry { padding:14px 12px; gap:10px; } }
+
+/* Retain the overview card's original invitation layout with quieter typography. */
+.record-overview-card { margin:24px; padding:24px 22px; gap:18px; border:1px solid #f2dce4; border-radius:24px; background:linear-gradient(130deg,#fff1f5,#fff9f3); font-family:Pretendard,'Apple SD Gothic Neo',sans-serif; }
+.record-overview-card .record-overview-icon { width:46px; height:46px; border-radius:15px; background:#fff; color:#bd5478; }
+.record-overview-icon svg { width:24px; height:24px; }
+.record-overview-card > div { flex:1; min-width:0; }
+.record-overview-card h3 { margin:5px 0 9px; font-size:18px; line-height:1.5; font-weight:650; letter-spacing:-.025em; color:#503643; }
+.record-overview-card p { margin:0 0 16px; font-size:13px; line-height:1.8; color:#8d7883; word-break:keep-all; overflow-wrap:break-word; }
+.record-overview-card button { width:auto; justify-content:center; gap:6px; min-height:42px; padding:9px 14px; border:1px solid #ecd5de; border-radius:12px; background:#fff; font-family:inherit; font-size:14px; font-weight:600; color:#b64c73; }
+.record-overview-card button svg { flex-shrink:0; }
+@media(max-width:400px) { .record-overview-card { margin-inline:18px; padding:22px 20px; gap:16px; } }
+@media(max-width:360px) { .record-overview-card { padding:20px 16px; gap:12px; } .record-overview-card h3 { font-size:17px; } }
+
+/* Give visit dates and the two-line visit description their own breathing room. */
+.visit-record-list > button { grid-template-columns:78px minmax(0,1fr) 16px; column-gap:12px; padding:18px 16px; }
+.visit-record-list .record-date { white-space:nowrap; font-size:12px; }
+.visit-record-list > button > span:nth-child(2) { min-width:0; gap:8px; }
+.visit-record-list :is(b,small) { overflow-wrap:anywhere; }
+@media(max-width:360px) { .visit-record-list > button { grid-template-columns:74px minmax(0,1fr) 16px; column-gap:10px; padding-inline:14px; } }
+
+/* Visit dates use centered circles instead of detached event dots. */
+.care-date-calendar.calendar-card { padding:18px 14px 16px; border-radius:22px; box-shadow:0 8px 24px #69314106; }
+.care-date-calendar.calendar-card .calendar-head { margin-bottom:16px; }
+.care-date-calendar.calendar-card .calendar-head button { min-width:44px; min-height:44px; display:grid; place-items:center; }
+.care-date-calendar.calendar-card .week-row { gap:0; }
+.care-date-calendar.calendar-card .week-row span { font-size:11px; padding-bottom:6px; }
+.care-date-calendar.calendar-card .date-grid { min-height:0; gap:2px 0; }
+.care-date-calendar.calendar-card .date-grid button { display:grid; place-items:center; height:44px; min-height:44px; aspect-ratio:auto; padding:0; background:transparent; box-shadow:none; border-radius:12px; font-size:13px; font-weight:400; color:#655860; }
+.care-date-calendar.calendar-card .date-grid button > span { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; }
+.care-date-calendar.calendar-card .date-grid .has-event::after { content:none; }
+.care-date-calendar.calendar-card .date-grid .has-event > span { background:#fce5ee; color:#b6446e; font-weight:600; }
+.care-date-calendar.calendar-card .date-grid .selected > span { background:#d96389; color:#fff; font-weight:600; }
+.care-date-calendar.calendar-card .date-grid button:focus-visible { outline:2px solid #d96389; outline-offset:-2px; }
+.care-date-calendar.calendar-card .calendar-legend { margin:14px 4px 0; padding-top:12px; border-top:1px solid var(--line); font-size:11px; gap:7px; }
+.care-date-calendar.calendar-card .calendar-legend i { width:16px; height:16px; background:#fce5ee; border:1px solid #f2c8d8; }
+
+.care-date-calendar.calendar-card :is(.week-row,.date-grid) { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.care-date-calendar.calendar-card .calendar-head button { background:transparent; border:0; border-radius:12px; color:#aa9ba1; padding:0; }
+.care-date-calendar.calendar-card .calendar-head button svg { width:18px; height:18px; }
+.care-date-calendar.calendar-card .calendar-head b { font-size:14px; font-weight:600; color:var(--ink); }
+
+.growth-chart-viewport { position:relative; }
+.growth-inspection-tooltip { position:absolute; z-index:2; top:6px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; padding:5px 12px; border:1px solid var(--line); border-radius:12px; background:#fffafcf2; pointer-events:none; }
+.growth-inspection-tooltip span { font-size:11px; color:var(--muted); }
+.growth-inspection-tooltip strong { font-size:16px; font-weight:600; color:var(--ink); }
+
+.growth-live .growth-chart-viewport { margin-top:8px; }
+
+.profile-sheet > .sheet-header + .family-block { margin-top:0; }
+.care-upload-sheet .family-code-content { margin:0; padding:20px 16px; border:1px dashed #edb7cc; border-radius:18px; background:#fff4f8; text-align:center; }
+.family-code-content > b { display:block; margin:18px 0; font-size:28px; font-weight:700; letter-spacing:.12em; color:#d65e85; overflow-wrap:anywhere; }
+.family-code-content > small { font-size:12px; color:var(--muted); }
+.family-code-content > p, .family-code-form > p { font-size:12px; line-height:1.7; color:var(--muted); margin:12px 0 18px; }
+.family-code-form { display:flex; flex-direction:column; gap:8px; }
+.family-code-form > label { font-size:13px; font-weight:500; color:#655860; }
+.family-code-form > input { width:100%; min-height:48px; padding:12px; border:1px solid var(--line); border-radius:13px; background:#fff; }
+.care-upload-sheet :is(.family-code-content,.family-code-form) > .primary-button { width:100%; min-height:48px; margin:0; font-size:14px; }
+
+/* A calm writing surface with compact date fields and a clear save action. */
+.memo-writing.care-workspace { padding:20px; }
+.memo-writing .memo-compose { padding:0 18px 22px; border:1px solid var(--line); border-radius:24px; background:#fff; }
+.memo-writing .care-editor-bar { margin:0 0 20px; padding:16px 0; border-bottom:1px solid var(--line); }
+.memo-writing .care-editor-bar h2 { font-size:17px; font-weight:700; }
+.memo-writing .care-editor-bar > button:first-child { font-size:13px; color:var(--muted); }
+.memo-writing .care-editor-bar .care-save { min-width:62px; min-height:38px; padding:8px 14px; border-radius:12px; font-size:13px; font-weight:600; background:#df6b8c; color:#fff; }
+.memo-writing .care-editor-bar .care-save:disabled { background:#f9e8ee; color:#c797a7; opacity:1; }
+.memo-writing .memo-datetime { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:10px; margin:0 0 22px; border:0; }
+.memo-writing .date-picker { display:flex; flex-direction:column; align-items:stretch; gap:6px; padding:0; min-height:0; border:0; border-radius:0; background:transparent; }
+.memo-writing .date-picker > span, .memo-writing .memo-body-label { font-size:12px; font-weight:500; line-height:1.5; color:#81717a; }
+.memo-writing .date-picker input { display:block; width:100%; min-width:0; height:46px; padding:10px 8px; border:1px solid var(--line); border-radius:12px; background:#fff8fb; font-weight:400; }
+.memo-writing .memo-body-label { display:block; margin:0 0 8px; }
+.memo-writing .memo-compose textarea { display:block; width:100%; height:clamp(220px,32dvh,320px); min-height:220px; padding:14px; background:#fffafc; border:1px solid var(--line); border-radius:16px; line-height:1.8; }
+.memo-writing .memo-compose-hint { border:0; margin-top:14px; padding-top:0; font-size:11px; color:var(--muted); }
+.memo-writing .care-muted { font-size:11px; margin:10px 0 0; color:var(--muted); }
+@media(max-width:360px) { .memo-writing.care-workspace { padding:16px; } .memo-writing .memo-compose { padding-inline:16px; } .memo-writing .memo-datetime { grid-template-columns:minmax(0,1fr); gap:12px; } }
