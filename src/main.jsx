@@ -32,8 +32,17 @@ const EMBEDDING_ACTIVE_STATUSES = new Set(['PENDING', 'INDEXING']);
 const MAX_DOCUMENT_POLL_ATTEMPTS = 40;
 const documentNeedsRefresh = doc => DOCUMENT_ACTIVE_STATUSES.has(doc?.documentStatus)
   || EMBEDDING_ACTIVE_STATUSES.has(doc?.embeddingStatus);
-const documentReadyForChat = doc => ['READY', 'NEEDS_REVIEW'].includes(doc?.documentStatus)
+const documentReadyForChat = doc => !['FAILED', 'DELETED'].includes(doc?.documentStatus)
   && doc?.embeddingStatus === 'READY';
+const chatDocumentStatusLabel = doc => {
+  if (doc?.documentStatus === 'FAILED') return '문서 분석 실패';
+  return ({
+    PENDING: 'AI 답변 준비 대기 중',
+    INDEXING: 'AI 답변 준비 중',
+    READY: 'AI 채팅 사용 가능',
+    FAILED: 'AI 답변 준비 실패',
+  })[doc?.embeddingStatus] || 'AI 답변 준비 상태 확인 중';
+};
 const CHAT_QUESTION_SUGGESTIONS = [
   { label: '내용 쉽게 설명', question: '선택한 건강 문서의 내용을 쉽게 설명해줘' },
   { label: '주의할 결과 찾기', question: '검사 결과에서 주의해서 볼 내용을 알려줘' },
@@ -653,7 +662,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
       {documents?.length ? <div className="doc-picker-list">{documents.map(doc=>(
         <button className={selectedDocumentIds.includes(doc.documentId)?'selected':''} key={doc.documentId} disabled={sending || !documentReadyForChat(doc)} onClick={()=>setSelectedDocumentIds(ids=>ids.includes(doc.documentId)?ids.filter(id=>id!==doc.documentId):[...ids,doc.documentId])}>
           <span className="doc-picker-check">{selectedDocumentIds.includes(doc.documentId)?'✓':''}</span><span className="doc-picker-icon"><FileText/></span>
-          <span className="doc-picker-text"><b>{documentDisplayName(doc)}</b><small>{doc.visitedOn || ''} · {DOC_STATUS[doc.documentStatus]||doc.documentStatus||''}{doc.embeddingStatus==='INDEXING'||doc.embeddingStatus==='PENDING'?' · AI 검색 준비 중':doc.embeddingStatus==='FAILED'?' · AI 검색 준비 실패':''}</small></span>
+          <span className="doc-picker-text"><b>{documentDisplayName(doc)}</b><small>{[doc.visitedOn, chatDocumentStatusLabel(doc)].filter(Boolean).join(' · ')}</small></span>
         </button>))}</div>
       : <p className="doc-picker-empty">등록된 건강 문서가 없어요. 의료 &gt; 건강 문서에서 먼저 업로드해주세요.</p>}
       <div className="doc-picker-footer"><span>{selectedDocumentIds.length}개 문서 선택됨</span><button onClick={()=>setDocPicker(false)}>선택 완료</button></div>
