@@ -6,7 +6,7 @@ import {
   Plus, Search, ShieldCheck, Sparkles, Syringe, TrendingUp, Upload, X,
   CheckCircle2, Clock3, MapPin, Send, Baby, Scale, Ruler, Gift, BookOpen,
   Stethoscope, Camera, Menu, Mic, Square, Link2, UserRoundPlus, UsersRound,
-  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw
+  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw, MessageCircle
 } from 'lucide-react';
 import './styles.css';
 import './care-workspace.css';
@@ -27,6 +27,7 @@ import { enablePush, disablePush, pushEnabled } from './push';
 import PushOnboarding from './PushOnboarding';
 import SheetHandle from './SheetHandle';
 
+const INQUIRY_FORM_URL = 'https://forms.gle/ET2UWzbq2udWJmmw7';
 const DOCUMENT_ACTIVE_STATUSES = new Set(['UPLOADED', 'PROCESSING']);
 const EMBEDDING_ACTIVE_STATUSES = new Set(['PENDING', 'INDEXING']);
 const MAX_DOCUMENT_POLL_ATTEMPTS = 40;
@@ -1049,6 +1050,8 @@ function MoreScreen({onOpen, me, child, onProfile, onChild, onLogout}) {
     </div>
     <div className="section-label">전체 기능</div>
     <div className="all-list">{featureCards.map(({id,title,subtitle,icon:Icon,tone})=><button key={id} onClick={()=>onOpen(id)}><span className={`feature-icon ${tone}`}><Icon/></span><span><b>{title}</b><small>{subtitle}</small></span><ChevronRight/></button>)}</div>
+    {/* 새 창(PWA는 앱 밖 브라우저)으로 열려 앱 안 화면 기록에 쌓이지 않는다 */}
+    <div className="all-list inquiry-list"><a href={INQUIRY_FORM_URL} target="_blank" rel="noopener noreferrer"><span className="feature-icon rose"><MessageCircle/></span><span><b>문의하기</b><small>불편한 점이나 제안을 남겨 주세요</small></span><ChevronRight/></a></div>
     <button className="logout-button wide" onClick={onLogout}>로그아웃</button>
   </div>;
 }
