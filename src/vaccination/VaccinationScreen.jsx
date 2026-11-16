@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, ExternalLink, Syringe } from 'lucide-react';
+import { CalendarPlus, ChevronDown, ChevronRight, Clock, ExternalLink, Syringe } from 'lucide-react';
 import './vaccination.css';
 import { api, errorMessage } from '../api';
 import ChildRequiredState from '../ChildRequiredState';
@@ -11,6 +11,14 @@ const days = (to, from) => Math.round((utc(to) - utc(from)) / DAY);
 const ddayLabel = (n) => !Number.isFinite(n) ? '' : n === 0 ? 'D-day' : n > 0 ? `D-${n}` : `D+${-n}`;
 const dot = (value) => String(value || '').slice(0, 10).replaceAll('-', '.');
 const ageLabel = (m) => m == null ? '' : m < 24 ? `생후 ${m}개월` : `만 ${Math.floor(m / 12)}세 ${m % 12}개월`;
+// 접종 기록 묶음용 월령. recFrom = 생일 + 일정표 from(0·Nm·Ny)이라 연·월 차이가 곧 from 개월 수다.
+// ponytail: 일정표 from에 주(w)·일(d) 단위가 생기면 engine.age_months처럼 일 단위 보정이 필요하다.
+const monthsFrom = (birth, date) => {
+  const [y1, m1] = String(birth || '').split('-').map(Number);
+  const [y2, m2] = String(date || '').split('-').map(Number);
+  return (y2 - y1) * 12 + (m2 - m1);
+};
+const ageGroupLabel = (m) => m === 0 ? '출생 시' : m < 24 || m % 12 ? `${m}개월` : `만 ${m / 12}세`;
 const isLate = (dose, asOf) => days(dose.recTo, asOf) < 0;
 // 같은 백신의 바로 앞 차수가 DONE이 아니면 그 차수({doseId, label, state})를 준다. 1차·못 찾으면 null.
 const prevNeeded = (dose, vaccines) => {
@@ -144,9 +152,10 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     finally { setRevision((n) => n + 1); }
   };
 
-  const openCalendar = (dose) => {
+  // key: 목록은 doseId, 상단 카드는 `card-${doseId}`. 같은 차수 패널이 두 곳에 동시에 열리지 않게 한다.
+  const openCalendar = (dose, key) => {
     if (busy || !asOf) return;
-    setCalendarFor(dose.doseId);
+    setCalendarFor(key);
     setPickDate(calendarDate(dose.recFrom, asOf));
   };
 
@@ -161,6 +170,19 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
       onToast(`${dot(date)} 오전 9시 일정으로 추가했어요. 캘린더 탭에서 볼 수 있어요`);
     } catch (e) { onToast(errorMessage(e, '캘린더에 추가하지 못했어요.')); }
     finally { setAddingDose(null); }
+  };
+
+  // 묶음의 미체크 차수를 차수별로 체크한다. 실패한 것만 빠지고 성공한 것은 남는다.
+  const checkAll = async (key, doses) => {
+    if (busyDose || addingDose) return;
+    setBusyDose(key);
+    setCalendarFor(null);
+    let failed = 0;
+    for (const dose of doses) {
+      try { await api.checkVaccination(childId, dose.doseId); } catch { failed += 1; }
+    }
+    if (failed) onToast(failed === doses.length ? '접종을 저장하지 못했어요' : '일부 접종을 저장하지 못했어요');
+    setRevision((n) => n + 1);
   };
 
   const openPast = () => {
@@ -205,9 +227,10 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     const card = !isNow
       ? { status: '곧 시작돼요', date: `${dot(next.recFrom).slice(5)}부터`, badge: ['', info.big] }
       : info.late
-        ? { status: '권장 기간 지남', date: `${dot(next.delayFrom)} 전까지`, badge: ['', info.big === '오늘' ? '오늘까지' : `${info.big} 남음`] }
-        : { status: '권장 기간이에요', date: `${dot(next.recTo)}까지`, badge: info.big === '오늘' ? ['', info.list] : ['마감까지', info.big] };
+        ? { status: '권장 기간 지남', date: `${dot(next.delayFrom)} 전까지`, badge: info.big === '오늘' ? ['마감', '오늘'] : ['남은 기간', info.big] }
+        : { status: '권장 기간이에요', date: `${dot(next.recTo)}까지`, badge: info.big === '오늘' ? ['마감', '오늘'] : ['마감까지', info.big] };
     return <div className="vax-next">
+      <div className="vax-next-meta"><span><Clock/>가장 가까운 접종</span><span>권장 {dot(next.recFrom).slice(5)} ~ {dot(next.recTo).slice(5)}</span></div>
       <div className="vax-next-top">
         <div className="vax-next-main">
           <span className="vax-chip">{card.status}</span>
@@ -217,14 +240,21 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
         {card.badge[1] && <span className="vax-badge">{card.badge[0] && <small>{card.badge[0]}</small>}<b>{card.badge[1]}</b></span>}
       </div>
       {prev && <p className="vax-next-prev">{prev.label} 접종 후 맞아주세요.{prev.state === 'PAST' && <><br/>이미 맞았다면 접종 기록을 확인해 주세요.</>}</p>}
-      {now.length >= 2 && <button className="vax-next-more" type="button" onClick={openNow}>권장 시기 접종 {now.length - 1}건 더 보기<ChevronRight/></button>}
+      <div className="vax-next-actions">
+        {renderCalendarButton(next, false, true)}
+        {now.length >= 2 && <button className="vax-next-more" type="button" onClick={openNow}>권장 시기 접종 {now.length - 1}건 더 보기<ChevronRight/></button>}
+      </div>
+      {calendarFor === `card-${next.doseId}` && !addedDate(next) && renderCalendarPanel(next)}
     </div>;
   };
 
-  const renderCalendarButton = (dose, secondary) => {
+  // inCard: 상단 카드용(달력 아이콘, 패널 key 분리)
+  const renderCalendarButton = (dose, secondary, inCard) => {
     const date = addedDate(dose);
-    if (date) return <button className="outline-button compact" type="button" disabled={!onCalendar} onClick={() => onCalendar?.()} aria-label={`${dot(date)}에 추가됨, 캘린더에서 보기`}>추가됨 · {dot(date).slice(5)}</button>;
-    return <button className={`outline-button compact ${secondary ? 'vax-secondary' : ''}`} type="button" aria-expanded={calendarFor === dose.doseId} disabled={busy || !schedulesReady || !asOf} onClick={() => openCalendar(dose)}>캘린더에 추가</button>;
+    const icon = inCard && <CalendarPlus/>;
+    if (date) return <button className="outline-button compact" type="button" disabled={!onCalendar} onClick={() => onCalendar?.()} aria-label={`${dot(date)}에 추가됨, 캘린더에서 보기`}>{icon}추가됨 · {dot(date).slice(5)}</button>;
+    const key = inCard ? `card-${dose.doseId}` : dose.doseId;
+    return <button className={`outline-button compact ${secondary ? 'vax-secondary' : ''}`} type="button" aria-expanded={calendarFor === key} disabled={busy || !schedulesReady || !asOf} onClick={() => openCalendar(dose, key)}>{icon}캘린더에 추가</button>;
   };
 
   const renderCalendarPanel = (dose) => {
@@ -294,6 +324,36 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     <small>{busyDose === dose.doseId ? '저장 중…' : checked ? '맞음' : `${dot(dose.recFrom)} ~ ${dot(dose.recTo)}`}</small>
   </label>;
 
+  // 접종 기록 확인: 권장 시작이 지났거나 지금인 차수(now·past·DONE)를 월령별로 묶는다. 시작 전 차수는 넣지 않는다.
+  // recFrom이 없는 DONE(AI 응답에 아직 없음)은 맨 아래 "체크한 접종" 묶음에 임시로 둔다.
+  const recordGroups = [];
+  [...now, ...past, ...doneDoses.filter((d) => !d.recFrom || days(d.recFrom, asOf) <= 0)].forEach((dose) => {
+    const m = dose.recFrom ? monthsFrom(child?.birthDate, dose.recFrom) : NaN;
+    const key = Number.isFinite(m) ? m : Infinity;
+    let group = recordGroups.find((g) => g.key === key);
+    if (!group) recordGroups.push(group = { key, label: Number.isFinite(m) ? ageGroupLabel(m) : '체크한 접종', doses: [] });
+    group.doses.push(dose);
+  });
+  recordGroups.sort((a, b) => a.key - b.key)
+    .forEach((g) => g.doses.sort((a, b) => (utc(a.recFrom) - utc(b.recFrom)) || String(a.name).localeCompare(String(b.name), 'ko')));
+
+  const renderRecordGroup = (group) => {
+    const id = `g-${group.key}`;
+    const todo = group.doses.filter((d) => d.state !== 'DONE');
+    if (!todo.length && !open[id]) return <button className="vax-group-done" type="button" key={id} aria-expanded="false" onClick={() => toggleOpen(id)}>
+      <span>✓ {group.label} 모두 맞음</span><ChevronDown/>
+    </button>;
+    return <div className="vax-group" key={id}>
+      <div className="vax-group-head">
+        <b>{group.label}</b>
+        {todo.length
+          ? <button type="button" disabled={busy} onClick={() => checkAll(id, todo)}>{busyDose === id ? '저장 중…' : '모두 맞음'}</button>
+          : <button type="button" aria-expanded="true" onClick={() => toggleOpen(id)}>접기</button>}
+      </div>
+      {group.doses.map((d) => renderCheck(d, d.state === 'DONE'))}
+    </div>;
+  };
+
   return <div className="page padded detail-page">
     {hero}
     {(counts.pastUnchecked >= 1 || now.length > 0) && <button className={`vax-past-notice ${counts.pastUnchecked >= 1 ? '' : 'calm'}`} type="button" onClick={openPast}>
@@ -306,10 +366,9 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     </div>
 
     {renderList('now', '권장 시기예요', now, 'NOW', '권장 시기 접종이 없어요.')}
-    {renderList('soon', '곧 시작돼요', soon, 'SOON', '90일 안에 시작되는 접종이 없어요.')}
     {groups.laterCount > 0 && <p className="vax-note">이후 일정 {groups.laterCount}건은 가까워지면 알려드려요.</p>}
 
-    <section className="vax-section">
+    <section className="vax-section vax-progress">
       <div className="list-header"><h3>백신별 진행</h3></div>
       <p className="vax-legend">
         <span><i className="vax-dot done"/>맞음</span><span><i className="vax-dot now"/>맞을 예정</span><span><i className="vax-dot"/>남음</span>
@@ -327,19 +386,16 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     </section>
 
     <section className="vax-section vax-past-section" ref={pastRef}>
-    <div className="list-header"><h3>접종 기록 확인</h3><span className="list-count">확인 필요 {counts.pastUnchecked ?? past.length}건</span></div>
+    <div className="list-header">
+      <h3>접종 기록 확인</h3><span className="list-count">확인 필요 {counts.pastUnchecked ?? past.length}건</span>
+      <a className="vax-official" href={NIP_URL} target="_blank" rel="noreferrer">공식 기록 확인<ExternalLink/></a>
+    </div>
+    <p className="vax-sub">공식 기록(예방접종도우미)을 확인하고 맞은 접종을 체크해 주세요.</p>
     <details className="vax-past" open={pastOpen} onToggle={(e) => setPastOpen(e.currentTarget.open)}>
       <summary><b>{pastOpen ? '접기' : '접종 체크하기'}</b><ChevronDown/></summary>
-      <h4>지금 맞을 수 있는 접종</h4>
-      {now.length ? now.map((d) => renderCheck(d, false)) : <p className="vax-note">지금 맞을 수 있는 접종이 없어요.</p>}
-      <h4>확인이 필요한 지난 접종</h4>
-      {past.length ? past.map((d) => renderCheck(d, false)) : <p className="vax-note">확인이 필요한 지난 접종이 없어요.</p>}
-      <h4>맞았다고 체크한 접종</h4>
-      {doneDoses.length ? doneDoses.map((d) => renderCheck(d, true)) : <p className="vax-note">아직 체크한 접종이 없어요.</p>}
+      {recordGroups.length ? recordGroups.map(renderRecordGroup) : <p className="vax-note">확인할 접종이 없어요.</p>}
     </details>
     </section>
-
-    <a className="outline-button vax-link" href={NIP_URL} target="_blank" rel="noreferrer"><ExternalLink/> 예방접종도우미에서 접종 이력 확인</a>
     {ageMonths >= 6 && ageMonths < 156 && <p className="vax-note">인플루엔자는 매년 가을 접종해요. 생후 6개월~만 13세는 국가예방접종으로 무료예요.</p>}
     <p className="vax-note">질병관리청 표준예방접종일정표(2026.01.02 발행) 기준 안내예요. 실제 접종 이력과 유효 여부는 예방접종도우미 기록이나 의료진에게 확인해 주세요.</p>
   </div>;

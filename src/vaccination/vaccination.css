@@ -1,15 +1,19 @@
-.vax-next{padding:18px 18px 0;border-radius:20px;background:#fff;border:1px solid var(--line)}
-.vax-next>:last-child:not(.vax-next-more){margin-bottom:18px}
+.vax-next{padding:16px 18px;border-radius:20px;background:#fff;border:1px solid var(--line)}
+.vax-next-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:12px;font-size:12px;color:var(--muted)}
+.vax-next-meta span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.vax-next-meta svg{width:14px;flex:none}
 .vax-next-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .vax-next-main{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start}
 .vax-chip{padding:4px 11px;border-radius:999px;background:var(--blush);color:#a3506c;font-size:12px;font-weight:700}
-.vax-next-name{display:block;margin-top:8px;font-size:26px;font-weight:800;line-height:1.25;overflow-wrap:anywhere;word-break:keep-all}
+.vax-next-name{display:block;margin-top:8px;font-size:20px;font-weight:700;line-height:1.25;overflow-wrap:anywhere;word-break:keep-all}
 .vax-next-date{margin:4px 0 0;font-size:14px;color:var(--muted)}
-.vax-badge{flex:none;display:flex;align-items:baseline;gap:5px;padding:9px 16px;border-radius:999px;background:var(--pink-dark);color:#fff;white-space:nowrap}
-.vax-badge small{font-size:13px;font-weight:700}
-.vax-badge b{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.vax-badge{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:72px;height:72px;padding:6px;border-radius:16px;background:var(--blush);border:1px solid #f6d6e0;color:#a3506c;text-align:center;white-space:nowrap}
+.vax-badge small{font-size:11px;font-weight:700}
+.vax-badge b{font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
 .vax-next-prev{margin:12px 0 0;font-size:13px;line-height:1.6;color:#6f6267}
-.vax-next-more{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding:13px 0;border-top:1px solid var(--line);font-size:13.5px;font-weight:700;color:var(--ink);text-align:left}
+.vax-next-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.vax-next-actions .outline-button{flex:none;width:auto;height:40px;margin-top:0;padding:0 14px;font-size:12px;white-space:nowrap}
+.vax-next-more{display:flex;align-items:center;gap:4px;margin-left:auto;padding:8px 0;font-size:13px;font-weight:700;color:var(--ink);text-align:left}
 .vax-next-more svg{width:16px;flex:none;color:var(--muted)}
 .vax-stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0 6px}
 .vax-stats>div{background:#fff;border:1px solid var(--line);border-radius:18px;padding:13px;display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -18,7 +22,6 @@
 .vax-section{margin-top:22px}
 .vax-section .list-header{margin-bottom:10px}
 .vax-section .list-header h3{margin:0}
-.vax-soon{border-top:1px solid var(--line);padding-top:22px}
 .vax-now,.vax-past-section{scroll-margin-top:12px}
 .vax-list{display:flex;flex-direction:column;gap:8px}
 .vax-item{padding:13px 14px;background:#fff;border:1px solid var(--line);border-radius:18px}
@@ -71,13 +74,22 @@ button.vax-item-name b{text-decoration:underline dotted #d9b8c3;text-underline-o
 .vax-past summary b{font-size:13.5px}
 .vax-past summary svg{width:16px;color:var(--muted);transition:transform .2s}
 .vax-past[open] summary svg{transform:rotate(180deg)}
-.vax-past h4{font-size:12px;margin:10px 0 4px;color:#6f6267}
+.vax-now,.vax-progress,.vax-past-section{border-top:1px solid var(--line);padding-top:22px}
+.vax-past-section .list-header{justify-content:flex-start;gap:8px}
+.vax-official{margin-left:auto;display:flex;align-items:center;gap:3px;font-size:11.5px;font-weight:700;color:#a3506c;text-decoration:none;white-space:nowrap}
+.vax-official svg{width:13px}
+.vax-group{padding-bottom:4px}
+.vax-group-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 0 6px;border-top:1px solid var(--line)}
+.vax-group-head b{font-size:12.5px;color:#6f6267}
+.vax-group-head button{padding:5px 10px;border-radius:999px;border:1px solid #f6d6e0;background:var(--blush);color:#a3506c;font-size:11.5px;font-weight:700;white-space:nowrap}
+.vax-group-head button:disabled{opacity:.5}
+.vax-group-done{width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--pink-dark);text-align:left}
+.vax-group-done svg{width:16px;color:var(--muted)}
 .vax-past[open]{padding-bottom:12px}
 .vax-check{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #f4e9ec;font-size:12.5px}
 .vax-check input{width:19px;height:19px;accent-color:var(--pink-dark);flex:none}
 .vax-check small{margin-left:auto;font-size:10.5px;color:var(--muted);white-space:nowrap}
-.vax-link{margin-top:22px;text-decoration:none}
 .vax-error{padding:20px 16px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:20px;font-size:12px;color:#6f6267}
 .vax-error p{margin:0 0 6px;line-height:1.6}
-@media(max-width:360px){.vax-next-name{font-size:22px}.vax-badge{padding:8px 12px}.vax-badge b{font-size:18px}.vax-badge small{font-size:12px}}
+@media(max-width:360px){.vax-next-name{font-size:18px}.vax-badge b{font-size:16px}}
 @media(max-width:420px){.vax-item-row{grid-template-columns:minmax(0,1fr) auto}.vax-item-actions{grid-column:1/-1}.vax-item-actions .outline-button{flex:1}}
