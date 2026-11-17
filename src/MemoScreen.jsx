@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pencil, Pill, Plus, Tag, Search, MoreHorizontal, Trash2, NotebookPen } from 'lucide-react';
+import { Pencil, Pill, Plus, Tag, Search, MoreHorizontal, Trash2, NotebookPen, X } from 'lucide-react';
 import { api, errorMessage } from './api';
 import CarePageHeader from './CarePageHeader';
 import RecordDialog from './RecordDialog';
@@ -84,8 +84,14 @@ export default function MemoScreen({ child, backendOnline, onToast, onMedication
     </label>}
     {tagError && <p role="alert">{tagError}</p>}
   </RecordDialog>;
-  const visible=useMemo(()=>records.filter(r=>(!filter || r.tagIds?.includes(filter)) && r.body.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
-    .sort((a,b)=>new Date(b.recordedAt||b.createdAt)-new Date(a.recordedAt||a.createdAt)),[records,filter,query]);
+  const visible = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase();
+    const matchingTags = new Set(tags.filter(tag => tag.name.toLocaleLowerCase().includes(term)).map(tag => tag.id));
+    return records.filter(record =>
+      (!filter || record.tagIds?.includes(filter)) &&
+      (!term || record.body.toLocaleLowerCase().includes(term) || record.tagIds?.some(id => matchingTags.has(id)))
+    ).sort((a, b) => new Date(b.recordedAt || b.createdAt) - new Date(a.recordedAt || a.createdAt));
+  }, [records, tags, filter, query]);
   const groups=new Map();visible.forEach(r=>{const key=day(r.recordedAt||r.createdAt);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);});
   const editRecord = r => {setEditing(r);setBody(r.body);setDate(day(r.recordedAt||r.createdAt));setClock(time(r.recordedAt||r.createdAt));setTagIds((r.tagIds||[]).filter(id=>tags.some(t=>t.id===id)));setWriting(true);};
   const positionRecordMenu = event => {
@@ -100,9 +106,12 @@ export default function MemoScreen({ child, backendOnline, onToast, onMedication
   const composeFields = <fieldset disabled={busy || loading || !backendOnline || !!error}>
         <div className="memo-datetime"><label className="date-picker"><span>기록 날짜</span><input aria-label="기록 날짜" type="date" required value={date} onChange={e=>setDate(e.target.value)}/></label><label className="date-picker"><span>기록 시간</span><input aria-label="기록 시간" type="time" required value={clock} onChange={e=>setClock(e.target.value)}/></label></div>
         <textarea aria-label="메모 내용" placeholder="오늘 아이에게 어떤 일이 있었나요?" value={body} onChange={e=>setBody(e.target.value)} maxLength={2000} required/>
-        <div className="memo-compose-hint"><span>태그 선택 · 최대 10개</span><span>{body.length.toLocaleString()}/2,000</span></div>
-        <div className="memo-tag-chips" aria-label="메모 태그 선택">{tags.map(t=><button type="button" className="memo-color-tag" style={tagColor(t.id)} key={t.id} aria-pressed={tagIds.includes(t.id)} onClick={()=>setTagIds(ids=>ids.includes(t.id)?ids.filter(id=>id!==t.id):ids.length<10?[...ids,t.id]:ids)}>#{t.name}</button>)}</div>
-        <button type="button" className="memo-create-tag" disabled={tagIds.length >= 10} onClick={() => openTag('create')}><Plus size={16}/> 태그 만들기</button>
+        <div className="memo-character-count">{body.length.toLocaleString()}/2,000</div>
+        <div className="memo-compose-hint">
+          <span>태그 <span className="memo-tag-limit">최대 10개</span></span>
+          <button type="button" className="memo-create-tag" disabled={tagIds.length >= 10} onClick={() => openTag('create')}><Plus size={16}/> 태그 만들기</button>
+        </div>
+        <div className="memo-tag-chips" aria-label="메모 태그 선택">{tags.map(t=><button type="button" className="memo-color-tag" style={tagColor(t.id)} key={t.id} aria-pressed={tagIds.includes(t.id)} onClick={()=>setTagIds(ids=>ids.includes(t.id)?ids.filter(id=>id!==t.id):ids.length<10?[...ids,t.id]:ids)}>{t.name}</button>)}</div>
       </fieldset>;
   if(writing && !editing) return <div className="page padded memo-screen care-workspace memo-writing">
     <form ref={composeRef} className="memo-compose" onSubmit={save}>
@@ -115,7 +124,7 @@ export default function MemoScreen({ child, backendOnline, onToast, onMedication
     <CarePageHeader icon={NotebookPen} title="육아 메모" description={<>{child?.fullName || child?.name || '아이'} · 메모 {records.length}개</>}><button className="care-add" disabled={busy || !backendOnline || !child?.id} onClick={()=>{reset();setWriting(true);}}><Plus size={18}/> 새 메모</button></CarePageHeader>
     {!child?.id ? <p className="care-blank">아이를 먼저 선택해주세요.</p> : <>
       {!backendOnline && <p role="status" className="record-timeline-error">연결이 끊겼어요. 서버 연결 후 다시 시도해주세요.</p>}
-      <div className="memo-tools"><div className="record-timeline-search"><Search size={18}/><input aria-label="메모 검색" value={query} onChange={e=>setQuery(e.target.value)} placeholder="메모 검색"/>{query && <button aria-label="검색어 지우기" onClick={()=>setQuery('')}><X size={16}/></button>}</div><button className="memo-tag-manage" aria-expanded={manager} onClick={()=>setManager(v=>!v)}><Tag size={16}/><span>태그 관리</span></button></div>
+      <div className="memo-tools"><div className="record-timeline-search"><Search size={18}/><input aria-label="메모 검색" value={query} onChange={e=>setQuery(e.target.value)} placeholder="본문 또는 태그 검색"/>{query && <button aria-label="검색어 지우기" onClick={()=>setQuery('')}><X size={16}/></button>}</div><button className="memo-tag-manage" aria-expanded={manager} onClick={()=>setManager(v=>!v)}><Tag size={16}/><span>태그 관리</span></button></div>
       {manager && <section className="memo-tag-manager">
         <div className="memo-tag-manager-head"><div><h3>우리 아이 공용 태그 <span>{tags.length}개</span></h3><p>같은 아이를 돌보는 가족이 함께 사용해요.</p></div>
           <button type="button" className="memo-create-tag" disabled={busy || loading || !backendOnline} onClick={() => openTag('create')}><Plus size={16}/> 추가</button>
@@ -123,20 +132,20 @@ export default function MemoScreen({ child, backendOnline, onToast, onMedication
         <div className="memo-tag-manager-list">
           {!tags.length && !loading && <p>아직 만든 태그가 없어요.</p>}
           {tags.map(tag => <div className="memo-tag-item" key={tag.id}>
-            <b className="memo-color-tag" style={tagColor(tag.id)}>#{tag.name}</b>
+            <b className="memo-color-tag" style={tagColor(tag.id)}>{tag.name}</b>
             <button disabled={busy || !backendOnline} onClick={() => openTag('edit', tag)} aria-label={`${tag.name} 태그 이름 수정`}><Pencil size={16}/></button>
             <button disabled={busy || !backendOnline} onClick={() => openTag('delete', tag)} aria-label={`${tag.name} 태그 삭제`}><Trash2 size={16}/></button>
           </div>)}
         </div>
       </section>}
-      {tags.length>0 && <div className="memo-tag-chips memo-filters" aria-label="메모 태그 필터"><button aria-pressed={!filter} onClick={()=>setFilter('')}>전체</button>{tags.map(t=><button className="memo-color-tag" style={tagColor(t.id)} key={t.id} aria-pressed={filter===t.id} onClick={()=>setFilter(t.id)}>#{t.name}</button>)}</div>}
+      {tags.length>0 && <div className="memo-tag-chips memo-filters" aria-label="메모 태그 필터"><button aria-pressed={!filter} onClick={()=>setFilter('')}>전체</button>{tags.map(t=><button className="memo-color-tag" style={tagColor(t.id)} key={t.id} aria-pressed={filter===t.id} onClick={()=>setFilter(t.id)}>{t.name}</button>)}</div>}
       {error && <div role="alert" className="record-timeline-error">{error}<button onClick={()=>setRevision(v=>v+1)}>다시 불러오기</button></div>}
       {(filter||query) && <div className="memo-result-count"><span>검색 결과 {visible.length}개</span><button onClick={()=>{setFilter('');setQuery('');}}>초기화</button></div>}
       {loading?<p role="status" className="care-blank">메모를 불러오는 중…</p>:!error && <div className="memo-feed">
         {!visible.length && <div className="care-blank"><b>{filter||query?'일치하는 메모가 없어요':'아직 메모가 없어요'}</b><p>{filter||query?'검색어나 태그를 바꿔보세요.':'수유, 수면, 아이의 작은 변화를 남겨보세요.'}</p>{!filter&&!query&&<button className="care-text-action" onClick={()=>{reset();setWriting(true);}}>첫 메모 쓰기</button>}</div>}
         {[...groups].map(([key,rows])=><section className="memo-day" key={key}><h3>{new Date(`${key}T12:00`).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'})}<span>{rows.length}</span></h3>{rows.map(r=><article className="memo-entry" key={r.recordId}>
           <div className="memo-entry-meta"><span><time>{time(r.recordedAt||r.createdAt)}</time><i>·</i>{r.authorName||'보호자'}</span><details className="record-menu" name="memo-actions" onToggle={positionRecordMenu}><summary aria-label={`${time(r.recordedAt||r.createdAt)} 메모 더보기`}><MoreHorizontal size={20}/></summary><div><button disabled={busy} onClick={event=>{event.currentTarget.closest("details").open=false;editRecord(r);}}><Pencil size={16}/> 수정</button><button disabled={busy} onClick={()=>onMedication(r)}><Pill size={16}/> 복약 일정으로 등록</button><button className="danger" disabled={busy} onClick={e=>{e.currentTarget.closest('details').open=false;setDeleting(r.recordId);}}><Trash2 size={16}/> 삭제</button></div></details></div>
-          <p className="memo-body">{r.body}</p><div className="memo-tag-labels">{tags.filter(t=>r.tagIds?.includes(t.id)).map(t=><span className="memo-color-tag" style={tagColor(t.id)} key={t.id}>#{t.name}</span>)}</div>
+          <p className="memo-body">{r.body}</p><div className="memo-tag-labels">{tags.filter(t=>r.tagIds?.includes(t.id)).map(t=><span className="memo-color-tag" style={tagColor(t.id)} key={t.id}>{t.name}</span>)}</div>
         </article>)}</section>)}
       </div>}
     </>}
