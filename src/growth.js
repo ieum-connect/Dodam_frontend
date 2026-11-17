@@ -27,6 +27,20 @@ export function growthPosition(date, range) {
   return (stamp(date) - stamp(range.from)) / (stamp(range.to) - stamp(range.from));
 }
 
+// Geometry only: clip the incoming segment at the left edge. The boundary is
+// never a measurement, so callers keep growthPoints for markers and summaries.
+export function growthLinePoints(records, metric, range) {
+  const points = growthPoints(records, metric, range);
+  if (!points.length || points[0].measuredOn === range.from) return points;
+  const previous = records.filter(row => row.measuredOn < range.from && row[metric] != null)
+    .sort((a, b) => b.measuredOn.localeCompare(a.measuredOn))[0];
+  if (!previous) return points;
+  const first = points[0];
+  const fraction = (stamp(range.from) - stamp(previous.measuredOn)) / (stamp(first.measuredOn) - stamp(previous.measuredOn));
+  const value = Number(previous[metric]) + (Number(first[metric]) - Number(previous[metric])) * fraction;
+  return [{ measuredOn: range.from, [metric]: value }, ...points];
+}
+
 // Normalize API ordering once for the latest cards and history list without mutating the response.
 export function newestGrowthFirst(rows) {
   return [...rows].sort((a, b) => b.measuredOn.localeCompare(a.measuredOn));

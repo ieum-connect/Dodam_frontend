@@ -4,7 +4,7 @@ import { api, errorMessage } from './api';
 import CarePageHeader from './CarePageHeader';
 import ProfileEditSheet from './ProfileEditSheet';
 import { growthPositionByAge, growthReferenceSource } from './growthReference';
-import { growthRange, growthPoints, newestGrowthFirst, growthPosition, growthAxis } from './growth';
+import { growthRange, growthPoints, growthLinePoints, newestGrowthFirst, growthPosition, growthAxis } from './growth';
 import { useBackLayer } from './backNavigation';
 
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
@@ -40,7 +40,13 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
   const selected = points.find(row => row.id === selectedId) || points.at(-1);
   if (!points.length) return <><div className="growth-empty"><TrendingUp/><p>이 기간의 {metrics[metric].name} 기록이 없어요.</p><small>측정값을 등록하거나 조회 기간을 바꿔보세요.</small></div>{children}</>;
   const references = points.map(row => growthPositionByAge(metric, child.gender, child.birthDate, row.measuredOn, Number(row[metric]))?.median ?? null);
-  const values = [...points.map(row => Number(row[metric])), ...references.filter(value => value != null)];
+  const linePoints = growthLinePoints(rows, metric, range);
+  const peerRows = rows.filter(row => row[metric] != null).map(row => ({
+    measuredOn: row.measuredOn,
+    median: growthPositionByAge(metric, child.gender, child.birthDate, row.measuredOn, Number(row[metric]))?.median ?? null,
+  }));
+  const peerLine = growthLinePoints(peerRows, 'median', range);
+  const values = [...linePoints.map(row => Number(row[metric])), ...peerLine.map(row => row.median)];
   const lo = Math.min(...values), hi = Math.max(...values);
   const padding = Math.max((hi - lo) * .2, metric === 'heightCm' ? 1 : .2);
   const min = Math.max(0, lo - padding), max = hi + padding;
@@ -76,11 +82,11 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
       {inspecting && <g className="growth-crosshair" pointerEvents="none">
       <line x1={x(selected)} x2={x(selected)} y1="75" y2="220" stroke="#bcaab2" strokeWidth="1"/>
       </g>}
+      {peerLine.length > 1 && <polyline className="growth-peer-line" points={peerLine.map(row => `${x(row)},${valueY(row.median)}`).join(' ')} fill="none" stroke="#628d86" strokeWidth="2.5" strokeDasharray="5 4"/>}
       {points.map((row, index) => references[index] == null ? null : <g key={`peer-${row.id}`}>
-        {index > 0 && references[index - 1] != null && <line x1={x(points[index - 1])} y1={valueY(references[index - 1])} x2={x(row)} y2={valueY(references[index])} stroke="#628d86" strokeWidth="2.5" strokeDasharray="5 4"/>}
         <circle cx={x(row)} cy={valueY(references[index])} r="4" fill="#628d86"><title>{row.measuredOn} 또래 기준 {references[index]} {metrics[metric].unit}</title></circle>
       </g>)}
-      {points.length > 1 && <polyline points={points.map(row => `${x(row)},${y(row)}`).join(' ')} fill="none" stroke="#b44873" strokeWidth="2.5"/>}
+      {linePoints.length > 1 && <polyline className="growth-measurement-line" points={linePoints.map(row => `${x(row)},${y(row)}`).join(' ')} fill="none" stroke="#b44873" strokeWidth="2.5"/>}
       {points.map(row => <g key={row.id} role="button" tabIndex="0" aria-label={`${row.measuredOn} ${row[metric]} ${metrics[metric].unit}`} aria-pressed={selected.id === row.id} onClick={() => setSelectedId(row.id)} onKeyDown={event => {if (event.key === 'Enter' || event.key === ' ') {event.preventDefault(); setSelectedId(row.id);}}}><circle cx={x(row)} cy={y(row)} r="12" fill="transparent"/><circle cx={x(row)} cy={y(row)} r={selected.id === row.id ? 6 : 4} fill="#b44873" stroke="white" strokeWidth="2"/></g>)}
     </svg>
     </div>
@@ -158,7 +164,7 @@ export default function GrowthScreen({ child, onToast }) {
             {delta != null && <em>직전 측정 대비 {delta > 0 ? '+' : ''}{delta.toFixed(1)} {info.unit}</em>}</div>;
         })}</div>
         <section className="growth-graph-panel"><div className="growth-metric-tabs">{Object.entries(metrics).map(([key, info]) => <button key={key} aria-pressed={metric === key} onClick={() => setMetric(key)}>{info.name}</button>)}</div>
-          <GrowthChart key={`${child?.id}-${metric}-${range.from}-${range.to}`} rows={visible} period={period} metric={metric} range={range} child={child}>
+          <GrowthChart key={`${child?.id}-${metric}-${range.from}-${range.to}`} rows={records} period={period} metric={metric} range={range} child={child}>
             <div className="growth-periods" aria-label="조회 기간">{[[1,'1개월'],[6,'6개월'],[12,'1년'],[0,'전체']].map(([value,label]) => <button key={value} aria-pressed={period === value} onClick={() => setPeriod(value)}>{label}</button>)}</div>
             <p className="growth-range-label">{range.from.replaceAll('-', '.')} — {range.to.replaceAll('-', '.')}</p>
           </GrowthChart>

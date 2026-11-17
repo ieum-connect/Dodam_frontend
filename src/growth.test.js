@@ -1,6 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { growthRange, growthPoints, growthPosition, newestGrowthFirst } from './growth.js';
+import { growthRange, growthPoints, growthLinePoints, growthPosition, newestGrowthFirst } from './growth.js';
+
+test('incoming line is clipped at the period boundary without adding a measurement', () => {
+  const rows = [
+    { id: 'new', measuredOn: '2026-11-11', heightCm: 90 },
+    { id: 'old', measuredOn: '2026-11-01', heightCm: 80 },
+    { id: 'older', measuredOn: '2026-10-01', heightCm: 60 },
+  ];
+  const before = structuredClone(rows);
+  const range = { from: '2026-11-06', to: '2026-11-17' };
+  const line = growthLinePoints(rows, 'heightCm', range);
+  assert.deepEqual(line[0], { measuredOn: '2026-11-06', heightCm: 85 });
+  assert.equal(line[1].id, 'new');
+  assert.equal(growthPoints(rows, 'heightCm', range).length, 1);
+  assert.deepEqual(rows, before);
+});
+
+test('incoming line uses the previous measurement of the selected metric', () => {
+  const rows = [
+    { measuredOn: '2026-11-01', weightKg: 10 },
+    { measuredOn: '2026-11-05', heightCm: 80 },
+    { measuredOn: '2026-11-11', weightKg: 12 },
+  ];
+  assert.equal(growthLinePoints(rows, 'weightKg', { from: '2026-11-06', to: '2026-11-17' })[0].weightKg, 11);
+});
+
+test('line never extrapolates before the first or after the last measurement', () => {
+  const rows = [{ measuredOn: '2026-11-05', heightCm: 80 }, { measuredOn: '2026-11-11', heightCm: 85 }];
+  for (const from of ['2026-11-01', '2026-11-05']) {
+    assert.deepEqual(growthLinePoints(rows, 'heightCm', { from, to: '2026-11-17' }), rows);
+  }
+  assert.deepEqual(growthLinePoints(rows, 'heightCm', { from: '2026-11-12', to: '2026-11-17' }), []);
+});
 
 test('same measurements occupy different positions for 3, 6 and 12 months', () => {
   const ranges = [3, 6, 12].map(months => growthRange(months, '2026-11-07'));
