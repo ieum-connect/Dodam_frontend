@@ -49,6 +49,20 @@ export function newestGrowthFirst(rows) {
 // Calendar ticks share a fixed-width viewport; only well-spaced dates receive labels.
 export function growthAxis(range, period) {
   const days = Math.round((stamp(range.to) - stamp(range.from)) / 86400000);
+  // Long histories use calendar years, keeping labels readable in the same viewport.
+  if (period === 0 && days >= 4 * 365) {
+    const firstYear = Number(range.from.slice(0, 4)), lastYear = Number(range.to.slice(0, 4));
+    const targetStep = (lastYear - firstYear) / 4;
+    const step = [1, 2, 5, 10, 20, 50, 100].find(value => value >= targetStep) || Math.ceil(targetStep / 100) * 100;
+    const labelDates = [range.from];
+    for (let year = Math.ceil((firstYear + 1) / step) * step; year < lastYear; year += step) {
+      const date = `${year}-01-01`;
+      const position = growthPosition(date, range);
+      if (position >= .16 && position <= .84) labelDates.push(date);
+    }
+    labelDates.push(range.to);
+    return { unit: 'year', ticks: labelDates, labelDates, plotWidth: 276 };
+  }
   const unit = period === 1 ? 'day' : period === 6 ? 'week' : period === 12 ? 'month' : days <= 45 ? 'day' : days <= 185 ? 'week' : 'month';
   const ticks = [];
   const start = new Date(stamp(range.from));

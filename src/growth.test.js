@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { growthRange, growthPoints, growthLinePoints, growthPosition, newestGrowthFirst } from './growth.js';
+import { growthRange, growthPoints, growthLinePoints, growthPosition, newestGrowthFirst, growthAxis } from './growth.js';
+
+test('long histories use spaced year labels without changing measurement positions', () => {
+  for (const years of [4, 5, 10, 20]) {
+    const range = { from: `${2026 - years}-11-16`, to: '2026-11-17' };
+    const axis = growthAxis(range, 0);
+    assert.equal(axis.unit, 'year');
+    assert.ok(axis.labelDates.length >= 3 && axis.labelDates.length <= 6);
+    assert.equal(axis.labelDates[0], range.from);
+    assert.equal(axis.labelDates.at(-1), range.to);
+    assert.equal(new Set(axis.labelDates.map(date => date.slice(0, 4))).size, axis.labelDates.length);
+    axis.labelDates.slice(1).forEach((date, i) => assert.ok(growthPosition(date, range) - growthPosition(axis.labelDates[i], range) >= .15));
+  }
+  assert.equal(growthAxis({ from: '2024-11-16', to: '2026-11-17' }, 0).unit, 'month');
+});
 
 test('incoming line is clipped at the period boundary without adding a measurement', () => {
   const rows = [
