@@ -48,10 +48,18 @@
   .chat-viewport .screen-content { display: flex; min-height: 0; overflow: hidden; padding-bottom: 0; }
   .chat-viewport .chat-page { width: 100%; min-width: 0; min-height: 0; }
   .chat-viewport .chat-lobby { overflow-y: auto; overscroll-behavior: contain; }
+  .chat-viewport .chat-lobby-hero,
+  .chat-viewport .chat-history-section,
+  .chat-viewport .chat-lobby-note { flex-shrink: 0; }
   .chat-viewport .chat-conversation { display: flex; flex-direction: column; height: 100%; }
   .chat-viewport .chat-scroll { display: block; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .chat-viewport:has(.modal-backdrop:not([hidden])) .chat-scroll { overflow: hidden; }
-  .chat-viewport .chat-conversation-bar, .chat-viewport .chat-hero { position: static; }
+  .chat-viewport .chat-conversation-bar { position: static; }
+  .chat-viewport .chat-hero {
+    position: sticky;
+    top: 0;
+    z-index: 11;
+  }
   .chat-viewport .chat-composer { position: relative; flex: none; bottom: auto; }
   .chat-viewport .bottom-nav { position: relative; flex: none; left: auto; right: auto; bottom: auto; transform: none; }
   .chat-viewport .chat-input textarea { font-size: 16px; max-height: clamp(34px, calc(var(--chat-viewport-height, 100dvh) * .18), 160px); }
