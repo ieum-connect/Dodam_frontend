@@ -1,5 +1,5 @@
 .child-sheet-backdrop{align-items:flex-end;justify-content:center}
-.sheet.child-profile-sheet{width:100%;max-width:min(560px,calc(100vw - 32px));max-height:min(78dvh,calc(100dvh - 32px),680px);margin:0;padding:28px 24px max(35px,env(safe-area-inset-bottom));background:#fffafc;overflow-y:auto;border-radius:28px 28px 0 0;color:#30282c;outline:none;scrollbar-width:none;-ms-overflow-style:none}
+.sheet.child-profile-sheet{width:min(560px,100%);max-width:100%;max-height:min(88dvh,calc(100dvh - max(16px,env(safe-area-inset-top))),680px);margin:0;padding:28px 24px max(35px,env(safe-area-inset-bottom));background:#fffafc;overflow-y:auto;border-radius:28px 28px 0 0;color:#30282c;outline:none;scrollbar-width:none;-ms-overflow-style:none}
 .sheet.child-profile-sheet::-webkit-scrollbar{display:none}
 .child-sheet-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:28px}
 .child-sheet-header h2{font-size:22px;line-height:1.4;margin:0 0 6px;font-weight:700}

@@ -32,6 +32,10 @@
 /* Mobile interaction fixes: exclusive selects, draggable sheet, favorites, and long metadata. */
 .welfare-profile-sheet{overscroll-behavior:contain;padding-bottom:max(35px,env(safe-area-inset-bottom));scrollbar-width:none;-ms-overflow-style:none}
 .welfare-profile-sheet::-webkit-scrollbar{display:none}
+.welfare-sheet-header{position:sticky;top:-28px;z-index:20;margin:-28px -24px 18px;padding:28px 24px 12px;background:#fffafc;border-bottom:1px solid #f3e4e9}
+.welfare-sheet-header .sheet-heading{margin:9px 36px 0 0}
+.welfare-sheet-header .sheet-close{z-index:2}
+.welfare-confirm{max-width:100%;max-height:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain}
 .welfare-profile-sheet.dragging{user-select:none;overflow:hidden}
 .welfare-profile-sheet .sheet-handle{top:0;width:76px;height:30px;background:transparent;cursor:grab;touch-action:none;z-index:6}
 .welfare-profile-sheet .sheet-handle:active{cursor:grabbing}
@@ -46,8 +50,10 @@
 .program-meta span{min-width:0;line-height:1.5;overflow-wrap:anywhere;word-break:keep-all}
 .program-meta .program-region{font-weight:800;color:#5f5358}
 .program-meta .program-agency{justify-self:end;text-align:right}
-.program-meta .program-deadline{grid-column:1/-1;align-items:flex-start;padding-top:8px;border-top:1px dashed #f0e2e7;color:#7e6f75}
+.program-meta .program-deadline{grid-column:1/-1;display:grid;grid-template-columns:14px auto minmax(0,1fr);align-items:start;gap:5px 7px;padding-top:10px;border-top:1px dashed #f0e2e7;color:#7e6f75}
 .program-meta .program-deadline svg{margin-top:2px;min-width:12px}
+.program-meta .program-deadline b{color:#685a60;font-size:11px;line-height:1.65;white-space:nowrap}
+.program-meta .program-deadline>span{font-weight:500;line-height:1.65;word-break:keep-all;overflow-wrap:anywhere}
 
 @media (max-width:420px){
   .region-select-grid{grid-template-columns:1fr}
