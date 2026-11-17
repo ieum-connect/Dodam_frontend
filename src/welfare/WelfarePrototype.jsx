@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Gift, Heart, Lin
 import './welfare.css';
 import { api, errorMessage } from '../api';
 import { useBackLayer } from '../backNavigation';
+import { childProfileEmoji } from '../childProfile';
 
 const EMPTY_PROFILE = { region:'', regionCode:'', household:'', income:'', childcare:'', childCount:'', dualIncome:false, singleParent:false, multicultural:false, disability:false };
 const isRegionCode = value => /^\d{10}$/.test(String(value||''));
@@ -154,7 +155,7 @@ export function WelfarePrototype({ child, onChildOpen, onBackChange }) {
 
   return <div className="page padded detail-page welfare-page">
     <div className="detail-hero welfare-page-heading"><span className="detail-icon"><Gift/></span><div><h2>맞춤 복지</h2><p>{childName?`${childName}에게 맞는 복지혜택을 확인해보세요.`:'가족정보를 기준으로 맞춤 혜택을 찾아드려요.'}</p></div></div>
-    {childId?<button className="welfare-child-card" onClick={onChildOpen}><span className="child-face">{child?.emoji||'👶🏻'}</span><span><b>{childName}</b><small>{[childAge,profile?.region||'거주지역 미입력'].filter(Boolean).join(' · ')}</small></span><ChevronRight/></button>:<button className="welfare-child-card empty" onClick={onChildOpen}><span className="child-face">👶🏻</span><span><b>아이를 선택해 주세요</b><small>추천받을 자녀를 선택할 수 있어요.</small></span><ChevronRight/></button>}
+    {childId?<button className="welfare-child-card" onClick={onChildOpen}><span className="child-face">{child?.emoji||childProfileEmoji(child)}</span><span><b>{childName}</b><small>{[childAge,profile?.region||'거주지역 미입력'].filter(Boolean).join(' · ')}</small></span><ChevronRight/></button>:<button className="welfare-child-card empty" onClick={onChildOpen}><span className="child-face">🧒🏻</span><span><b>아이를 선택해 주세요</b><small>추천받을 자녀를 선택할 수 있어요.</small></span><ChevronRight/></button>}
     {childId&&<section className="profile-progress-card"><div className="profile-progress-head"><div><span>{profile?'저장된 맞춤정보':'맞춤정보를 입력해 주세요'}</span><b>{profile?'저장됨':'미입력'}</b></div><button onClick={openProfile}>{profile?'수정하기':'입력하기'} <ChevronRight/></button></div><p>{profile?'저장된 가족정보를 적용해 추천했어요.':'지역과 가구정보를 저장하면 추천에 반영돼요.'}</p></section>}
     <label className="welfare-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="복지 서비스 검색"/></label>
     <div className="welfare-summary-row"><div><b>{visible.filter(v=>v.status==='ELIGIBLE').length}</b><span>맞춤 추천</span></div><div><b>{visible.length}</b><span>전체 추천</span></div><div><b>{favorites.length}</b><span>관심 혜택</span></div></div>
