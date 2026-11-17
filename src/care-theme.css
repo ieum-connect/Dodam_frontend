@@ -731,12 +731,13 @@
   font-size: 13px;
 }
 .memo-screen.memo-writing .care-editor-bar h2 { font-family: inherit; }
+.memo-compose-tags { margin-bottom: 16px; }
 .memo-screen.memo-writing .memo-compose-hint {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin: 9px 0;
+  margin: 0 0 9px;
   color: var(--ink);
   font-size: 14px;
   font-weight: 650;

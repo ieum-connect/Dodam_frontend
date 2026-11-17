@@ -105,13 +105,15 @@ export default function MemoScreen({ child, backendOnline, onToast, onMedication
   const closeEditor = () => { reset(); setWriting(false); };
   const composeFields = <fieldset disabled={busy || loading || !backendOnline || !!error}>
         <div className="memo-datetime"><label className="date-picker"><span>기록 날짜</span><input aria-label="기록 날짜" type="date" required value={date} onChange={e=>setDate(e.target.value)}/></label><label className="date-picker"><span>기록 시간</span><input aria-label="기록 시간" type="time" required value={clock} onChange={e=>setClock(e.target.value)}/></label></div>
+        <div className="memo-compose-tags">
+          <div className="memo-compose-hint">
+            <span>태그 <span className="memo-tag-limit">최대 10개</span></span>
+            <button type="button" className="memo-create-tag" disabled={tagIds.length >= 10} onClick={() => openTag('create')}><Plus size={16}/> 태그 만들기</button>
+          </div>
+          <div className="memo-tag-chips" aria-label="메모 태그 선택">{tags.map(t=><button type="button" className="memo-color-tag" style={tagColor(t.id)} key={t.id} aria-pressed={tagIds.includes(t.id)} onClick={()=>setTagIds(ids=>ids.includes(t.id)?ids.filter(id=>id!==t.id):ids.length<10?[...ids,t.id]:ids)}>{t.name}</button>)}</div>
+        </div>
         <textarea aria-label="메모 내용" placeholder="오늘 아이에게 어떤 일이 있었나요?" value={body} onChange={e=>setBody(e.target.value)} maxLength={2000} required/>
         <div className="memo-character-count">{body.length.toLocaleString()}/2,000</div>
-        <div className="memo-compose-hint">
-          <span>태그 <span className="memo-tag-limit">최대 10개</span></span>
-          <button type="button" className="memo-create-tag" disabled={tagIds.length >= 10} onClick={() => openTag('create')}><Plus size={16}/> 태그 만들기</button>
-        </div>
-        <div className="memo-tag-chips" aria-label="메모 태그 선택">{tags.map(t=><button type="button" className="memo-color-tag" style={tagColor(t.id)} key={t.id} aria-pressed={tagIds.includes(t.id)} onClick={()=>setTagIds(ids=>ids.includes(t.id)?ids.filter(id=>id!==t.id):ids.length<10?[...ids,t.id]:ids)}>{t.name}</button>)}</div>
       </fieldset>;
   if(writing && !editing) return <div className="page padded memo-screen care-workspace memo-writing">
     <form ref={composeRef} className="memo-compose" onSubmit={save}>
