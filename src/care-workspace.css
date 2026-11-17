@@ -114,6 +114,18 @@
   overflow-wrap: anywhere;
 }
 .memo-screen .memo-tag-chips button { max-width: 100%; }
+.memo-tag-manager-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.memo-tag-manager-head h3 span { color:#805165; padding-left:5px; font-size:12px; }
+.memo-tag-manager-list { display:grid; gap:5px; }
+.memo-screen .memo-tag-manager-list .memo-tag-item { display:flex; align-items:center; gap:5px; padding:4px 0; border-top:1px solid #eee4ea; }
+.memo-screen .memo-tag-manager-list .memo-tag-item b { margin-right:auto; min-width:0; border-radius:14px; padding:5px 10px; overflow-wrap:anywhere; }
+.memo-screen .memo-tag-manager-list .memo-tag-item button { display:grid; place-items:center; width:44px; height:44px; color:#80485f; }
+.memo-screen .memo-create-tag { display:inline-flex; justify-content:center; align-items:center; gap:5px; min-height:44px; padding:0 10px; border-radius:10px; color:#94395e; background:#f7eaf0; font-size:13px; white-space:nowrap; }
+.memo-tag-dialog-field { display:grid; gap:7px; font-size:14px; font-weight:700; }
+.memo-tag-dialog-field input { font-size:16px; box-sizing:border-box; }
+.record-dialog-fields, .memo-edit-fields fieldset { margin:0; border:0; padding:0; min-width:0; }
+.record-dialog-fields :is(input, textarea) { box-sizing:border-box; font-size:16px; }
+.memo-edit-fields.memo-writing textarea { min-height:120px; }
 .memo-screen.care-workspace .memo-filters button {
   white-space: normal;
   text-align: start;
@@ -123,7 +135,7 @@
 .growth-live .growth-input-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .growth-live .growth-periods button { flex: 1 1 0; min-width: 0; padding-inline: 4px; }
 .growth-live :is(.growth-period-summary, .growth-point-detail) { flex-wrap: wrap; }
-.growth-delete-confirm > div { max-height: 100%; overflow-y: auto; }
+.record-dialog-backdrop > div { max-height: 100%; overflow-y: auto; }
 
 .growth-comparison {
   display: grid;
@@ -166,3 +178,5 @@
   }
   .care-workspace input::-webkit-date-and-time-value { min-width: 0; text-align: start; }
 }
+
+.memo-screen .record-menu.opens-up > div { top:auto; bottom:calc(100% + 4px); }

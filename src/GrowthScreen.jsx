@@ -5,7 +5,7 @@ import CarePageHeader from './CarePageHeader';
 import ProfileEditSheet from './ProfileEditSheet';
 import { growthAverageComparison, growthAverageSegments, growthReferenceSources } from './growthReference';
 import { growthRange, growthPoints, growthLinePoints, newestGrowthFirst, growthPosition, growthAxis } from './growth';
-import { useBackLayer } from './backNavigation';
+import RecordDialog from './RecordDialog';
 
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
 const blank = () => ({ measuredOn: today(), heightCm: '', weightKg: '', note: '' });
@@ -174,7 +174,6 @@ export default function GrowthScreen({ child, onToast }) {
   }, [validRecords, period, child?.birthDate]);
   const visible = useMemo(() => validRecords.filter(row => row.measuredOn >= range.from && row.measuredOn <= range.to), [validRecords, range]);
   useEffect(() => { setForm(null); setDeleting(null); setFormError(''); }, [child?.id]);
-  useBackLayer(!!deleting, () => (busy ? false : setDeleting(null)));
   const save = async event => {
     event.preventDefault();
     if (editorPending.current) return;
@@ -237,7 +236,7 @@ export default function GrowthScreen({ child, onToast }) {
         {!visible.length && <div className="growth-empty">이 기간에 등록된 기록이 없어요.</div>}
         {visible.map(row => <article className="growth-history" key={row.id}><h4>{row.measuredOn}</h4><div className="growth-history-values"><span>키 <b>{row.heightCm ?? '—'}</b> cm</span><span>몸무게 <b>{row.weightKg ?? '—'}</b> kg</span></div>{row.note && <p>{row.note}</p>}<GrowthRecordActions key={`${child.id}-${row.id}-${period}-${metric}`} row={row} busy={busy} onEdit={record => {setForm({...record, heightCm: record.heightCm ?? '', weightKg: record.weightKg ?? '', note: record.note || ''});setFormError('');}} onDelete={setDeleting}/></article>)}
       </>}
-      {deleting && <div className="growth-delete-confirm" role="dialog" aria-modal="true" aria-labelledby="growth-delete-title"><div><h3 id="growth-delete-title">이 측정 기록을 삭제할까요?</h3><p>{deleting.measuredOn} 기록이 그래프와 목록에서 사라져요.</p><div className="growth-delete-actions"><button disabled={busy} onClick={() => setDeleting(null)}>취소</button><button disabled={busy} onClick={remove}>{busy ? '삭제 중…' : '기록 삭제'}</button></div></div></div>}
+      {deleting && <RecordDialog title="이 측정 기록을 삭제할까요?" description={`${deleting.measuredOn} 기록이 그래프와 목록에서 사라져요.`} busy={busy} confirmLabel={busy ? '삭제 중…' : '기록 삭제'} onClose={() => setDeleting(null)} onConfirm={remove}/>}
     </>}
   </div>;
 }
