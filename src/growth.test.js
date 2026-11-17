@@ -32,6 +32,21 @@ test('single-day or empty all-history ranges never divide by zero', () => {
   assert.ok(Number.isFinite(growthPosition('2026-11-07', growthRange(0, '2026-11-07'))));
 });
 
+test('all history includes the previous year even when records are recent or empty', () => {
+  const end = '2026-11-17';
+  for (const rows of [[], [{ measuredOn: end }], [{ measuredOn: '2026-11-02' }, { measuredOn: end }]]) {
+    assert.deepEqual(growthRange(0, end, rows), { from: '2025-11-17', to: end });
+  }
+});
+
+test('all history extends to older records without dropping any measurements', () => {
+  const rows = [{ measuredOn: '2026-11-17', heightCm: 90 }, { measuredOn: '2024-02-29', heightCm: 60 }];
+  const range = growthRange(0, '2026-11-17', rows);
+  assert.deepEqual(range, { from: '2024-02-29', to: '2026-11-17' });
+  assert.equal(growthPoints(rows, 'heightCm', range).length, 2);
+  assert.equal(growthRange(0, '2024-02-29', []).from, '2023-02-28');
+});
+
 test('latest cards and history use newest dates regardless of API order', () => {
   const rows = [
     { measuredOn: '2026-09-01', heightCm: 80 },

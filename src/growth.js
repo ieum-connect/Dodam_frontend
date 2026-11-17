@@ -11,7 +11,9 @@ export function growthRange(months, end, records = []) {
     date.setUTCDate(Math.min(day, lastDay));
     from = date.toISOString().slice(0, 10);
   } else {
-    from = records.reduce((earliest, row) => row.measuredOn < earliest ? row.measuredOn : earliest, end);
+    // All history must not show a shorter timeline than the one-year filter.
+    const yearStart = growthRange(12, end).from;
+    from = records.reduce((earliest, row) => row.measuredOn < earliest ? row.measuredOn : earliest, yearStart);
   }
   // A single-day history still needs a meaningful horizontal axis.
   if (from === end) from = new Date(stamp(end) - 86400000).toISOString().slice(0, 10);
