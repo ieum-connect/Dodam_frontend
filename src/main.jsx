@@ -6,7 +6,7 @@ import {
   Plus, Search, ShieldCheck, Sparkles, Syringe, TrendingUp, Upload, X,
   CheckCircle2, Clock3, MapPin, Send, Baby, Scale, Ruler, Gift, BookOpen,
   Stethoscope, Camera, Menu, Mic, Square, Link2, UserRoundPlus, UsersRound,
-  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw, MessageCircle, Paperclip
+  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw, MessageCircle, Paperclip, LogOut
 } from 'lucide-react';
 import './styles.css';
 import './care-workspace.css';
@@ -695,7 +695,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
       : <p className="doc-picker-empty">등록된 건강 문서가 없어요. 의료 &gt; 건강 문서에서 먼저 업로드해주세요.</p>}
       <div className="doc-picker-footer"><span>{selectedDocumentIds.length}개 문서 선택됨</span><button onClick={()=>setDocPicker(false)}>선택 완료</button></div>
     </div>}
-    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} onClick={()=>setInput(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.chatFailure?'error':message.role==='USER'?'user':'ai'}`}>{message.chatFailure?<><b>AI 답변을 만들지 못했어요</b><span>{message.content}</span><button onClick={()=>setInput(messages.filter(item=>item.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></>:message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} onClick={()=>setInput(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><b>{chatError.title || (chatError.code==='DOCUMENT_SELECTION_REQUIRED' ? '문서를 선택해 주세요' : '요청을 완료하지 못했어요')}</b><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
+    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.chatFailure?'error':message.role==='USER'?'user':'ai'}`}>{message.chatFailure?<><b>AI 답변을 만들지 못했어요</b><span>{message.content}</span><button onClick={()=>setInput(messages.filter(item=>item.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></>:message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><b>{chatError.title || (chatError.code==='DOCUMENT_SELECTION_REQUIRED' ? '문서를 선택해 주세요' : '요청을 완료하지 못했어요')}</b><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
     <div className="chat-composer">
       <div className="chat-input"><button type="button" className="chat-document-button" aria-label={`답변 문서 선택, 현재 ${selectedDocumentIds.length}개`} onClick={()=>setDocPicker(true)}><Paperclip/>{selectedDocumentIds.length>0&&<span aria-hidden="true">{selectedDocumentIds.length}</span>}</button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
       <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
@@ -1308,8 +1308,13 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
     <div className="profile-head"><span className="big-avatar">{(me?.name||'도').slice(0,1)}</span><div><h3>{me?.name || '내 프로필'}</h3><p>{relation} · {name}</p></div></div>
   </div>
 
+    <div className="profile-edit-actions">
+      <button className="outline-button profile-action-button" onClick={() => onEditProfile(true)}><Pencil aria-hidden="true"/>내 프로필 수정</button>
+    </div>
+
+    <div className="profile-action-group family-action-group">
     <div className="family-block">
-      <div className="family-block-head"><b>연결된 가족</b><span>{parents===null?'…':`${parents.length}명`}</span></div>
+      <div className="family-block-head"><b><UsersRound aria-hidden="true"/>연결된 가족</b><span>{parents===null?'…':`${parents.length}명`}</span></div>
       {parents===null ? <p className="family-empty">불러오는 중…</p>
         : parents.length ? <div className="family-members">{parents.map(p=>{
             const displayName = p.me ? (me?.name ?? p.name) : p.name;
@@ -1332,11 +1337,6 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
       </div>}
     </div>
 
-    <div className="profile-edit-actions">
-      <button className="outline-button" onClick={() => onEditProfile(true)}>내 프로필 수정</button>
-      {child?.id && <button className="outline-button" onClick={onEditChild}>아이 정보 수정 · {child.name || child.fullName}</button>}
-    </div>
-
     {pendingRelations.length > 0 && <div className="family-block relation-block">
       <div className="family-block-head"><b>돌봄 연결 요청</b><span>{pendingRelations.length}건</span></div>
       {pendingRelations.map(r => <div className="relation-row" key={r.id || r.relationId}>
@@ -1348,12 +1348,22 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
       </div>)}
     </div>}
 
-    {child?.inviteCode && <button className="outline-button" onClick={()=>setCodeOpen(true)}><Link2/> 연결 코드 보기</button>}
-    <button className="outline-button" onClick={()=>{setJoinError('');setJoinOpen(true);}}><UserRoundPlus/> 코드로 연결하기</button>
+    <div className="profile-edit-actions">
+      {child?.inviteCode && <button className="outline-button profile-action-button" onClick={()=>setCodeOpen(true)}><Link2 aria-hidden="true"/> 가족 연결 코드 보기</button>}
+      <button className="outline-button profile-action-button" onClick={()=>{setJoinError('');setJoinOpen(true);}}><UserRoundPlus aria-hidden="true"/> 코드로 연결하기</button>
+    </div>
+    </div>
 
-    <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 등록 · 전환</button>
-    <button className="logout-button" onClick={onLogout}>로그아웃</button>
-    {backendOnline && me?.id && <button type="button" className="withdrawal-link" onClick={onWithdraw}>회원 탈퇴</button>}
+    <div className="profile-action-group child-action-group">
+    <div className="profile-edit-actions">
+      {child?.id && <button className="outline-button profile-action-button" onClick={onEditChild}><Baby aria-hidden="true"/> 아이 정보 수정 · {child.name || child.fullName}</button>}
+      <button className="outline-button profile-action-button" onClick={onChildOpen}><Plus aria-hidden="true"/> 아이 프로필 등록 · 전환</button>
+    </div>
+    </div>
+    <div className="profile-action-group account-action-group">
+      <button className="outline-button profile-action-button account-action-button" onClick={onLogout}><LogOut aria-hidden="true"/>로그아웃</button>
+      {backendOnline && me?.id && <button type="button" className="outline-button profile-action-button account-action-button" onClick={onWithdraw}><Trash2 aria-hidden="true"/>회원 탈퇴</button>}
+    </div>
   </div></div>
   {!hidden && codeOpen && <ProfileEditSheet appearance="upload" title="가족 연결 코드" description={`${name}의 기록을 가족과 함께 관리해요.`} icon={Link2} pending={familyPending} onClose={()=>setCodeOpen(false)}>
     <div className="invite-code-box family-code-content">

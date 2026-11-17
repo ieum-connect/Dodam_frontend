@@ -618,3 +618,8 @@
     max-height:calc(100dvh - 40px);
   }
 }
+.page.padded .detail-hero { gap: 14px; align-items: center; margin-bottom: 24px; }
+.page.padded .detail-hero .detail-icon { width: 58px; height: 58px; min-width: 58px; border-radius: 18px; }
+.page.padded .detail-hero .detail-icon svg { width: 26px; height: 26px; }
+.page.padded .detail-hero h2 { font-size: 26px; line-height: 1.35; margin: 0 0 5px; }
+.page.padded .detail-hero p { font-size: 12px; line-height: 1.5; }
