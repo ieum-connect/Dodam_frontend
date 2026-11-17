@@ -316,7 +316,82 @@ PR 제목: <type>(<scope>): <한국어 변경 내용>
 </details>
 
 <details>
-<summary><b>🎨 4. Frontend Code Style</b></summary>
+<summary><b>🧩 4. Issue · Pull Request Templates</b></summary>
+
+| Template | 사용 시점 | 바로가기 |
+|---|---|---|
+| 기능 Issue | 신규 화면·기능·고도화 작업 | [기능 이슈 템플릿](https://github.com/ieum-connect/Dodam_backend/blob/develop/.github/ISSUE_TEMPLATE/%EA%B8%B0%EB%8A%A5-%EC%9D%B4%EC%8A%88-%ED%85%9C%ED%94%8C%EB%A6%BF.md) |
+| Bug Issue | 오류·회귀·환경별 문제 보고 | [버그 이슈 템플릿](https://github.com/ieum-connect/Dodam_backend/blob/develop/.github/ISSUE_TEMPLATE/%EB%B2%84%EA%B7%B8-%EC%9D%B4%EC%8A%88-%ED%85%9C%ED%94%8C%EB%A6%BF.md) |
+| Pull Request | 구현 완료 후 Review 요청 | [Frontend PR 템플릿](./.github/PULL_REQUEST_TEMPLATE.md) |
+
+> Frontend Issue도 팀 공통 Issue 형식을 사용하며, 작업 대상에는 Component·CSS·API Client·반응형 영향 범위를 작성합니다.
+
+<details>
+<summary><b>📌 기능 Issue 작성 골격</b></summary>
+
+```markdown
+## 🏷️ 기능 분류
+- 대분류 / 중분류 / 소분류 / 관련 기능 코드
+
+## 🎯 개발 목적 (Why)
+## 📌 구현 기능 요약 (What)
+## 📋 상세 요구사항 (Requirements)
+## 📂 작업 대상 Component · Style · API
+## 🔌 API 규격과 Backend 의존성
+## 🛠️ 세부 구현 체크리스트
+## 🏁 완료 조건 (Definition of Done)
+## 🧪 테스트 진행 상황
+## 📎 화면 설계·참고 자료
+```
+
+</details>
+
+<details>
+<summary><b>🐛 Bug Issue 작성 골격</b></summary>
+
+```markdown
+## 🏷️ 관련 기능 코드 · 실행 환경 · 우선순위
+## 🚨 발생 상황
+## 🔁 재현 방법 (Steps to Reproduce)
+## 📈 기대 동작 / 📉 실제 동작
+## 🛠️ 수정 범위 및 원인 추정
+## 🏁 완료 조건 (Definition of Done)
+## 📎 Console · Network Log · 화면 캡처
+```
+
+</details>
+
+<details>
+<summary><b>🔀 Pull Request 작성 골격</b></summary>
+
+```markdown
+## 무엇을 구현했나요?
+- 구현한 기능 또는 해결한 문제
+
+## 참고할 사항
+- 리뷰 지점, API·환경 변수·화면·연동 영향
+
+## 테스트
+- 실행한 명령어
+- 수동 확인 시나리오와 결과
+- 확인하지 못한 항목과 사유
+
+## 연결된 이슈
+- Closes #이슈번호
+
+## Definition of Done
+- [ ] 관련 테스트와 Build가 통과했다
+- [ ] 모바일·데스크톱·오류·빈 상태를 확인했다
+- [ ] 문서와 환경 변수 예시를 갱신했다
+- [ ] 최소 1명의 Review 승인을 받았다
+```
+
+</details>
+
+</details>
+
+<details>
+<summary><b>🎨 5. Frontend Code Style</b></summary>
 
 | 영역 | 규칙 |
 |---|---|
@@ -334,7 +409,7 @@ PR 제목: <type>(<scope>): <한국어 변경 내용>
 </details>
 
 <details>
-<summary><b>✅ 5. 리뷰 전 체크리스트</b></summary>
+<summary><b>✅ 6. 리뷰 전 체크리스트</b></summary>
 
 - [ ] 최신 `develop`을 반영했고 불필요한 변경 파일이 없습니다.
 - [ ] `npm run build`와 관련 테스트가 통과합니다.
