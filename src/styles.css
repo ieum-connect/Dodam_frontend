@@ -692,7 +692,12 @@
   .toast{bottom:calc(92px + env(safe-area-inset-bottom))}
 }
 /* 로딩 화면: 세로 가운데(safe-area 포함), 이미지가 늦어도 빈 테두리 링이 보이지 않게 */
-.app-loading{flex:1;height:auto;min-height:0;padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom)}
+/* 로그인 화면: 문서 스크롤이 잠겨 있으니(모바일 블록, 데스크톱 .phone-frame overflow) 남은 높이 안에서 자체 스크롤. 모든 폭 공통(가로 모드 폰은 820px 초과). */
+.login-screen{height:100%;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.app-loading{flex:1;height:auto;min-height:0;padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom);justify-content:flex-start;overflow-y:auto}
+/* center 대신 auto 여백: 넘치면 여백이 0이 되어 위쪽이 잘리지 않고 위에서부터 스크롤 */
+.app-loading>:first-child{margin-top:auto}
+.app-loading>:last-child{margin-bottom:auto}
 .app-loading .login-heart{animation:none}
 .app-loading .dodam-brand-icon{animation:loadingBreath 1.7s ease-in-out infinite}
 @keyframes loadingBreath{50%{opacity:.65}}
