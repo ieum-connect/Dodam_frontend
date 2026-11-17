@@ -541,7 +541,6 @@ function LoginScreen({ onDemoLogin, authConfig }) {
           <div className="demo-account-heading"><span aria-hidden="true">✨</span><div><b id="demo-account-title">테스트 계정으로 체험하기</b><small>가입 없이 준비된 데이터로 도담의 주요 기능을 둘러볼 수 있어요.</small></div></div>
           <div className="demo-account-buttons">
             <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('MINJI')}><span>김민지</span><small>보호자 계정으로 시작</small></button>
-            <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('JIHUN')}><span>박지훈</span><small>보호자 계정으로 시작</small></button>
           </div>
           <p>테스트용 계정이며 입력한 내용은 시연 환경에 저장될 수 있어요.</p>
         </section>}
