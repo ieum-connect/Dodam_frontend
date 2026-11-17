@@ -609,12 +609,27 @@ function ChatScreen({ child, documents, backendOnline, onToast, docPicker, setDo
   const [chatError, setChatError] = useState(null);
   const pickerPending = React.useRef(false);
   const scrollRef = React.useRef(null);
+  const scrollModeRef = React.useRef(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
   useBackLayer(!historyOpen, () => { setDocPicker(false); setHistoryOpen(true); });
   React.useLayoutEffect(() => {
     const scroll = scrollRef.current;
-    if (scroll) scroll.scrollTop = scroll.scrollHeight;
-  }, [messages, sending, historyOpen]);
+    if (!scroll || historyOpen || !scrollModeRef.current) return;
+    if (scrollModeRef.current === 'bottom') {
+      scroll.scrollTop = scroll.scrollHeight;
+      scrollModeRef.current = null;
+      return;
+    }
+    const userMessages = scroll.querySelectorAll('[data-chat-role="USER"]');
+    const latestQuestion = userMessages[userMessages.length - 1];
+    if (!latestQuestion) return;
+    const stickyHeader = scroll.querySelector('.chat-hero');
+    const stickyOffset = (stickyHeader?.getBoundingClientRect().height || 0) + 12;
+    const scrollRect = scroll.getBoundingClientRect();
+    const questionRect = latestQuestion.getBoundingClientRect();
+    scroll.scrollTop += questionRect.top - scrollRect.top - stickyOffset;
+    if (!sending) scrollModeRef.current = null;
+  }, [messages, sending, historyOpen, chatError]);
 
   const chatDocuments = useMemo(() => (documents || []).filter(documentReadyForChat), [documents]);
 
@@ -634,6 +649,7 @@ function ChatScreen({ child, documents, backendOnline, onToast, docPicker, setDo
   }, [backendOnline, child?.id]);
 
   React.useEffect(() => {
+    scrollModeRef.current = null;
     setActiveSession(null);
     setMessages([]);
     setChatError(null);
@@ -644,6 +660,7 @@ function ChatScreen({ child, documents, backendOnline, onToast, docPicker, setDo
   }, [refreshSessions]);
 
   const newChat = () => {
+    scrollModeRef.current = null;
     setDocPicker(false);
     setActiveSession(null);
     setMessages([]);
@@ -659,7 +676,11 @@ function ChatScreen({ child, documents, backendOnline, onToast, docPicker, setDo
     setHistoryOpen(false);
     setLoadingHistory(true);
     setChatError(null);
-    try { setMessages((await api.chatMessages(session.sessionId) || []).map(publicChatMessage)); }
+    try {
+      const historyMessages = (await api.chatMessages(session.sessionId) || []).map(publicChatMessage);
+      scrollModeRef.current = 'bottom';
+      setMessages(historyMessages);
+    }
     catch (error) { const message = errorMessage(error, '대화 기록을 불러오지 못했어요.'); setChatError({ code: error.code || 'CHAT_HISTORY_ERROR', message }); onToast(message); }
     finally { setLoadingHistory(false); }
   };
@@ -682,6 +703,7 @@ function ChatScreen({ child, documents, backendOnline, onToast, docPicker, setDo
       return;
     }
     const optimistic = { messageId: `pending-${Date.now()}`, role: 'USER', content: question };
+    scrollModeRef.current = 'latest-question';
     setMessages(prev => [...prev, optimistic]);
     try {
       setSending(true);
@@ -724,7 +746,7 @@ function ChatScreen({ child, documents, backendOnline, onToast, docPicker, setDo
     <div className="chat-conversation-bar"><button onClick={()=>{setDocPicker(false);setHistoryOpen(true)}}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
     <div className="chat-hero"><span className="ai-orb"><Sparkles/></span><div><span className="eyebrow">AI CARE ASSISTANT</span><h2>{activeSession?.title || '새 채팅'}</h2><p>{activeSession ? '이전 대화 내용을 이어서 질문할 수 있어요.' : '아이의 건강 기록을 바탕으로 궁금한 점을 쉽게 설명해드릴게요.'}</p></div></div>
      <div className="selected-documents" role="button" tabIndex="0" aria-label="답변에 사용할 문서 선택" onClick={()=>setDocPicker(true)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setDocPicker(true)}}}><div><span className="eyebrow">REFERENCE DOCUMENTS</span><b>이번 답변에 사용할 문서</b></div><button type="button" className="document-select-button" onClick={event=>{event.stopPropagation();setDocPicker(v=>!v)}}><FileText/> {selectedDocumentIds.length}개 선택 <ChevronRight/></button></div>
-    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.chatFailure?'error':message.role==='USER'?'user':'ai'}`}>{message.chatFailure?<><b>AI 답변을 만들지 못했어요</b><span>{message.content}</span><button onClick={()=>setInput(messages.filter(item=>item.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></>:message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><b>{chatError.title || (chatError.code==='DOCUMENT_SELECTION_REQUIRED' ? '문서를 선택해 주세요' : '요청을 완료하지 못했어요')}</b><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
+    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} data-chat-role={message.role} className={`message ${message.chatFailure?'error':message.role==='USER'?'user':'ai'}`}>{message.chatFailure?<><b>AI 답변을 만들지 못했어요</b><span>{message.content}</span><button onClick={()=>setInput(messages.filter(item=>item.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></>:message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><b>{chatError.title || (chatError.code==='DOCUMENT_SELECTION_REQUIRED' ? '문서를 선택해 주세요' : '요청을 완료하지 못했어요')}</b><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
     </div>
     {docPicker && <ProfileEditSheet title="답변 근거 문서 선택" description="선택한 문서만 AI가 참고합니다." icon={FileText} pending={pickerPending} onClose={()=>setDocPicker(false)} appearance="upload"><div className="chat-documents-dialog"><div className="doc-picker">
       {documents?.length ? <div className="doc-picker-list">{documents.map(doc=>(
