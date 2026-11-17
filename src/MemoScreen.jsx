@@ -42,8 +42,8 @@ export default function MemoScreen({ child, backendOnline, onToast, onMedication
     <form ref={composeRef} className="memo-compose" onSubmit={save}>
       <header className="care-editor-bar"><button type="button" disabled={busy} onClick={()=>{reset();setWriting(false);}}>취소</button><h2>{editing?'메모 수정':'새 메모'}</h2><button className="care-save" disabled={busy || !body.trim() || !backendOnline}>{busy?'저장 중':'저장'}</button></header>
       <fieldset disabled={busy || loading || !backendOnline || !!error}>
-        <div className="memo-datetime"><label className="date-picker"><CalendarDays size={16}/><input aria-label="기록 날짜" type="date" required value={date} onChange={e=>setDate(e.target.value)}/></label><label className="date-picker"><Clock3 size={16}/><input aria-label="기록 시간" type="time" required value={clock} onChange={e=>setClock(e.target.value)}/></label></div>
-        <textarea autoFocus aria-label="메모 내용" placeholder="오늘 아이에게 어떤 일이 있었나요?" value={body} onChange={e=>setBody(e.target.value)} maxLength={2000} required/>
+        <div className="memo-datetime"><label className="date-picker"><span>기록 날짜</span><input aria-label="기록 날짜" type="date" required value={date} onChange={e=>setDate(e.target.value)}/></label><label className="date-picker"><span>기록 시간</span><input aria-label="기록 시간" type="time" required value={clock} onChange={e=>setClock(e.target.value)}/></label></div>
+        <textarea aria-label="메모 내용" placeholder="오늘 아이에게 어떤 일이 있었나요?" value={body} onChange={e=>setBody(e.target.value)} maxLength={2000} required/>
         <div className="memo-compose-hint"><span>태그 선택 · 최대 10개</span><span>{body.length.toLocaleString()}/2,000</span></div>
         <div className="memo-tag-chips" aria-label="메모 태그 선택">{tags.map(t=><button type="button" key={t.id} aria-pressed={tagIds.includes(t.id)} onClick={()=>setTagIds(ids=>ids.includes(t.id)?ids.filter(id=>id!==t.id):ids.length<10?[...ids,t.id]:ids)}>#{t.name}</button>)}</div>
         {!tags.length && <p className="care-muted">태그는 메모 목록의 ‘태그 관리’에서 만들 수 있어요.</p>}

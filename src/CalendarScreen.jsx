@@ -5,6 +5,7 @@ import { useBackLayer } from './backNavigation';
 import { calendarVisits, visitLabel } from './calendarVisits';
 import ChildRequiredState from './ChildRequiredState';
 import CarePageHeader from './CarePageHeader';
+import ProfileEditSheet from './ProfileEditSheet';
 
 const medicationDescription = '복용 시간과 복약 알림을 관리해요.';
 const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -139,11 +140,8 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
   const [seriesError, setSeriesError] = useState('');
   const [stoppingSeries, setStoppingSeries] = useState(null);
   const [editingSeries, setEditingSeries] = useState(null);
-  const editorRef = useRef(null);
-  const editorOpen = !!form;
-  useEffect(() => {
-    if (editorOpen) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [editorOpen]);
+  const editorPending = useRef(false);
+  editorPending.current = busy;
   const [revision, setRevision] = useState(0);
   useEffect(()=>{
     let active=true;
@@ -256,13 +254,14 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       <div className="care-date-toolbar"><button aria-pressed={selected===localDate(new Date())} onClick={()=>{const now=new Date();setSelected(localDate(now));setMonth(new Date(now.getFullYear(),now.getMonth(),1));if(medicationOnly)setCalendarOpen(false);}}>오늘</button><button aria-expanded={calendarOpen} onClick={()=>setCalendarOpen(v=>!v)}><CalendarDays size={16}/> {calendarOpen?'달력 닫기':'날짜 선택'}</button></div>
       {medicationOnly && addButton}
     </div>
-    {calendarOpen && <div className="calendar-card"><div className="calendar-head"><button onClick={()=>move(-1)} aria-label="이전 달"><ChevronLeft/></button><b>{month.getFullYear()}년 {month.getMonth()+1}월</b><button onClick={()=>move(1)} aria-label="다음 달"><ChevronRight/></button></div>
+    {calendarOpen && <div className="calendar-card care-date-calendar"><div className="calendar-head"><button onClick={()=>move(-1)} aria-label="이전 달"><ChevronLeft/></button><b>{month.getFullYear()}년 {month.getMonth()+1}월</b><button onClick={()=>move(1)} aria-label="다음 달"><ChevronRight/></button></div>
       <div className="week-row">{['일','월','화','수','목','금','토'].map(d=><span key={d}>{d}</span>)}</div>
       <div className="date-grid">{cells.map((day,i)=>{
         if (!day) return <span key={`blank${i}`}/>;
         const key=localDate(new Date(month.getFullYear(),month.getMonth(),day));
-        return <button key={key} aria-label={key} aria-pressed={selected===key} className={`${selected===key?'selected':''} ${marked.has(key)?'has-event':''}`} onClick={()=>setSelected(key)}>{day}</button>;
+        return <button key={key} aria-label={key} aria-pressed={selected===key} className={`${selected===key?'selected':''} ${marked.has(key)?'has-event':''}`} onClick={()=>setSelected(key)}><span>{day}</span></button>;
       })}</div>
+      <p className="calendar-legend"><i aria-hidden="true"/> {medicationOnly ? '복약 일정이 있는 날' : '기록이 있는 날'}</p>
     </div>}
     {loading && <p role="status">일정을 불러오는 중이에요.</p>}
     {error && <div role="alert"><p>{error}</p><button onClick={()=>setRevision(n=>n+1)}>다시 불러오기</button></div>}
@@ -283,7 +282,8 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
     </div></div>)}</div>
 
     </section>
-    {form && <form ref={editorRef} className="calendar-editor care-editor" onSubmit={e => {
+    {form && <ProfileEditSheet appearance="upload" title={form.id ? '일정 수정' : medicationOnly ? '복약 일정 추가' : '새 일정 추가'} description={form.scheduleType === 'MEDICATION' ? '복용 시간과 반복 방식을 설정해 주세요.' : '가족의 건강 일정을 등록해 주세요.'} icon={form.scheduleType === 'MEDICATION' ? Pill : CalendarDays} pending={editorPending} onClose={() => setForm(null)}>
+    <form className="calendar-editor care-editor care-modal-editor" onSubmit={e => {
       e.preventDefault();
       const body = { ...form, patientId: child.id, startsAt: new Date(form.startsAt).toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
       if (!form.id && form.scheduleType==='MEDICATION' && form.repeatMode!=='ONCE') {
@@ -292,7 +292,6 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
         execute(()=>api.createMedicationSeries({...body, weekdayMask, endDate: form.endDate || null}).then(()=>({startsAt:body.startsAt})), '반복 복약 일정을 저장했어요', {closeForm:true});
       } else execute(() => form.id ? api.updateSchedule(form.id, body) : api.createScheduleBatch({...body,repeatDays:1}).then(result => result[0]), '일정을 저장했어요', { closeForm: true });
     }}>
-      <div className="care-editor-heading"><div><h3>{form.id ? '일정 수정' : medicationOnly ? '복약 일정 추가' : '새 일정 추가'}</h3></div><button type="button" aria-label="일정 입력 닫기" disabled={busy} onClick={()=>setForm(null)}><X/></button></div>
       {form.fromMemo && <p className="medication-preview">메모 내용을 복용 방법 메모로 가져왔어요{form.truncated?' (앞 500자)':''}. 약 이름과 시간은 직접 확인해 입력해주세요. 저장 전에는 일정이 생성되지 않아요.</p>}
       <label>일정 제목<input required placeholder={medicationOnly ? '예: 아침 식사 후 복약' : '예: 소아과 정기 검진'} maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
       {!medicationOnly && <label>종류<select value={form.scheduleType} onChange={e=>setForm({...form,scheduleType:e.target.value,repeatMode:'ONCE',endDate:''})}><option value="PERSONAL">개인 일정</option><option value="REVISIT">재진료</option><option value="TEST">검사</option><option value="MEDICATION">복약</option><option value="OTHER">기타</option></select></label>}
@@ -301,9 +300,9 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       {!form.id && form.scheduleType === 'MEDICATION' && <RepeatFields rule={form} onChange={setForm} startDate={form.startsAt.slice(0, 10)}/>}
       {form.id && <p>선택한 날짜의 일정만 수정해요.</p>}
       <div className="care-editor-actions"><button type="button" disabled={busy} onClick={()=>setForm(null)}>취소</button><button className="primary-button" disabled={busy}>{busy ? '저장 중…' : '일정 저장하기'}</button></div>
-    </form>}
+    </form></ProfileEditSheet>}
     {medicationOnly && <details className="medication-rules">
-      <summary>반복 복약 관리<span>{activeSeries.length}개</span></summary>
+      <summary><span className="care-disclosure-title">반복 복약 관리</span><span className="care-disclosure-count">{activeSeries.length}개</span><ChevronDown className="care-disclosure-chevron" size={18} aria-hidden="true"/></summary>
       {seriesError && <p role="alert">반복 정보를 불러오지 못했어요. {seriesError}</p>}
       {!seriesError && !activeSeries.length && <p>진행 중인 반복 복약이 없어요.</p>}
       {activeSeries.map(rule => {
@@ -350,7 +349,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
         </article>;
       })}
     </details>}
-    <details className="care-ai-section"><summary>{medicationOnly ? '문서에서 찾은 복약 정보' : '문서에서 찾은 일정 후보'}<span>{candidates.length}개</span></summary><div className="care-ai-heading"><span className="care-ai-icon"><Sparkles/></span><div><h3>문서 분석 결과</h3><p>확인하고 승인하면 일정에 담겨요</p></div><button aria-label="문서 후보 새로고침" disabled={busy || candidatesLoading} onClick={()=>setRevision(n=>n+1)}><RefreshCw/></button></div>
+    <details className="care-ai-section"><summary><span className="care-disclosure-title">{medicationOnly ? '문서에서 찾은 복약 정보' : '문서에서 찾은 일정 후보'}</span><span className="care-disclosure-count">{candidates.length}개</span><ChevronDown className="care-disclosure-chevron" size={18} aria-hidden="true"/></summary><div className="care-ai-heading"><span className="care-ai-icon"><Sparkles/></span><div><h3>문서 분석 결과</h3><p>확인하고 승인하면 일정에 담겨요</p></div><button aria-label="문서 후보 새로고침" disabled={busy || candidatesLoading} onClick={()=>setRevision(n=>n+1)}><RefreshCw/></button></div>
     {candidatesLoading && <p role="status">문서에서 찾은 후보를 불러오는 중이에요.</p>}
     {candidatesError && <p role="alert">문서에서 찾은 후보를 불러오지 못했어요. {candidatesError}</p>}
     {!candidatesLoading && !candidatesError && candidates.length===0 && <div className="care-ai-empty"><b>{medicationOnly ? '확인할 복약 정보가 없어요' : '확인할 일정 후보가 없어요'}</b><p>{medicationOnly ? '문서에서 복약 정보를 찾으면 여기에 표시돼요.' : '문서에서 진료나 검사 일정을 찾으면 여기에 표시돼요.'}</p></div>}
