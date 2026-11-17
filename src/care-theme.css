@@ -588,14 +588,14 @@
 .candidate-repeat-fields { border:0; padding:0; margin:16px 0; min-width:0; }
 
 /* Desktop dialogs share the right-hand app panel; mobile keeps bottom sheets. */
-.growth-delete-confirm { box-sizing:border-box; padding:20px 16px; }
-.growth-delete-confirm > div { box-sizing:border-box; width:100%; max-width:380px; min-width:0; max-height:calc(100dvh - 40px); padding:24px; }
-.growth-delete-confirm h3 { font-size:16px; line-height:1.5; }
-.growth-delete-confirm p { overflow-wrap:anywhere; }
-.growth-delete-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
-.growth-delete-confirm .growth-delete-actions button { margin:0; font-size:13px; }
+.record-dialog-backdrop { box-sizing:border-box; padding:20px 16px; }
+.record-dialog-backdrop > div { box-sizing:border-box; width:100%; max-width:380px; min-width:0; max-height:calc(100dvh - 40px); padding:24px; }
+.record-dialog-backdrop h3 { font-size:16px; line-height:1.5; }
+.record-dialog-backdrop p { overflow-wrap:anywhere; }
+.record-dialog-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+.record-dialog-backdrop .record-dialog-actions button { margin:0; font-size:13px; }
 @media (min-width:821px) {
-  body .growth-delete-confirm {
+  body .record-dialog-backdrop {
     inset:0 max(0px, calc((100vw - 1280px) / 2)) 0 auto;
     width:460px;
   }
@@ -623,3 +623,125 @@
 .page.padded .detail-hero .detail-icon svg { width: 26px; height: 26px; }
 .page.padded .detail-hero h2 { font-size: 26px; line-height: 1.35; margin: 0 0 5px; }
 .page.padded .detail-hero p { font-size: 12px; line-height: 1.5; }
+
+/* Memo typography and surfaces follow the care workspace palette. */
+.memo-screen.care-workspace {
+  --memo-border: #efdee5;
+  --memo-surface: #fffafd;
+  --memo-accent: #963c60;
+  --memo-muted: #735f69;
+}
+.memo-screen.care-workspace .care-page-header { gap: 12px; margin-bottom: 24px; }
+.memo-screen.care-workspace .care-page-header .detail-hero { margin: 0; flex-basis: 164px; }
+.memo-screen.care-workspace .care-page-header h2 {
+  font-family: inherit;
+  color: var(--ink);
+  font-size: clamp(21px, 6vw, 24px);
+  font-weight: 720;
+  line-height: 1.3;
+  letter-spacing: -.035em;
+}
+.memo-screen.care-workspace .care-page-header p { color: var(--memo-muted); font-size: 12px; }
+.memo-screen.care-workspace .memo-tools { gap: 8px; margin-bottom: 12px; }
+.memo-screen.care-workspace .memo-tools .record-timeline-search { border-color: var(--memo-border); border-radius: 14px; }
+.memo-screen.care-workspace .memo-tools .record-timeline-search input { font-size: 14px; }
+.memo-screen.care-workspace .memo-tag-manage {
+  gap: 5px;
+  padding: 0 11px;
+  border: 1px solid var(--memo-border);
+  border-radius: 14px;
+  background: var(--memo-surface);
+  color: var(--memo-accent);
+  font-weight: 650;
+}
+.memo-screen.care-workspace .memo-tag-manage[aria-expanded=true] { background: #f8e9ef; }
+.memo-screen.care-workspace .memo-tag-manager {
+  padding: 16px;
+  border-color: var(--memo-border);
+  border-radius: 18px;
+  background: var(--memo-surface);
+}
+.memo-screen.care-workspace .memo-tag-manager h3 { margin: 0; font-weight: 680; }
+.memo-screen.care-workspace .memo-tag-manager p { color: var(--memo-muted); }
+.memo-screen.care-workspace .memo-tag-manager-list .memo-tag-item { border-top-color: var(--memo-border); }
+.memo-screen.care-workspace .memo-create-tag { background: #f8e9ef; color: var(--memo-accent); font-weight: 650; }
+.memo-screen.care-workspace .memo-tag-chips {
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.memo-screen.care-workspace .memo-tag-chips button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.memo-screen.care-workspace .memo-tag-chips button[aria-pressed=true] {
+  border-color: #e5b8ca;
+  background: #f8e9ef;
+  color: var(--memo-accent);
+  font-weight: 650;
+}
+.memo-screen.care-workspace :is(.memo-tag-chips, .memo-tag-labels, .memo-tag-manager-list) .memo-color-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid hsl(var(--tag-hue) 30% 84%);
+  border-radius: 999px;
+  background: hsl(var(--tag-hue) 32% 96%);
+  color: hsl(var(--tag-hue) 29% 25%);
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 20px;
+}
+.memo-color-tag::before {
+  content: '';
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--tag-hue) 39% 45%);
+}
+.memo-screen.care-workspace .memo-tag-chips button.memo-color-tag[aria-pressed=true] {
+  border-color: hsl(var(--tag-hue) 31% 54%);
+  background: hsl(var(--tag-hue) 35% 88%);
+  color: hsl(var(--tag-hue) 32% 23%);
+}
+.memo-screen .memo-day { margin-top: 18px; }
+.memo-screen .memo-day > h3 { padding: 0; margin: 0 0 10px; border: 0; color: var(--ink); }
+.memo-screen .memo-day > h3 span {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #f7eaf0;
+  color: var(--memo-accent);
+  font-size: 11px;
+}
+.memo-screen.care-workspace .memo-entry { padding: 14px 16px 16px; border-color: var(--memo-border); border-radius: 18px; }
+.memo-screen.care-workspace .memo-entry-meta > span { color: var(--memo-muted); font-size: 12px; }
+.memo-screen.care-workspace .memo-entry-meta time { color: var(--ink); font-variant-numeric: tabular-nums; }
+.memo-screen.care-workspace .memo-body { color: var(--ink); line-height: 1.75; font-size: 15px; margin: 4px 0 11px; }
+.memo-screen.care-workspace .memo-tag-labels { align-items: center; }
+.memo-screen.care-workspace .memo-tag-labels .memo-color-tag {
+  min-height: 30px;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+.memo-screen.memo-writing .care-editor-bar h2 { font-family: inherit; }
+.memo-screen.memo-writing .memo-compose-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 9px 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+.memo-tag-limit, .memo-character-count { color: #755f6a; font-size: 12px; font-weight: 400; }
+.memo-tag-limit { margin-inline-start: 4px; }
+.memo-character-count { margin-top: 5px; text-align: right; font-variant-numeric: tabular-nums; }
+.memo-screen.memo-writing .memo-tag-chips { margin-bottom: 0; }

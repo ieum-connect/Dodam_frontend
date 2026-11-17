@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, Pill, CalendarDays, Check, Clock3, Sparkles, RefreshCw, Bell, Pencil, X, MoreHorizontal } from 'lucide-react';
 import { api, errorMessage } from './api';
 import { useBackLayer } from './backNavigation';
+import RecordDialog from './RecordDialog';
 import { calendarVisits, visitLabel } from './calendarVisits';
 import ChildRequiredState from './ChildRequiredState';
 import CarePageHeader from './CarePageHeader';
@@ -136,6 +137,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
   const [candidatesError, setCandidatesError] = useState('');
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [series, setSeries] = useState([]);
   const [calendarOpen,setCalendarOpen]=useState(!medicationOnly);
   const [seriesError, setSeriesError] = useState('');
@@ -278,11 +280,15 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       {row.status === 'SCHEDULED' && <div className="care-schedule-actions">
         <button className="care-complete-button" disabled={busy} onClick={() => execute(() => api.completeSchedule(row.id), '완료로 기록했어요')}><Check/>{row.scheduleType === 'MEDICATION' ? '복용 완료' : '완료'}</button>
         <button disabled={busy || !!form} onClick={() => setForm({ ...row, startsAt: localInput(row.startsAt), notes: row.notes || '', repeatDays: 1 })}><Pencil size={16}/>수정</button>
-        <button disabled={busy} onClick={() => { if (window.confirm('이 날짜의 일정을 삭제할까요? 반복 일정의 다른 날짜는 유지됩니다.')) execute(() => api.cancelSchedule(row.id), '일정을 삭제했어요'); }}>삭제</button>
+        <button disabled={busy} onClick={() => setDeleting(row)}>삭제</button>
       </div>}
     </div></div>)}</div>
 
     </section>
+    {deleting && <RecordDialog title="이 날짜의 일정을 삭제할까요?" description={deleting.seriesId ? '반복 일정의 다른 날짜는 유지돼요.' : deleting.title} busy={busy} confirmLabel="일정 삭제" onClose={() => setDeleting(null)} onConfirm={() => execute(async () => {
+      await api.cancelSchedule(deleting.id);
+      setDeleting(null);
+    }, '일정을 삭제했어요')}/>}
     {form && <ProfileEditSheet appearance="upload" title={form.id ? '일정 수정' : medicationOnly ? '복약 일정 추가' : '새 일정 추가'} description={form.scheduleType === 'MEDICATION' ? '복용 시간과 반복 방식을 설정해 주세요.' : '가족의 건강 일정을 등록해 주세요.'} icon={form.scheduleType === 'MEDICATION' ? Pill : CalendarDays} pending={editorPending} onClose={() => setForm(null)}>
     <form className="calendar-editor care-editor care-modal-editor" onSubmit={e => {
       e.preventDefault();
