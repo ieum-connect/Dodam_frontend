@@ -14,6 +14,7 @@ import { api, ApiError, errorMessage } from './api';
 import { WelfarePrototype } from './welfare/WelfarePrototype';
 import LiveCalendarScreen, { TodaySchedules } from './CalendarScreen';
 import ChildRequiredState from './ChildRequiredState';
+import ConfirmDialog from './ConfirmDialog';
 import RecordTimeline from './RecordTimeline';
 import GrowthScreen from './GrowthScreen';
 import MemoScreen from './MemoScreen';
@@ -990,6 +991,8 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
   const [detail,setDetail]=useState(document), [editing,setEditing]=useState(false);
   const [detailError,setDetailError]=useState(''), [detailLoading,setDetailLoading]=useState(true), [detailRetry,setDetailRetry]=useState(0);
   const [ai,setAi]=useState(null); const [removing,setRemoving]=useState(false);
+  const [confirmingDelete,setConfirmingDelete]=useState(false);
+  useBackLayer(confirmingDelete,()=>removing?false:setConfirmingDelete(false));
   const [reanalysisSubmitting, setReanalysisSubmitting] = useState(false);
   const [reanalysisError, setReanalysisError] = useState('');
   const isSample = String(document.documentId).startsWith('sample');
@@ -1049,8 +1052,8 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
   };
   const canRequestReanalysis = detail.canReanalyze && !detailLoading && !detailError
     && !analysisPending && (detail.declaredDocType !== 'PRESCRIPTION' || detail.documentStatus === 'FAILED');
-  const analysisControls = detail.documentStatus && <div className="detail-info-card">
-    <InfoRow label="문서 분석 상태" value={DOC_STATUS[detail.documentStatus] || '상태 확인 필요'}/>
+  // 정보 카드 맨 아래(메모 다음)에 놓는 재분석 버튼·오류
+  const analysisActions = detail.documentStatus && <>
     {canRequestReanalysis && <button className="primary-button compact" disabled={reanalysisSubmitting || removing} onClick={reanalyze}>
       <RefreshCw/> {detail.declaredDocType === 'PRESCRIPTION' ? '복약 분석 다시 시도' : '복약문서로 변경하고 재분석'}
     </button>}
@@ -1059,12 +1062,12 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
       setReanalysisError('');
       setDetailRetry(value => value + 1);
     }}>분석 상태 다시 확인</button>}
-  </div>;
+  </>;
   const save=()=>{const name=meta.name.trim()||document.documentName||'';const next=saveDocumentNote(document.documentId,{name,note:meta.note,...(meta.kind?{kind:meta.kind}:{})});setMeta({...meta,...next});setEditing(false);onToast('문서 정보를 수정했어요');};
-  const remove=async()=>{if(!window.confirm('이 문서를 삭제할까요?'))return;try{setRemoving(true);await api.deleteDocument(document.documentId);forget();onToast('문서를 삭제했어요');onBack();}catch(e){onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
+  const remove=async()=>{try{setRemoving(true);await api.deleteDocument(document.documentId);forget();onToast('문서를 삭제했어요');onBack();}catch(e){setConfirmingDelete(false);onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
   // 삭제된 문서(404): 문구와 뒤로 가기만. 다른 오류는 아래 기본 화면에서 버튼을 그대로 둔다.
   if(detailError===DOCUMENT_GONE) return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><p className="empty-record" role="alert">{DOCUMENT_GONE}</p></div>;
-  return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{analysisControls}{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
+  return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={()=>setConfirmingDelete(true)}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/>{detail.documentStatus&&<InfoRow label="문서 분석 상태" value={DOC_STATUS[detail.documentStatus] || '상태 확인 필요'}/>}<InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/>{analysisActions}</div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}{confirmingDelete&&<ConfirmDialog title="이 문서를 삭제할까요?" description="문서와 분석 결과가 목록에서 사라져요." confirmLabel="문서 삭제" busy={removing} onCancel={()=>setConfirmingDelete(false)} onConfirm={remove}/>}</div>;
 }
 
 
