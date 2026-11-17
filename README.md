@@ -405,11 +405,19 @@ flowchart LR
 
 화면 설계서: [Claude Artifact에서 화면 설계서 열기](https://claude.ai/artifact/HbHHm56cdtbRuStCtJJt2T#page-dcb81aee8d83)
 
-### 📝 메모
+<details>
+<summary><b>📝 육아 메모 화면 보기</b></summary>
+
+<br />
 
 ![육아 메모](./docs/screenshots/readme-memo-reference.png)
 
-### 📅 일정
+</details>
+
+<details>
+<summary><b>📅 일정 화면 보기</b></summary>
+
+<br />
 
 <table>
   <tr>
@@ -418,13 +426,25 @@ flowchart LR
   </tr>
 </table>
 
-### 📄 건강 문서 업로드
+</details>
+
+<details>
+<summary><b>📄 건강 문서 업로드 화면 보기</b></summary>
+
+<br />
 
 ![건강 문서 업로드](./docs/screenshots/readme-document-upload-reference.png)
 
-### 🤖 문서 기반 AI 채팅
+</details>
+
+<details>
+<summary><b>🤖 문서 기반 AI 채팅 화면 보기</b></summary>
+
+<br />
 
 ![문서 기반 AI 채팅](./docs/screenshots/readme-ai-chat-reference.png)
+
+</details>
 
 ---
 
