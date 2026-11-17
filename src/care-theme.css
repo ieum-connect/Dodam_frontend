@@ -205,6 +205,9 @@
 .growth-chart-legend span { display:flex; align-items:center; gap:6px; }
 .growth-chart-legend i { width:18px; border-top:3px solid #b44873; }
 .growth-chart-legend i.peer { border-top:3px dashed #628d86; }
+.growth-birth-context { margin:10px 0 4px; color:var(--ink); font-size:12px; line-height:1.6; }
+.growth-birth-context > span { display:inline-block; padding:3px 9px; border-radius:12px; background:#faedf3; color:#a34169; font-weight:600; }
+.growth-birth-context > p { margin:5px 0 0; color:#8c7e87; word-break:keep-all; }
 
 
 
@@ -585,7 +588,17 @@
 .candidate-repeat-fields { border:0; padding:0; margin:16px 0; min-width:0; }
 
 /* Desktop dialogs share the right-hand app panel; mobile keeps bottom sheets. */
+.growth-delete-confirm { box-sizing:border-box; padding:20px 16px; }
+.growth-delete-confirm > div { box-sizing:border-box; width:100%; max-width:380px; min-width:0; max-height:calc(100dvh - 40px); padding:24px; }
+.growth-delete-confirm h3 { font-size:16px; line-height:1.5; }
+.growth-delete-confirm p { overflow-wrap:anywhere; }
+.growth-delete-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+.growth-delete-confirm .growth-delete-actions button { margin:0; font-size:13px; }
 @media (min-width:821px) {
+  body .growth-delete-confirm {
+    inset:0 max(0px, calc((100vw - 1280px) / 2)) 0 auto;
+    width:460px;
+  }
   body .modal-backdrop:has(> .sheet) {
     inset:0 max(0px, calc((100vw - 1280px) / 2)) 0 auto;
     width:460px;

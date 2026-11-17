@@ -14,7 +14,10 @@ function GrowthComparison({ child, row, metric }) {
   const value = Number(row[metric]);
   const comparison = growthAverageComparison(metric, child.gender, child.birthDate, row.measuredOn);
   const { name, unit } = metrics[metric];
-  if (!comparison) return <p className="growth-average-unavailable">이 기록은 비교할 성별·월령 구간의 평균 자료가 없어요.</p>;
+  if (!comparison) {
+    const ageDays = child.birthDate ? (Date.parse(row.measuredOn) - Date.parse(child.birthDate)) / 86400000 : null;
+    return <p className="growth-average-unavailable">{ageDays !== null && ageDays >= 0 && ageDays < 14 ? '생후 14일 전에는 평균 자료가 없어 측정값만 표시해요.' : '이 기록은 비교할 성별·월령 구간의 평균 자료가 없어요.'}</p>;
+  }
   const { groupLabel, mean, estimated } = comparison;
   const referenceLabel = estimated ? '또래 추정 평균' : '또래 평균';
   const difference = Number((value - mean).toFixed(1));
@@ -45,6 +48,9 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
   if (!points.length) return <>{children}<div className="growth-range-summary"><div className="growth-range-heading"><span>{periodLabel}</span><span className="growth-measurement-count">0회 측정</span></div>{rangeLabel}</div><div className="growth-empty"><TrendingUp/><p>이 기간의 {metrics[metric].name} 기록이 없어요.</p><small>측정값을 등록하거나 조회 기간을 바꿔보세요.</small></div></>;
   const linePoints = growthLinePoints(rows, metric, range);
   const peerSegments = growthAverageSegments(metric, child.gender, child.birthDate, range);
+  const birthInRange = child.birthDate && child.birthDate >= range.from && child.birthDate <= range.to;
+  const averageStart = child.birthDate ? new Date(Date.parse(child.birthDate) + 14 * 86400000).toISOString().slice(0, 10) : null;
+  const showBirthContext = averageStart && range.from <= averageStart && child.birthDate <= range.to;
   const values = [...linePoints.map(row => Number(row[metric])), ...peerSegments.flatMap(segment => [segment.fromMean, segment.toMean])];
   const lo = Math.min(...values), hi = Math.max(...values);
   const padding = Math.max((hi - lo) * .2, metric === 'heightCm' ? 1 : .2);
@@ -68,6 +74,7 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
     </div>
 
     <div className="growth-chart-legend"><span><i/>우리 아이</span>{peerSegments.length > 0 && <span><i className="peer"/>또래 평균 추이 (구간 사이 추정)</span>}</div>
+    {showBirthContext && <div className="growth-birth-context"><span>{child.birthDate.replaceAll('-', '.')} 출생</span><p>우리 아이 선은 측정 기록부터, 평균선은 생후 14일부터 표시돼요.</p></div>}
     <div className="growth-chart-viewport">
     {inspecting && <div className="growth-inspection-tooltip" aria-hidden="true"><span>{selected.measuredOn.replaceAll('-', '.')}</span><strong>{Number(selected[metric]).toFixed(1)} {metrics[metric].unit}</strong></div>}
     <svg className="growth-live-chart" viewBox="0 55 360 205" role="group" aria-label={`${chartRange.from}부터 ${chartRange.to}까지 ${metrics[metric].name} 측정 추이`}
@@ -80,8 +87,13 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
       onPointerUp={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); setInspecting(event.pointerType === 'mouse'); }}
       onFocusCapture={() => setInspecting(true)}
       onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setInspecting(false); }}>
+      {birthInRange && <g className="growth-birth-marker" pointerEvents="none">
+        <rect x="48" y="75" width={Math.max(0, x({measuredOn: child.birthDate}) - 48)} height="145" fill="#f2edf0" opacity="0.7"/>
+        <line x1={x({measuredOn: child.birthDate})} x2={x({measuredOn: child.birthDate})} y1="75" y2="220" stroke="#c7b6bf" strokeDasharray="2 4"/>
+        <text x={Math.min(304, Math.max(68, x({measuredOn: child.birthDate})))} y="66" textAnchor="middle" fontSize="10" fill="#79616f">출생 {child.birthDate.slice(5).replace('-', '/')}</text>
+      </g>}
       {[0, 1, 2, 3].map(i => { const value = min + (max - min) * i / 3; const py = 220 - 145 * i / 3; return <g key={`y-${i}`}><line x1="48" y1={py} x2="324" y2={py} stroke="#eddee5" strokeDasharray="3 4"/><text x="39" y={py + 4} textAnchor="end" fontSize="11" fill="#79616f">{value.toFixed(1)}</text></g>; })}
-      {labelDates.map(date => { const px = 48 + growthPosition(date, chartRange) * plotWidth; return <g key={date}><line x1={px} x2={px} y1="75" y2="220" stroke="#f4ecf0"/><text x={px} y="248" textAnchor="middle" fontSize="11" fill="#79616f">{unit === 'month' ? date.slice(2, 7).replace('-', '.') : date.slice(5).replace('-', '/')}</text></g>; })}
+      {labelDates.map(date => { const px = 48 + growthPosition(date, chartRange) * plotWidth; return <g key={date}><line x1={px} x2={px} y1="75" y2="220" stroke="#f4ecf0"/><text x={px} y="248" textAnchor="middle" fontSize="11" fill="#79616f">{unit === 'year' ? date.slice(0, 4) : unit === 'month' ? date.slice(2, 7).replace('-', '.') : date.slice(5).replace('-', '/')}</text></g>; })}
       {inspecting && <g className="growth-crosshair" pointerEvents="none">
       <line x1={x(selected)} x2={x(selected)} y1="75" y2="220" stroke="#bcaab2" strokeWidth="1"/>
       </g>}
@@ -152,8 +164,15 @@ export default function GrowthScreen({ child, onToast }) {
     api.growthRecords(child.id).then(rows => { if (active) setRecords(newestGrowthFirst(rows)); }).catch(e => { if (active) setError(errorMessage(e)); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [child?.id, revision]);
-  const range = useMemo(() => growthRange(period, today(), records), [records, period]);
-  const visible = useMemo(() => records.filter(row => row.measuredOn >= range.from && row.measuredOn <= range.to), [records, range]);
+  // Keep API records intact; exclude pre-birth entries consistently from presentation.
+  const validRecords = useMemo(() => records.filter(row => !child?.birthDate || row.measuredOn >= child.birthDate), [records, child?.birthDate]);
+  const range = useMemo(() => {
+    const selectedRange = growthRange(period, today(), validRecords);
+    return period === 0 && child?.birthDate && child.birthDate < selectedRange.to
+      ? { ...selectedRange, from: child.birthDate }
+      : selectedRange;
+  }, [validRecords, period, child?.birthDate]);
+  const visible = useMemo(() => validRecords.filter(row => row.measuredOn >= range.from && row.measuredOn <= range.to), [validRecords, range]);
   useEffect(() => { setForm(null); setDeleting(null); setFormError(''); }, [child?.id]);
   useBackLayer(!!deleting, () => (busy ? false : setDeleting(null)));
   const save = async event => {
@@ -185,7 +204,7 @@ export default function GrowthScreen({ child, onToast }) {
       {form && <ProfileEditSheet appearance="upload" title={form.id ? '측정 기록 수정' : '새 측정 기록'} description="아이의 키와 몸무게를 기록해 주세요." icon={Ruler} pending={editorPending} onClose={() => setForm(null)}>
       <form className="growth-editor growth-registration-form" onSubmit={save}>
         <label>측정일<input type="date" name="measuredOn" required value={form.measuredOn} max={today()} min={child.birthDate || undefined} disabled={busy} aria-describedby="growth-measured-on-help" onChange={e => setForm({...form, measuredOn: e.target.value})}/></label>
-        <p className="growth-chart-note" id="growth-measured-on-help">실제로 키나 몸무게를 잰 날짜를 선택해 주세요. 지난 측정일도 입력할 수 있어요.</p>
+        <p className="growth-chart-note" id="growth-measured-on-help">{child.birthDate ? `출생일(${child.birthDate.replaceAll('-', '.')})부터 오늘까지의 측정 기록을 입력할 수 있어요.` : '실제로 키나 몸무게를 잰 날짜를 선택해 주세요. 지난 측정일도 입력할 수 있어요.'}</p>
         <div className="growth-input-pair">{Object.entries(metrics).map(([key, info]) => <label key={key}>{info.name} ({info.unit})<input aria-label={`${info.name} (${info.unit})`} type="number" inputMode="decimal" min="0.1" max={key === 'heightCm' ? '300' : '500'} step="0.1" placeholder={key === 'heightCm' ? '예: 85.2' : '예: 12.3'} value={form[key]} disabled={busy} onChange={e => setForm({...form, [key]: e.target.value})}/></label>)}</div>
         <p className="growth-chart-note">키와 몸무게 중 하나만 입력해도 저장할 수 있어요.</p>
         <label>메모 (선택)<textarea value={form.note} maxLength={500} placeholder="측정 장소나 기억할 내용을 남겨주세요" disabled={busy} onChange={e => setForm({...form, note: e.target.value})}/></label>
@@ -195,14 +214,14 @@ export default function GrowthScreen({ child, onToast }) {
       </form></ProfileEditSheet>}
       {loading ? <p role="status" className="growth-empty">성장 기록을 불러오고 있어요…</p> : !error && <>
         <div className="growth-summary">{Object.entries(metrics).map(([key, info]) => {
-          const measured = records.filter(row => row[key] != null), latest = measured[0], previous = measured[1];
+          const measured = validRecords.filter(row => row[key] != null), latest = measured[0], previous = measured[1];
           const delta = previous ? Number((latest[key] - previous[key]).toFixed(1)) : null;
           const Icon = info.icon;
           return <div key={key}><span><Icon size={16}/> 최근 {info.name}</span><b>{latest ? Number(latest[key]).toFixed(1) : '—'}<small>{info.unit}</small></b><p>{latest?.measuredOn || '아직 기록이 없어요'}</p>
             {delta != null && <em>직전 측정 대비 {delta > 0 ? '+' : ''}{delta.toFixed(1)} {info.unit}</em>}</div>;
         })}</div>
         <section className="growth-graph-panel"><div className="growth-metric-tabs">{Object.entries(metrics).map(([key, info]) => <button key={key} aria-pressed={metric === key} onClick={() => setMetric(key)}>{info.name}</button>)}</div>
-          <GrowthChart key={`${child?.id}-${metric}-${range.from}-${range.to}`} rows={records} period={period} metric={metric} range={range} child={child}>
+          <GrowthChart key={`${child?.id}-${child?.birthDate}-${metric}-${range.from}-${range.to}`} rows={validRecords} period={period} metric={metric} range={range} child={child}>
             <div className="growth-periods" aria-label="조회 기간">{[[1,'1개월'],[6,'6개월'],[12,'1년'],[0,'전체']].map(([value,label]) => <button key={value} aria-pressed={period === value} onClick={() => setPeriod(value)}>{label}</button>)}</div>
           </GrowthChart>
         </section>
@@ -218,7 +237,7 @@ export default function GrowthScreen({ child, onToast }) {
         {!visible.length && <div className="growth-empty">이 기간에 등록된 기록이 없어요.</div>}
         {visible.map(row => <article className="growth-history" key={row.id}><h4>{row.measuredOn}</h4><div className="growth-history-values"><span>키 <b>{row.heightCm ?? '—'}</b> cm</span><span>몸무게 <b>{row.weightKg ?? '—'}</b> kg</span></div>{row.note && <p>{row.note}</p>}<GrowthRecordActions key={`${child.id}-${row.id}-${period}-${metric}`} row={row} busy={busy} onEdit={record => {setForm({...record, heightCm: record.heightCm ?? '', weightKg: record.weightKg ?? '', note: record.note || ''});setFormError('');}} onDelete={setDeleting}/></article>)}
       </>}
-      {deleting && <div className="growth-delete-confirm" role="dialog" aria-modal="true" aria-labelledby="growth-delete-title"><div><h3 id="growth-delete-title">이 측정 기록을 삭제할까요?</h3><p>{deleting.measuredOn} 기록이 그래프와 목록에서 사라져요.</p><button disabled={busy} onClick={() => setDeleting(null)}>취소</button><button disabled={busy} onClick={remove}>{busy ? '삭제 중…' : '기록 삭제'}</button></div></div>}
+      {deleting && <div className="growth-delete-confirm" role="dialog" aria-modal="true" aria-labelledby="growth-delete-title"><div><h3 id="growth-delete-title">이 측정 기록을 삭제할까요?</h3><p>{deleting.measuredOn} 기록이 그래프와 목록에서 사라져요.</p><div className="growth-delete-actions"><button disabled={busy} onClick={() => setDeleting(null)}>취소</button><button disabled={busy} onClick={remove}>{busy ? '삭제 중…' : '기록 삭제'}</button></div></div></div>}
     </>}
   </div>;
 }
