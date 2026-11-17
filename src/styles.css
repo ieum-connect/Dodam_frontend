@@ -680,3 +680,29 @@
 .modal-backdrop>.sheet{width:min(560px,100%);max-width:100%;max-height:min(88dvh,calc(100dvh - max(16px,env(safe-area-inset-top))),680px);overflow-y:auto;overscroll-behavior:contain;padding-bottom:max(35px,env(safe-area-inset-bottom))}
 @media(min-width:821px){.modal-backdrop>.sheet{max-width:460px;margin-right:max(0px,calc((100vw - 1280px)/2))}}
 @media(max-height:560px){.modal-backdrop{padding-top:max(8px,env(safe-area-inset-top))}.modal-backdrop>.sheet{max-height:calc(100dvh - max(8px,env(safe-area-inset-top)))}}
+
+/* 모바일 바 고정: 문서 스크롤을 막고 .screen-content만 스크롤한다. 100vh 줄은 dvh 미지원 브라우저용,
+   overflow:clip은 scrollIntoView·입력 포커스가 .phone-frame 자체를 밀어 올리지 못하게 한다(미지원이면 hidden 유지). */
+@media(max-width:820px){
+  html,body,#root{height:100%;overflow:hidden}
+  .app-shell{height:100vh;height:100dvh;min-height:0}
+  .phone-frame{height:100vh;height:100dvh;min-height:0;overflow:clip}
+  .screen-content{min-height:0;overscroll-behavior:contain;padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+  .bottom-nav{height:calc(76px + max(8px, env(safe-area-inset-bottom)));min-height:calc(76px + max(8px, env(safe-area-inset-bottom)))}
+  .toast{bottom:calc(92px + env(safe-area-inset-bottom))}
+}
+/* 로딩 화면: 세로 가운데(safe-area 포함), 이미지가 늦어도 빈 테두리 링이 보이지 않게 */
+/* 로그인 화면: 문서 스크롤이 잠겨 있으니(모바일 블록, 데스크톱 .phone-frame overflow) 남은 높이 안에서 자체 스크롤. 모든 폭 공통(가로 모드 폰은 820px 초과). */
+.login-screen{height:100%;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.app-loading{flex:1;height:auto;min-height:0;padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom);justify-content:flex-start;overflow-y:auto}
+/* center 대신 auto 여백: 넘치면 여백이 0이 되어 위쪽이 잘리지 않고 위에서부터 스크롤 */
+.app-loading>:first-child{margin-top:auto}
+.app-loading>:last-child{margin-bottom:auto}
+.app-loading .login-heart{animation:none}
+.app-loading .dodam-brand-icon{animation:loadingBreath 1.7s ease-in-out infinite}
+@keyframes loadingBreath{50%{opacity:.65}}
+/* 문의하기 링크: 메뉴 카드 버튼과 같은 모양 */
+.inquiry-list{margin-top:9px}
+.all-list a{display:flex;align-items:center;gap:12px;padding:13px;background:#fff;border:1px solid var(--line);border-radius:18px;text-align:left;color:inherit;text-decoration:none}
+.all-list a>span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:4px}
+.all-list>a>svg{width:17px;color:#c4b7bb}
