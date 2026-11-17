@@ -4,7 +4,7 @@ import { useBackLayer } from './backNavigation';
 import SheetHandle from './SheetHandle';
 import './child-sheet.css';
 
-export default function ProfileEditSheet({ title, description, icon: Icon, pending, onClose, children }) {
+export default function ProfileEditSheet({ title, description, icon: Icon, pending, onClose, children, appearance }) {
   const sheet = useRef(null);
   const close = () => pending.current ? false : onClose();
   useBackLayer(true, close);
@@ -20,7 +20,7 @@ export default function ProfileEditSheet({ title, description, icon: Icon, pendi
   function handleKeyDown(event) {
     if (event.key === 'Escape') { event.preventDefault(); close(); }
     if (event.key !== 'Tab') return;
-    const controls = [...sheet.current.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]')];
+    const controls = [...sheet.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')].filter(control => control.getClientRects().length > 0);
     const first = controls[0], last = controls.at(-1);
     if (!first) { event.preventDefault(); return; }
     if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet.current)) {
@@ -28,8 +28,8 @@ export default function ProfileEditSheet({ title, description, icon: Icon, pendi
     } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 
-  return <div className="modal-backdrop child-sheet-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
-    <section className="sheet child-profile-sheet" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" tabIndex={-1} ref={sheet} onKeyDown={handleKeyDown}>
+  return <div className={`modal-backdrop child-sheet-backdrop${appearance === 'upload' ? ' care-upload-backdrop' : ''}`} onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
+    <section className={`sheet child-profile-sheet${appearance === 'upload' ? ' care-upload-sheet' : ''}`} role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" tabIndex={-1} ref={sheet} onKeyDown={handleKeyDown}>
       <SheetHandle onClose={close} disabled={pending.current}/>
       <header className="child-sheet-header">
         <span className="child-sheet-emblem" aria-hidden="true"><Icon size={26}/></span>
