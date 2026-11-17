@@ -1090,7 +1090,7 @@ function MoreScreen({onOpen, me, child, onProfile, onChild, onLogout}) {
     <div className="section-label">내 정보</div>
     <div className="all-list">
       <button onClick={onProfile}><span className="feature-icon rose"><CircleUserRound/></span><span><b>내 프로필 관리</b><small>보호자 정보와 아이 프로필 확인</small></span><ChevronRight/></button>
-      <button onClick={onChild}><span className="feature-icon lilac"><UsersRound/></span><span><b>아이 전환 · 추가</b><small>내 아이 추가 등록</small></span><ChevronRight/></button>
+      <button onClick={onChild}><span className="feature-icon lilac"><UsersRound/></span><span><b>아이 전환 · 추가</b><small>아이 프로필 등록 · 가족 공유 코드 연결</small></span><ChevronRight/></button>
       <button onClick={()=>onOpen('calendar')}><span className="feature-icon mint"><CalendarDays/></span><span><b>가족 건강 일정</b><small>복약·진료·접종 일정 관리</small></span><ChevronRight/></button>
     </div>
     <div className="section-label">전체 기능</div>

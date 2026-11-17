@@ -63,7 +63,7 @@ export const api = {
   deleteGrowth: (id, version) => request(`/api/growth-records/${id}?version=${version}`, { method: 'DELETE' }),
   timelinePage: (kind, patientId, cursor, signal) => request(`/api/${kind}?${new URLSearchParams({ patientId, size: '50', ...(cursor ? { cursor } : {}) })}`, { signal }),
   actionItems: (patientId) => request(`/api/action-items?patientId=${encodeURIComponent(patientId)}`),
-  approveAction: (id, startsAt) => request(`/api/action-items/${id}/approve`, { method: 'POST', body: JSON.stringify({ startsAt }) }),
+  approveAction: (id, startsAt, repeat = {}) => request(`/api/action-items/${id}/approve`, { method: 'POST', body: JSON.stringify({ startsAt, ...repeat }) }),
   rejectAction: (id) => request(`/api/action-items/${id}/reject`, { method: 'POST' }),
   schedules: (patientId, from, to) => request(`/api/schedules?${new URLSearchParams({ patientId, from, to })}`),
   createSchedule: (body) => request('/api/schedules', { method: 'POST', body: JSON.stringify(body) }),
