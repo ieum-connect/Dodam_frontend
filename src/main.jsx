@@ -611,18 +611,20 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     if (!child?.id) { setChatError({ code: 'PATIENT_REQUIRED', message: '아이를 먼저 등록해 주세요.' }); return; }
     if (!documents?.length) { setChatError({ code: 'DOCUMENT_REQUIRED', message: 'AI가 근거로 확인할 건강 문서가 없어요. 문서를 먼저 업로드해주세요.' }); return; }
     if (!chatDocuments.length) { setChatError({ code: 'DOCUMENT_PROCESSING', message: '문서를 분석하고 있어요. 분석과 AI 검색 준비가 끝나면 질문할 수 있어요.' }); return; }
+    const readyIds = new Set(chatDocuments.map(doc => doc.documentId));
+    const requestedDocs = docIds?.length ? docIds : selectedDocumentIds;
+    const targetDocs = requestedDocs.filter(id => readyIds.has(id));
+    if (!targetDocs.length) {
+      setChatError({ code: 'DOCUMENT_SELECTION_REQUIRED', message: '답변에 사용할 건강 문서를 먼저 선택해 주세요.' });
+      setDocPicker(true);
+      return;
+    }
     const optimistic = { messageId: `pending-${Date.now()}`, role: 'USER', content: question };
     setMessages(prev => [...prev, optimistic]);
     try {
       setSending(true);
       const session = activeSession || await api.createChatSession(child.id, '새 채팅');
       if (!activeSession) setActiveSession(session);
-      // 사용자가 선택을 해제해도 최근 문서로 안전하게 자동 대체한다.
-      const readyIds = new Set(chatDocuments.map(doc => doc.documentId));
-      const requestedDocs = docIds?.length ? docIds : selectedDocumentIds;
-      const targetDocs = requestedDocs.filter(id => readyIds.has(id));
-      if (!targetDocs.length) targetDocs.push(...chatDocuments.slice(0, 1).map(doc => doc.documentId));
-      if (!targetDocs.length) { setMessages(prev => prev.filter(message => message.messageId !== optimistic.messageId)); setChatError({ code: 'DOCUMENT_REQUIRED', message: 'AI가 근거로 확인할 건강 문서가 없어요. 문서를 먼저 업로드해주세요.' }); return; }
       const result = await api.askChat(session.sessionId, question, targetDocs);
       const latestAnswer = [...result].reverse().find(m=>m.role==='ASSISTANT');
       if (!latestAnswer) throw new ApiError('AI 서버에서 답변이 오지 않았어요.', 502, { code: 'AI_EMPTY_RESPONSE' });
@@ -658,7 +660,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   return <div className="chat-page chat-conversation">
     <div className="chat-conversation-bar"><button onClick={()=>setHistoryOpen(true)}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
     <div className="chat-hero"><span className="ai-orb"><Sparkles/></span><div><span className="eyebrow">AI CARE ASSISTANT</span><h2>{activeSession?.title || '새 채팅'}</h2><p>{activeSession ? '이전 대화 내용을 이어서 질문할 수 있어요.' : '아이의 건강 기록을 바탕으로 궁금한 점을 쉽게 설명해드릴게요.'}</p></div></div>
-    <div className="selected-documents"><div><span className="eyebrow">REFERENCE DOCUMENTS</span><b>이번 답변에 사용할 문서</b></div><button className="document-select-button" onClick={()=>setDocPicker(v=>!v)}><FileText/> {selectedDocumentIds.length}개 선택 <ChevronRight/></button></div>
+     <div className="selected-documents" role="button" tabIndex="0" aria-label="답변에 사용할 문서 선택" onClick={()=>setDocPicker(true)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setDocPicker(true)}}}><div><span className="eyebrow">REFERENCE DOCUMENTS</span><b>이번 답변에 사용할 문서</b></div><button type="button" className="document-select-button" onClick={event=>{event.stopPropagation();setDocPicker(v=>!v)}}><FileText/> {selectedDocumentIds.length}개 선택 <ChevronRight/></button></div>
     {docPicker && <div className="doc-picker"><div className="doc-picker-head"><div><b>답변 근거를 선택하세요</b><small>선택한 문서만 AI가 참고합니다.</small></div><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
       {documents?.length ? <div className="doc-picker-list">{documents.map(doc=>(
         <button className={selectedDocumentIds.includes(doc.documentId)?'selected':''} key={doc.documentId} disabled={sending || !documentReadyForChat(doc)} onClick={()=>setSelectedDocumentIds(ids=>ids.includes(doc.documentId)?ids.filter(id=>id!==doc.documentId):[...ids,doc.documentId])}>
