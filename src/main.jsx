@@ -6,7 +6,7 @@ import {
   Plus, Search, ShieldCheck, Sparkles, Syringe, TrendingUp, Upload, X,
   CheckCircle2, Clock3, MapPin, Send, Baby, Scale, Ruler, Gift, BookOpen,
   Stethoscope, Camera, Menu, Mic, Square, Link2, UserRoundPlus, UsersRound,
-  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw, MessageCircle, Paperclip, LogOut
+  Pencil, Save, Trash2, Settings2, TriangleAlert, MessageCircle, Paperclip, LogOut
 } from 'lucide-react';
 import './styles.css';
 import './care-workspace.css';
@@ -826,9 +826,9 @@ function useScrollTop(dep) {
 
 const DOC_STATUS = { UPLOADED:'분석 대기', PROCESSING:'분석 중', READY:'분석 완료', NEEDS_REVIEW:'일부 분석 완료 · 확인 필요', ANALYZING:'분석 중', DONE:'분석 완료', FAILED:'분석 실패' };
 
-function InfoRow({label,value}) { return <div className="info-row"><span>{label}</span><p>{value}</p></div>; }
+function InfoRow({label,value,action,children}) { return <div className={`info-row${action ? ' has-action' : ''}`}><span>{label}</span><p>{value}</p>{children}{action}</div>; }
 const KindChip = ({ kind }) => <em className={`doc-kind-chip ${kind ? '' : 'none'}`}>{DOCUMENT_KINDS[kind] || '종류 미지정'}</em>;
-const KindSegment = ({ value, onChange }) => <div className="doc-segment" role="group" aria-label="문서 종류">{Object.entries(DOCUMENT_KINDS).map(([id,label])=><button type="button" key={id} aria-pressed={value===id} onClick={()=>onChange(id)}>{label}</button>)}</div>;
+const KindSegment = ({ value, onChange, disabledKinds = [] }) => <div className="doc-segment" role="group" aria-label="문서 종류">{Object.entries(DOCUMENT_KINDS).map(([id,label])=><button type="button" key={id} aria-pressed={value===id} disabled={disabledKinds.includes(id)} onClick={()=>onChange(id)}>{label}</button>)}</div>;
 const EMPTY_UPLOAD_VISIT = { visitedOn: '', hospitalName: '', department: '' };
 
 function DocumentDetail({ onChat, onToast, visits = [], documents = [], documentsCursor, child, onDataChange, backendOnline, onChildOpen, onCalendar, onMedication, medicationDraft }) {
@@ -974,7 +974,7 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
       <label className="field-label">문서명<input className="select-field" value={docName} onChange={e=>setDocName(e.target.value)} placeholder="파일을 고르면 자동으로 채워져요"/></label>
       <span className="field-label">문서 종류</span>
       <KindSegment value={docKind} onChange={setDocKind}/>
-      <p className="upload-sheet-hint">처방전과 약봉투는 복약문서로 선택해 주세요.</p>
+      <p className="doc-kind-hint">처방전·약 봉투는 복약문서로 올려야 복약 일정이 만들어져요.</p>
       {!newVisit ? <>
         <label className="field-label" htmlFor="upload-visit">연결할 병원 방문 기록</label>
         <select id="upload-visit" className="select-field" value={visit} disabled={saving} onChange={e=>setVisit(e.target.value)}>{visits.length?visits.map(v=><option value={v.visitId} key={v.visitId}>{v.visitedOn} · {v.hospitalName||'병원 방문'}</option>):<option value="">방문 기록이 없습니다</option>}</select>
@@ -1000,6 +1000,8 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
   const [deleting, setDeleting] = useState(false);
   const [reanalysisSubmitting, setReanalysisSubmitting] = useState(false);
   const [reanalysisError, setReanalysisError] = useState('');
+  const [kindDraft, setKindDraft] = useState(null);
+  const reanalyzing = React.useRef(false); // 같은 틱 연타에도 재분석 요청은 한 번
   const isSample = String(document.documentId).startsWith('sample');
   const analysisPending = ['UPLOADED', 'PROCESSING'].includes(detail.documentStatus);
   // meta.kind는 사용자가 고른 값만. 화면 표시는 documentKind(detail)(고른 값 → AI 분류 순).
@@ -1042,7 +1044,10 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
   const linked=visits.find(v=>v.visitId===detail.visitId);
   const kind=documentKind(detail);
   const declaredKind=declaredDocumentKind(detail);
+  // 성공 true, 실패 false, 이미 요청 중이면 null
   const reanalyze = async () => {
+    if (reanalyzing.current) return null;
+    reanalyzing.current = true;
     setReanalysisSubmitting(true);
     setReanalysisError('');
     try {
@@ -1050,37 +1055,71 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
       setDetailRetry(value => value + 1);
       onReanalyzed?.();
       onToast('복약문서 분석을 요청했어요');
+      return true;
     } catch (error) {
       setReanalysisError(errorMessage(error, '복약문서 분석을 요청하지 못했어요.'));
+      return false;
     } finally {
+      reanalyzing.current = false;
       setReanalysisSubmitting(false);
     }
   };
   const canRequestReanalysis = detail.canReanalyze && !detailLoading && !detailError
     && !analysisPending && (detail.declaredDocType !== 'PRESCRIPTION' || detail.documentStatus === 'FAILED');
-  // 정보 카드 맨 아래(메모 다음)에 놓는 재분석 버튼·오류
+  // 복약문서 분석 실패 때만: "문서 분석 상태" 줄 오른쪽 작은 버튼
+  // 의료문서(또는 종류 없음)이고 바꿀 수 있을 때: "문서 분석 상태" 줄 아래 회색 안내
+  const switchHint = canRequestReanalysis && !isSample && detail.declaredDocType !== 'PRESCRIPTION'
+    && <p className="doc-kind-hint muted">처방전·약 봉투라면 '수정'에서 복약문서로 바꿀 수 있어요.</p>;
+  const retryAction = canRequestReanalysis && detail.declaredDocType === 'PRESCRIPTION'
+    && <button type="button" className="info-row-action" disabled={reanalysisSubmitting || removing} onClick={() => reanalyze()}>복약 분석 다시 시도</button>;
+  // 정보 카드 맨 아래(메모 다음)에 놓는 재분석 오류·상태 재확인
   const analysisActions = detail.documentStatus && <>
-    {canRequestReanalysis && <button className="primary-button compact" disabled={reanalysisSubmitting || removing} onClick={reanalyze}>
-      <RefreshCw/> {detail.declaredDocType === 'PRESCRIPTION' ? '복약 분석 다시 시도' : '복약문서로 변경하고 재분석'}
-    </button>}
     {reanalysisError && <p role="alert">{reanalysisError}</p>}
     {analysisPending && reanalysisError && <button className="outline-button" onClick={() => {
       setReanalysisError('');
       setDetailRetry(value => value + 1);
     }}>분석 상태 다시 확인</button>}
   </>;
-  const save=()=>{const name=meta.name.trim()||document.documentName||'';const next=saveDocumentNote(document.documentId,{name,note:meta.note,...(meta.kind?{kind:meta.kind}:{})});setMeta({...meta,...next});setEditing(false);onToast('문서 정보를 수정했어요');};
+  // 재분석 권한이 있으면 종류를 서버 기준으로 고른다(의료문서 → 복약문서만 가능, 반대는 불가).
+  const canSwitchKind = detail.canReanalyze && !isSample;
+  const openEdit = () => { setKindDraft(kind); setEditing(true); };
+  // 서버 종류가 복약문서가 아니면 복약문서 선택 = 재분석(이 기기에만 복약문서로 저장한 옛 문서 포함)
+  const toMedication = canSwitchKind && !analysisPending && detail.declaredDocType !== 'PRESCRIPTION'
+    && kindDraft === 'MEDICATION';
+  // 이름·메모는 이 기기에 먼저 저장해 재분석 요청이 실패해도 남긴다.
+  const save=async()=>{
+    if (reanalyzing.current) return;
+    const needsReanalysis = toMedication;
+    // 서버 종류가 없는 문서는 고른 종류를 이 기기에 저장. 재분석으로 바꿀 때는 서버 결과를 따른다.
+    const localKind = canSwitchKind && !declaredKind && !needsReanalysis ? kindDraft : meta.kind;
+    const name=meta.name.trim()||document.documentName||'';
+    const next=saveDocumentNote(document.documentId,{name,note:meta.note,...(localKind?{kind:localKind}:{})});
+    setMeta({...meta,...next});
+    if (!needsReanalysis) { setEditing(false); onToast('문서 정보를 수정했어요'); return; }
+    const ok = await reanalyze();
+    if (ok === null) return;
+    setEditing(false);
+    if (!ok) onToast('문서 정보는 저장했지만 복약문서 분석을 요청하지 못했어요.');
+  };
+  const kindField = !canSwitchKind
+    ? (declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>)
+    : <>
+      <KindSegment value={kindDraft} onChange={setKindDraft} disabledKinds={analysisPending ? ['MEDICAL','MEDICATION'] : declaredKind === 'MEDICATION' ? ['MEDICAL'] : []}/>
+      {analysisPending ? <p className="doc-kind-hint muted">분석이 끝난 뒤 바꿀 수 있어요.</p>
+        : declaredKind === 'MEDICATION' ? <p className="doc-kind-hint muted">복약문서는 의료문서로 바꿀 수 없어요.</p>
+        : toMedication && <p className="doc-kind-hint">복약문서로 바꾸면 문서를 다시 분석해요. 1~2분 걸릴 수 있어요.</p>}
+    </>;
   const remove=async()=>{try{setRemoving(true);await api.deleteDocument(document.documentId);forget();onToast('문서를 삭제했어요');onBack();}catch(e){setDeleting(false);onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
   // 삭제된 문서(404): 문구와 뒤로 가기만. 다른 오류는 아래 기본 화면에서 버튼을 그대로 둔다.
   if(detailError===DOCUMENT_GONE) return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><p className="empty-record" role="alert">{DOCUMENT_GONE}</p></div>;
-  return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={() => setEditing(true)}><Pencil/> 수정</button><button className="edit-button danger" disabled={removing} onClick={() => setDeleting(true)}><Trash2/> 삭제</button></span></div><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/>
-      {detail.documentStatus && <InfoRow label="문서 분석 상태" value={DOC_STATUS[detail.documentStatus] || '상태 확인 필요'}/>}
+  return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={openEdit}><Pencil/> 수정</button><button className="edit-button danger" disabled={removing} onClick={() => setDeleting(true)}><Trash2/> 삭제</button></span></div><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/>
+      {detail.documentStatus && <InfoRow label="문서 분석 상태" value={DOC_STATUS[detail.documentStatus] || '상태 확인 필요'} action={retryAction}>{switchHint}</InfoRow>}
       <InfoRow label="메모" value={meta.note || '작성된 메모가 없어요.'}/>
       {analysisActions}
     </div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}
     {deleting && <RecordDialog title="이 문서를 삭제할까요?" description="문서와 분석 결과가 목록에서 사라져요." busy={removing} confirmLabel="문서 삭제" onClose={() => setDeleting(false)} onConfirm={remove}/>}
-    {editing && <RecordDialog title="문서 정보 수정" confirmLabel="변경사항 저장" onClose={() => { setMeta(readMeta()); setEditing(false); }} onConfirm={save}>
-      <div className="record-dialog-fields"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label></div>
+    {editing && <RecordDialog title="문서 정보 수정" confirmLabel={reanalysisSubmitting ? '저장 중…' : '변경사항 저장'} busy={reanalysisSubmitting} onClose={() => { setMeta(readMeta()); setEditing(false); }} onConfirm={save}>
+      <div className="record-dialog-fields"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{kindField}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label></div>
     </RecordDialog>}
   </div>;
 }

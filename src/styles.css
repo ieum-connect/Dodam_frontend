@@ -750,3 +750,15 @@ html { scrollbar-width: thin; scrollbar-color: #e4b8c7 transparent; }
 /* Keep the child switch centered against the welcome copy on narrow screens. */
 .welcome { align-items: center; }
 @media (max-width: 820px) { .welcome { align-items: center; } }
+
+/* 문서 종류 안내(업로드 시트·문서 정보 수정). 모달 p 기본 스타일보다 우선하도록 두 번째 선택자를 둔다. */
+.doc-kind-hint,.record-dialog-backdrop .doc-kind-hint{margin:6px 2px 0;font-size:12.5px;line-height:1.5;color:#a3506c;text-align:left;overflow-wrap:anywhere}
+.doc-kind-hint.muted,.record-dialog-backdrop .doc-kind-hint.muted{color:var(--muted)}
+.doc-segment button:disabled{opacity:.45;cursor:default}
+/* "문서 분석 상태" 줄 오른쪽 작은 버튼(복약 분석 다시 시도) */
+.info-row.has-action{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;align-items:center}
+.info-row.has-action>:not(.info-row-action){grid-column:1}
+/* 줄 안 안내(care-typography의 .info-row > p 글자 크기보다 우선) */
+.info-row>.doc-kind-hint.muted{margin:6px 0 0;font-size:12.5px;line-height:1.5}
+.info-row .info-row-action{grid-column:2;grid-row:1/span 2;min-height:44px;max-width:8.5em;padding:0 2px;font-size:12.5px;font-weight:700;line-height:1.4;color:#a3506c;text-align:right;text-decoration:underline;text-underline-offset:3px}
+.info-row .info-row-action:disabled{opacity:.45}
