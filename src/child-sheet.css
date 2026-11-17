@@ -1,5 +1,6 @@
 .child-sheet-backdrop{align-items:flex-end;justify-content:center}
-.sheet.child-profile-sheet{width:100%;max-width:480px;max-height:90dvh;margin:0;padding:24px 24px max(24px,env(safe-area-inset-bottom));background:#fff;overflow-y:auto;border-radius:24px 24px 0 0;color:#30282c;outline:none}
+.sheet.child-profile-sheet{width:min(560px,100%);max-width:100%;max-height:min(88dvh,calc(100dvh - max(16px,env(safe-area-inset-top))),680px);margin:0;padding:28px 24px max(35px,env(safe-area-inset-bottom));background:#fffafc;overflow-y:auto;border-radius:28px 28px 0 0;color:#30282c;outline:none;scrollbar-width:none;-ms-overflow-style:none}
+.sheet.child-profile-sheet::-webkit-scrollbar{display:none}
 .child-sheet-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:28px}
 .child-sheet-header h2{font-size:22px;line-height:1.4;margin:0 0 6px;font-weight:700}
 .child-sheet-header p{font-size:14px;line-height:1.6;color:#756971;margin:0}
@@ -28,10 +29,9 @@
 .child-sheet-options{border-top:1px solid #eee8eb;margin-top:22px;padding-top:10px}
 .child-sheet-options button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:56px;font-size:15px;color:#55464d}
 .child-sheet-options button>svg:last-child{margin-left:auto}
-@media(min-width:640px){.child-sheet-backdrop{align-items:center}.sheet.child-profile-sheet{border-radius:24px;max-height:calc(100dvh - 48px)}}
 @media(max-width:360px){.sheet.child-profile-sheet{padding-inline:18px}.child-gender>div{gap:6px}.child-gender label{font-size:13px}}
 /* Keep the child flow consistent with Dodam's warm pink surfaces. */
-.sheet.child-profile-sheet{background:#fff8fb;border:1px solid #f1dce5;box-shadow:0 -12px 48px #69334418}
+.sheet.child-profile-sheet{background:#fffafc;border:0;box-shadow:0 -20px 50px #38252d28}
 .child-sheet-header{gap:12px;margin-bottom:22px;align-items:center}
 .child-sheet-header>div{flex:1;min-width:0}
 .child-sheet-emblem{display:grid;place-items:center;flex:0 0 48px;height:48px;border-radius:16px;background:#fce2ec;color:#c4547c}

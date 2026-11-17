@@ -662,3 +662,11 @@
 .doc-more{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding:13px 2px;border-top:1px solid var(--line);font-size:13.5px;font-weight:700;color:var(--ink);text-align:left}
 .doc-more svg{width:16px;flex:none;color:var(--muted);transition:transform .2s}
 .doc-more[aria-expanded=true] svg{transform:rotate(-90deg)}
+
+.chat-conversation .selected-documents{position:sticky;top:0;z-index:8;box-shadow:0 8px 18px #6e354112}
+
+/* Keep modal surfaces inside the app viewport on phones, short screens, and landscape. */
+.modal-backdrop{padding:max(16px,env(safe-area-inset-top)) 16px 0}
+.modal-backdrop>.sheet{width:min(560px,100%);max-width:100%;max-height:min(88dvh,calc(100dvh - max(16px,env(safe-area-inset-top))),680px);overflow-y:auto;overscroll-behavior:contain;padding-bottom:max(35px,env(safe-area-inset-bottom))}
+@media(min-width:821px){.modal-backdrop>.sheet{max-width:460px;margin-right:max(0px,calc((100vw - 1280px)/2))}}
+@media(max-height:560px){.modal-backdrop{padding-top:max(8px,env(safe-area-inset-top))}.modal-backdrop>.sheet{max-height:calc(100dvh - max(8px,env(safe-area-inset-top)))}}
