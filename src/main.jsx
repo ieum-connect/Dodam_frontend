@@ -6,7 +6,7 @@ import {
   Plus, Search, ShieldCheck, Sparkles, Syringe, TrendingUp, Upload, X,
   CheckCircle2, Clock3, MapPin, Send, Baby, Scale, Ruler, Gift, BookOpen,
   Stethoscope, Camera, Menu, Mic, Square, Link2, UserRoundPlus, UsersRound,
-  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw
+  Pencil, Save, Trash2, Settings2, TriangleAlert, RefreshCw, Paperclip
 } from 'lucide-react';
 import './styles.css';
 import './care-workspace.css';
@@ -49,6 +49,26 @@ const CHAT_QUESTION_SUGGESTIONS = [
   { label: '변화 비교하기', question: '선택한 문서들의 검사 결과가 어떻게 달라졌는지 비교해줘' },
   { label: '진료 질문 정리', question: '다음 진료 때 의사에게 물어볼 질문을 정리해줘' },
 ];
+
+const chatGenerationFailureMessage = content => {
+  const reason = String(content || '')
+    .replace(/^AI 답변 생성 실패(?:\s*\([^)]*\))?:\s*/u, '')
+    .trim();
+  if (reason.includes('문서 근거')) {
+    return '선택한 문서에서 답변에 필요한 내용을 불러오지 못했어요. 문서 분석이 완료되었는지 확인하고 잠시 후 다시 시도해 주세요.';
+  }
+  if (reason.includes('연결')) {
+    return 'AI 답변 서버에 연결하지 못했어요. 네트워크 상태를 확인하고 잠시 후 다시 질문해 주세요.';
+  }
+  if (reason.includes('시간') || reason.includes('초과')) {
+    return '답변을 만드는 데 예상보다 오래 걸렸어요. 잠시 후 다시 질문해 주세요.';
+  }
+  return '선택한 문서를 바탕으로 답변을 만드는 중 문제가 생겼어요. 문서 분석 상태를 확인한 뒤 잠시 후 다시 시도해 주세요.';
+};
+
+const publicChatMessage = message => message?.role === 'ASSISTANT' && message.content?.startsWith('AI 답변 생성 실패')
+  ? { ...message, chatFailure: true, content: chatGenerationFailureMessage(message.content) }
+  : message;
 
 function MarkdownText({ text }) {
   const lines = String(text || '').split(/\r?\n/);
@@ -598,7 +618,7 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     setHistoryOpen(false);
     setLoadingHistory(true);
     setChatError(null);
-    try { setMessages(await api.chatMessages(session.sessionId) || []); }
+    try { setMessages((await api.chatMessages(session.sessionId) || []).map(publicChatMessage)); }
     catch (error) { const message = errorMessage(error, '대화 기록을 불러오지 못했어요.'); setChatError({ code: error.code || 'CHAT_HISTORY_ERROR', message }); onToast(message); }
     finally { setLoadingHistory(false); }
   };
@@ -629,12 +649,12 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
       const result = await api.askChat(session.sessionId, question, targetDocs);
       const latestAnswer = [...result].reverse().find(m=>m.role==='ASSISTANT');
       if (!latestAnswer) throw new ApiError('AI 서버에서 답변이 오지 않았어요.', 502, { code: 'AI_EMPTY_RESPONSE' });
-       const safeResult = result.map(message => message.role === 'ASSISTANT' && message.content?.startsWith('AI 답변 생성 실패') ? { ...message, content: '문서 근거를 조회하지 못해 답변을 만들지 못했어요. 잠시 후 다시 시도해 주세요.' } : message);
+       const safeResult = result.map(publicChatMessage);
        setMessages(safeResult);
       const refreshed = await refreshSessions();
       setActiveSession(refreshed.find(item => item.sessionId === session.sessionId) || session);
       if (latestAnswer.content?.startsWith('AI 답변 생성 실패')) {
-        setChatError({ code: 'AI_GENERATION_FAILED', message: '문서 근거를 조회하지 못해 답변을 만들지 못했어요. 잠시 후 다시 시도해 주세요.' });
+        setChatError(null);
       }
     } catch (error) {
       const message = errorMessage(error, 'AI 답변을 가져오지 못했어요.');
@@ -671,9 +691,9 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
       : <p className="doc-picker-empty">등록된 건강 문서가 없어요. 의료 &gt; 건강 문서에서 먼저 업로드해주세요.</p>}
       <div className="doc-picker-footer"><span>{selectedDocumentIds.length}개 문서 선택됨</span><button onClick={()=>setDocPicker(false)}>선택 완료</button></div>
     </div>}
-    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} onClick={()=>setInput(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.role==='USER'?'user':'ai'}`}>{message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} onClick={()=>setInput(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
+    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} onClick={()=>setInput(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.chatFailure?'error':message.role==='USER'?'user':'ai'}`}>{message.chatFailure?<><b>AI 답변을 만들지 못했어요</b><span>{message.content}</span><button onClick={()=>setInput(messages.filter(item=>item.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></>:message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} onClick={()=>setInput(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><b>{chatError.title || (chatError.code==='DOCUMENT_SELECTION_REQUIRED' ? '문서를 선택해 주세요' : '요청을 완료하지 못했어요')}</b><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
     <div className="chat-composer">
-      <div className="chat-input"><button type="button" aria-label="문서 선택" onClick={()=>setDocPicker(true)}><FileText/></button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
+      <div className="chat-input"><button type="button" className="chat-document-button" aria-label={`답변 문서 선택, 현재 ${selectedDocumentIds.length}개`} onClick={()=>setDocPicker(true)}><Paperclip/>{selectedDocumentIds.length>0&&<span aria-hidden="true">{selectedDocumentIds.length}</span>}</button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
       <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
     </div>
   </div>;

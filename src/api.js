@@ -11,20 +11,27 @@ export class ApiError extends Error {
 }
 
 const STATUS_MESSAGES = {
-  400: '보낸 내용을 확인해주세요.', 401: '로그인이 만료되었어요. 다시 로그인해주세요.',
-  403: '이 아이의 기록에 접근할 권한이 없어요.', 404: '요청한 대화나 문서를 찾지 못했어요.',
-  409: '다른 곳에서 내용이 변경됐어요. 새로고침 후 다시 시도해주세요.',
-  413: '파일 크기가 너무 커요.', 429: '요청이 많아요. 잠시 후 다시 시도해주세요.',
-  500: '서버에서 오류가 발생했어요.', 502: 'AI 서버가 올바르게 응답하지 않았어요.',
-  503: 'AI 서버가 잠시 사용할 수 없는 상태예요.', 504: 'AI 답변 시간이 초과됐어요.',
+  400: '입력한 내용 중 확인이 필요한 항목이 있어요. 내용을 확인한 뒤 다시 시도해 주세요.',
+  401: '로그인 시간이 만료되었어요. 다시 로그인한 뒤 시도해 주세요.',
+  403: '이 아이의 기록을 볼 권한이 없어요. 현재 선택한 계정과 아이를 확인해 주세요.',
+  404: '요청한 대화나 문서를 찾지 못했어요. 화면을 새로고침한 뒤 다시 시도해 주세요.',
+  409: '다른 곳에서 내용이 변경되었어요. 화면을 새로고침해 최신 내용을 확인해 주세요.',
+  413: '파일 크기가 너무 커서 처리할 수 없어요. 더 작은 파일로 다시 시도해 주세요.',
+  429: '요청이 한꺼번에 많이 들어왔어요. 잠시 기다린 뒤 다시 시도해 주세요.',
+  500: '서버가 요청을 처리하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.',
+  502: 'AI 답변 서버의 응답을 확인하지 못했어요. 잠시 후 다시 질문해 주세요.',
+  503: 'AI 답변 기능을 잠시 사용할 수 없어요. 잠시 기다린 뒤 다시 시도해 주세요.',
+  504: 'AI 답변을 만드는 데 예상보다 오래 걸렸어요. 잠시 후 다시 질문해 주세요.',
 };
 
+const withoutInternalCode = value => String(value || '')
+  .replace(/\s*\([A-Z][A-Z0-9_:-]*\)\s*$/u, '')
+  .trim();
+
 export function errorMessage(error, fallback = '요청을 처리하지 못했어요.') {
-  if (!(error instanceof ApiError)) return error?.message || fallback;
+  if (!(error instanceof ApiError)) return withoutInternalCode(error?.message || fallback) || fallback;
   const message = error.body?.message || STATUS_MESSAGES[error.status] || error.message || fallback;
-  return error.code && !['NETWORK_ERROR', 'UNKNOWN_ERROR'].includes(error.code)
-    ? `${message} (${error.code})`
-    : message;
+  return withoutInternalCode(message) || fallback;
 }
 
 async function request(path, options = {}) {
@@ -34,7 +41,7 @@ async function request(path, options = {}) {
   try {
     response = await fetch(`${API_BASE}${path}`, { credentials: 'include', ...options, headers });
   } catch {
-    throw new ApiError('서버에 연결할 수 없어요. 실행 상태와 네트워크를 확인해주세요.');
+    throw new ApiError('서버에 연결할 수 없어요. 네트워크 상태를 확인하고 잠시 후 다시 시도해 주세요.');
   }
   if (!response.ok) {
     const raw = await response.text();
