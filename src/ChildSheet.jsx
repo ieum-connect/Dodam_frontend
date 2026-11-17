@@ -50,24 +50,24 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
     }
     // The write succeeded: a refresh failure must not invite duplicate registration.
     let refreshed = true;
-    try { await onCreated?.(saved?.id); }
+    try { refreshed = (await onCreated?.(saved?.id)) !== false; }
     catch { refreshed = false; }
     pending.current = false; setBusy(false);
     onToast(!refreshed ? '저장은 완료됐어요. 목록을 보려면 화면을 새로고침해 주세요.' : mode === 'edit' ? '아이 정보를 수정했어요.' : mode === 'create' ? '아이를 등록했어요.' : '가족의 아이 기록에 연결했어요.');
     onClose();
   };
 
-  const title = mode === 'edit' ? '아이 정보 수정' : mode === 'create' ? '아이 등록' : mode === 'join' ? '가족 기록 연결' : '아이 선택';
+  const title = mode === 'edit' ? '아이 정보 수정' : mode === 'create' ? '아이 프로필 등록' : mode === 'join' ? '가족 기록 연결' : '아이 선택';
   const description = mode === 'edit' ? '이름과 생년월일, 성별을 수정할 수 있어요.' : mode === 'create' ? '아이의 기본 정보를 알려주세요.' : mode === 'join' ? '가족에게 받은 공유 코드로 함께 돌봐요.' : '건강 기록을 확인할 아이를 선택해 주세요.';
   return <ProfileEditSheet title={title} description={description} icon={UsersRound} pending={pending} onClose={onClose}>
       {mode === 'list' ? <>
         <div className="child-list">{children.map(child => <button key={child.id} onClick={() => onSelect(child)} className={active?.id === child.id ? 'selected' : ''}>
           <span className="child-face">{child.emoji || '👶🏻'}</span><span><b>{child.fullName || child.name}</b><small>{child.age}{child.gender === 'MALE' ? ' · 남아' : child.gender === 'FEMALE' ? ' · 여아' : ''}</small></span>{active?.id === child.id ? <CheckCircle2/> : <ChevronRight/>}
         </button>)}</div>
-        <div className="child-sheet-options"><button onClick={() => changeMode('create')}><UserRoundPlus size={20}/> 새 아이 등록 <ChevronRight size={18}/></button><button onClick={() => changeMode('join')}><Link2 size={20}/> 가족 공유 코드로 연결 <ChevronRight size={18}/></button></div>
+        <div className="child-sheet-options"><button onClick={() => changeMode('create')}><UserRoundPlus size={20}/> 내 아이 추가 등록 <ChevronRight size={18}/></button></div>
       </> : <>
         {mode !== 'edit' && <div className="child-mode-switch" aria-label="아이 연결 방법">
-          <button type="button" disabled={busy} aria-pressed={mode === 'create'} onClick={() => changeMode('create')}><UserRoundPlus size={18}/>새 아이 등록</button>
+          <button type="button" disabled={busy} aria-pressed={mode === 'create'} onClick={() => changeMode('create')}><UserRoundPlus size={18}/>아이 프로필 등록</button>
           <button type="button" disabled={busy} aria-pressed={mode === 'join'} onClick={() => changeMode('join')}><Link2 size={18}/>가족 코드 연결</button>
         </div>}
         <form className="child-profile-form" onSubmit={submit}>
@@ -88,7 +88,7 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
           </>}
         </fieldset>
         {error && <p role="alert" className="child-form-error">{error}</p>}
-        <div className="child-form-actions"><button type="button" disabled={busy} onClick={() => mode === 'edit' ? close() : children.length ? changeMode('list') : close()}>취소</button><button type="submit" disabled={busy} className="child-save">{busy ? '저장 중…' : mode === 'edit' ? '변경사항 저장' : mode === 'create' ? '아이 등록' : '가족 기록 연결'}</button></div>
+        <div className="child-form-actions"><button type="button" disabled={busy} onClick={() => mode === 'edit' ? close() : children.length ? changeMode('list') : close()}>취소</button><button type="submit" disabled={busy} className="child-save">{busy ? '저장 중…' : mode === 'edit' ? '변경사항 저장' : mode === 'create' ? '아이 프로필 등록' : '가족 기록 연결'}</button></div>
       </form></>}
   </ProfileEditSheet>;
 }

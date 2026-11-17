@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Pretendard:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap');
 
 .dodam-wordmark{display:block;width:156px;height:auto}.topbar .dodam-wordmark{width:116px}.logo.compact .dodam-wordmark{width:116px}
 
@@ -492,6 +492,10 @@
 /* Keep the chat composer visible while the conversation scrolls. */
 .chat-composer{position:sticky;bottom:0;z-index:9;flex-shrink:0;padding:8px 0 1px;background:linear-gradient(180deg,#fffafc00 0,#fffafcf2 18%,#fffafc 42%);backdrop-filter:blur(10px)}
 .chat-composer .chat-input{box-shadow:0 8px 24px #6e354118}
+.chat-document-button{position:relative;width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#fff1f5;color:#c95778}
+.chat-document-button svg{width:18px;height:18px;stroke-width:2.2}
+.chat-document-button span{position:absolute;right:-3px;top:-4px;min-width:16px;height:16px;padding:0 4px;display:grid;place-items:center;border:2px solid #fff;border-radius:999px;background:#d85c80;color:#fff;font-size:8px;font-weight:800;line-height:1}
+.chat-document-button:focus-visible{outline:3px solid #b44873;outline-offset:2px}
 .chat-composer .disclaimer{margin-bottom:7px}
 .push-settings { background: #fff; border: 1px solid #f0e2e7; border-radius: 20px; margin: 0 0 20px; overflow: hidden; }
 .push-setting-row { display: flex; align-items: center; gap: 12px; padding: 18px 16px 16px; }
@@ -662,6 +666,20 @@
 .doc-more{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding:13px 2px;border-top:1px solid var(--line);font-size:13.5px;font-weight:700;color:var(--ink);text-align:left}
 .doc-more svg{width:16px;flex:none;color:var(--muted);transition:transform .2s}
 .doc-more[aria-expanded=true] svg{transform:rotate(-90deg)}
+
+.chat-conversation .selected-documents{position:static;box-shadow:none}
+.chat-conversation .chat-conversation-bar{position:sticky;top:0;z-index:12}
+.chat-conversation .chat-hero{position:sticky;top:52px;z-index:11;box-shadow:0 10px 24px #6e35410f}
+.chat-conversation .messages{padding-bottom:72px}
+.chat-conversation .selected-documents{cursor:pointer}
+.chat-conversation .doc-picker{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;width:min(520px,calc(100% - 32px));max-height:min(68dvh,560px);margin:0;overflow:auto;box-shadow:0 24px 70px #38252d44}
+@media(min-width:821px){.chat-conversation .doc-picker{right:max(0px,calc((100vw - 1280px)/2));left:auto;transform:none;width:min(460px,calc(100% - 32px))}}
+
+/* Keep modal surfaces inside the app viewport on phones, short screens, and landscape. */
+.modal-backdrop{padding:max(16px,env(safe-area-inset-top)) 16px 0}
+.modal-backdrop>.sheet{width:min(560px,100%);max-width:100%;max-height:min(88dvh,calc(100dvh - max(16px,env(safe-area-inset-top))),680px);overflow-y:auto;overscroll-behavior:contain;padding-bottom:max(35px,env(safe-area-inset-bottom))}
+@media(min-width:821px){.modal-backdrop>.sheet{max-width:460px;margin-right:max(0px,calc((100vw - 1280px)/2))}}
+@media(max-height:560px){.modal-backdrop{padding-top:max(8px,env(safe-area-inset-top))}.modal-backdrop>.sheet{max-height:calc(100dvh - max(8px,env(safe-area-inset-top)))}}
 
 /* 모바일 바 고정: 문서 스크롤을 막고 .screen-content만 스크롤한다. 100vh 줄은 dvh 미지원 브라우저용,
    overflow:clip은 scrollIntoView·입력 포커스가 .phone-frame 자체를 밀어 올리지 못하게 한다(미지원이면 hidden 유지). */
