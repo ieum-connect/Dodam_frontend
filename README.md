@@ -222,7 +222,30 @@ sequenceDiagram
 
 ---
 
-## 5. 📲 PWA와 푸시 알림
+## 5. 🤝 개발 컨벤션
+
+프론트엔드도 백엔드와 동일한 브랜치·커밋·PR 규칙을 사용합니다.
+
+<details open>
+<summary><b>🌿 브랜치 · 커밋 · PR 규칙</b></summary>
+
+- [브랜치 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/BRANCH_CONVENTION.md)
+- [커밋 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/COMMIT_CONVENTION.md)
+- [PR 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/PR_CONVENTION.md)
+
+```text
+main ← develop ← feat/* · fix/* · refactor/* · docs/* · test/* · chore/*
+브랜치: <type>/<issue-number>-<short-kebab-case-description>
+커밋:   <type>(<scope>): <english subject>
+PR:     변경 요약 · 영향 범위 · 테스트 결과 · 연결 이슈
+```
+
+작업은 Issue → 작업 브랜치 → 테스트 → 커밋 → develop 대상 PR → 리뷰·CI → Squash merge 순서로 진행합니다.
+</details>
+
+---
+
+## 6. 📲 PWA와 푸시 알림
 
 ```mermaid
 flowchart LR
@@ -274,33 +297,36 @@ flowchart LR
 
 ---
 
-## 6. 🖼️ 화면 미리보기
+## 7. 🖼️ 화면 미리보기
 
 > 현재 Frontend와 Local Demo Data를 기준으로 직접 캡처한 화면입니다.
 
-### 📝 메모 · 📅 일정
+화면 설계서: [Claude Artifact에서 화면 설계서 열기](https://claude.ai/artifact/HbHHm56cdtbRuStCtJJt2T#page-dcb81aee8d83)
+
+### 📝 메모
+
+![육아 메모](./docs/screenshots/readme-memo-reference.png)
+
+### 📅 일정
 
 <table>
   <tr>
-    <td align="center"><b>육아 메모</b></td>
-    <td align="center"><b>가족 건강 일정</b></td>
-  </tr>
-  <tr>
-    **추후 추가**
+    <td align="center"><b>새 일정 추가</b><br><img src="./docs/screenshots/readme-schedule-create-reference.png" width="260" alt="새 일정 추가 화면" /></td>
+    <td align="center"><b>일정 캘린더</b><br><img src="./docs/screenshots/readme-schedule-calendar-reference.png" width="260" alt="일정 캘린더 화면" /></td>
   </tr>
 </table>
 
 ### 📄 건강 문서 업로드
 
-**추후 추가**
+![건강 문서 업로드](./docs/screenshots/readme-document-upload-reference.png)
 
 ### 🤖 문서 기반 AI 채팅
 
-**추후 추가**
+![문서 기반 AI 채팅](./docs/screenshots/readme-ai-chat-reference.png)
 
 ---
 
-## 7. 🗂️ 프로젝트 구조
+## 8. 🗂️ 프로젝트 구조
 
 <details>
 <summary><b>📂 디렉터리 구조 펼쳐보기</b></summary>
@@ -346,7 +372,7 @@ Dodam_frontend
 
 ---
 
-## 8. 🚀 로컬 실행
+## 9. 🚀 로컬 실행
 
 <details open>
 <summary><b>▶️ 설치 및 실행</b></summary>
@@ -388,7 +414,7 @@ AI 서버가 없어도 일정, 메모와 성장 기록 같은 일반 기능은 �
 
 ---
 
-## 9. 🔐 환경 변수와 프록시
+## 10. 🔐 환경 변수와 프록시
 
 <details>
 <summary><b>⚙️ Frontend 환경 변수 예시</b></summary>
@@ -429,7 +455,7 @@ npm run dev
 
 ---
 
-## 10. ✅ 테스트와 빌드
+## 11. ✅ 테스트와 빌드
 
 <details open>
 <summary><b>🧪 검증 명령어</b></summary>
@@ -459,26 +485,6 @@ Production build: passed
 - 반복 Cursor 감지와 요청 취소 처리
 
 </details>
-
----
-
-## 11. 🤝 개발 컨벤션
-
-<details>
-<summary><b>📚 공통 컨벤션 문서</b></summary>
-
-- [브랜치 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/BRANCH_CONVENTION.md)
-- [커밋 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/COMMIT_CONVENTION.md)
-- [PR 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/PR_CONVENTION.md)
-
-</details>
-
-```mermaid
-flowchart LR
-    ISSUE["📌 Issue"] --> BRANCH["🌿 Branch"] --> DEVELOP["💻 Develop"]
-    DEVELOP --> TEST["✅ Test"] --> COMMIT["📝 Commit"]
-    COMMIT --> PR["🔍 Pull Request"] --> REVIEW["👀 Code Review"] --> MERGE["🎉 Merge"]
-```
 
 ---
 
