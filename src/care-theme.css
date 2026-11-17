@@ -588,14 +588,14 @@
 .candidate-repeat-fields { border:0; padding:0; margin:16px 0; min-width:0; }
 
 /* Desktop dialogs share the right-hand app panel; mobile keeps bottom sheets. */
-.growth-delete-confirm { box-sizing:border-box; padding:20px 16px; }
-.growth-delete-confirm > div { box-sizing:border-box; width:100%; max-width:380px; min-width:0; max-height:calc(100dvh - 40px); padding:24px; }
-.growth-delete-confirm h3 { font-size:16px; line-height:1.5; }
-.growth-delete-confirm p { overflow-wrap:anywhere; }
-.growth-delete-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
-.growth-delete-confirm .growth-delete-actions button { margin:0; font-size:13px; }
+.record-dialog-backdrop { box-sizing:border-box; padding:20px 16px; }
+.record-dialog-backdrop > div { box-sizing:border-box; width:100%; max-width:380px; min-width:0; max-height:calc(100dvh - 40px); padding:24px; }
+.record-dialog-backdrop h3 { font-size:16px; line-height:1.5; }
+.record-dialog-backdrop p { overflow-wrap:anywhere; }
+.record-dialog-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+.record-dialog-backdrop .record-dialog-actions button { margin:0; font-size:13px; }
 @media (min-width:821px) {
-  body .growth-delete-confirm {
+  body .record-dialog-backdrop {
     inset:0 max(0px, calc((100vw - 1280px) / 2)) 0 auto;
     width:460px;
   }
