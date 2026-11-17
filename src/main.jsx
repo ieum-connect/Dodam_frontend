@@ -26,6 +26,7 @@ import PushSettings from './PushSettings';
 import { enablePush, disablePush, pushEnabled } from './push';
 import PushOnboarding from './PushOnboarding';
 import SheetHandle from './SheetHandle';
+import './care-theme.css';
 
 const DOCUMENT_ACTIVE_STATUSES = new Set(['UPLOADED', 'PROCESSING']);
 const EMBEDDING_ACTIVE_STATUSES = new Set(['PENDING', 'INDEXING']);
@@ -160,7 +161,7 @@ function App() {
       const mapped = childRows.map(normalizeChild);
       const ordered = [...mapped].sort((a, b) => Number(isCompleteChild(b)) - Number(isCompleteChild(a)));
       setChildren(ordered);
-      const current = ordered.find((child) => child.id === (typeof preferredId === 'string' ? preferredId : activeChildRef.current?.id));
+      const current = ordered.find((child) => child.id === (preferredId != null ? preferredId : activeChildRef.current?.id));
       const showcaseChild = user?.loginProvider === 'DEMO'
         ? ordered.find(child => child.name === '박도윤 (시연)' && isCompleteChild(child))
         : null;
@@ -170,8 +171,10 @@ function App() {
       chooseChild(selected || null);
       setDataRevision(r => r + 1);
       api.notifications().then(p => setNotis({ items: p?.items || [], unreadCount: p?.unreadCount || 0 })).catch(()=>{});
+      return true;
     } catch (error) {
       if (error.status !== 401) showToast('일부 건강 기록을 불러오지 못했어요');
+      return false;
     }
   };
 
@@ -453,7 +456,7 @@ function App() {
         }}
         onRead={async (id) => { try { await api.readNotification(id); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); } catch {} }}
         onReadAll={async () => { try { await api.readAllNotifications(); const p = await api.notifications(); setNotis({ items: p?.items||[], unreadCount: p?.unreadCount||0 }); showToast('모든 알림을 읽음 처리했어요'); } catch { showToast('알림을 처리하지 못했어요'); } }} />}
-      {profileOpen && <ProfileSheet hidden={childEditing || profileEditing || withdrawalOpen} child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onWithdraw={() => setWithdrawalOpen(true)} onJoined={loadFamilyData} onEditProfile={setProfileEditing} onEditChild={() => setChildEditing(true)} onChildOpen={() => { setProfileOpen(false); setChildOpen(true); }} />}
+      {profileOpen && <ProfileSheet hidden={childOpen || childEditing || profileEditing || withdrawalOpen} child={activeChild} me={me} backendOnline={backendOnline} onClose={() => setProfileOpen(false)} onToast={showToast} onLogout={logout} onWithdraw={() => setWithdrawalOpen(true)} onJoined={loadFamilyData} onEditProfile={setProfileEditing} onEditChild={() => setChildEditing(true)} onChildOpen={() => setChildOpen(true)} />}
       {profileOpen && profileEditing && <GuardianNameSheet me={me} onClose={() => setProfileEditing(false)} onSaved={updated => { setMe(updated); showToast('내 프로필을 수정했어요'); }}/>}
       {profileOpen && withdrawalOpen && <WithdrawalSheet onClose={() => setWithdrawalOpen(false)} onWithdraw={withdraw}/>}
       {(childOpen || childEditing) && <ChildSheet editing={childEditing} active={activeChild} children={children} backendOnline={backendOnline} onSelect={(child) => { chooseChild(child); setChildOpen(false); showToast(`${child.name} 기록으로 전환했어요`); }} onClose={() => {
@@ -503,7 +506,7 @@ function Logo({ compact = false }) {
 
 function HomeScreen({ onOpen, child, onChildOpen }) {
   const todayLabel = new Intl.DateTimeFormat('ko-KR', { month:'long', day:'numeric', weekday:'long' }).format(new Date());
-  if (!child?.id) return <div className="page padded"><div className="page-title"><p>{todayLabel}</p><h2>도담에 오신 것을 환영해요</h2><p>아이 프로필을 등록하면 건강 기록 관리를 시작할 수 있어요.</p></div><div className="child-required"><Baby/><h3>첫 아이를 등록해 주세요</h3><p>방문 기록, 건강 문서, AI 상담을<br/>아이별로 안전하게 관리할 수 있어요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 등록하기</button></div></div>;
+  if (!child?.id) return <div className="page padded"><div className="page-title"><p>{todayLabel}</p><h2>도담에 오신 것을 환영해요</h2><p>아이 프로필을 등록하면 건강 기록 관리를 시작할 수 있어요.</p></div><div className="child-required"><Baby/><h3>아이 프로필을 등록해 주세요</h3><p>방문 기록, 건강 문서, AI 상담을<br/>아이별로 안전하게 관리할 수 있어요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 프로필 등록</button></div></div>;
   return <>
     <section className="welcome">
       <div className="welcome-copy"><p className="muted">{todayLabel}</p><h2><strong>{child.name}</strong>와 오늘도<br/>건강한 하루 보내세요 <span>♡</span></h2></div>
@@ -522,8 +525,8 @@ function HomeScreen({ onOpen, child, onChildOpen }) {
     </section>
 
     <section className="record-overview-card">
-      <span className="record-overview-icon"><NotebookPen/></span>
-      <div><h3>흩어진 기록을 한눈에</h3><p>병원 방문, 건강 문서, 육아 메모와 일정을<br/>날짜별로 함께 살펴보세요.</p><button onClick={() => onOpen('timeline')}>아이 기록 모아보기 <ChevronRight size={16}/></button></div>
+      <span className="record-overview-icon"><NotebookPen aria-hidden="true"/></span>
+      <div><h3>흩어진 기록을 한눈에</h3><p>병원 방문, 건강 문서, 메모와 일정을 날짜별로 함께 살펴보세요.</p><button onClick={() => onOpen('timeline')}>아이 기록 모아보기 <ChevronRight size={16}/></button></div>
     </section>
     <section className="tip-card"><span className="tip-icon"><Sparkles/></span><div><b>작은 변화도 기록해두세요</b><p>육아 메모에 관찰한 시각과 내용을 남기면, 병원 방문 기록과 함께 다시 살펴볼 수 있어요.</p></div></section>
   </>;
@@ -705,31 +708,39 @@ function DetailScreen({ type, onOpen, onToast, visits = [], documents = [], docu
 function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDataChange, backendOnline, onChildOpen }) {
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const visitPending = React.useRef(false);
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [month, setMonth] = useState(() => { const source = visits[0]?.visitedOn || new Date().toISOString().slice(0,10); return new Date(`${source.slice(0,7)}-01T00:00:00`); });
   const [form, setForm] = useState({ visitedOn: new Date().toLocaleDateString('sv-SE'), hospitalName: '', department: '', memo: '' });
   const submit = async () => {
+    if (visitPending.current) return;
     if (!backendOnline) { onToast('백엔드에 연결된 뒤 방문 기록을 저장할 수 있어요'); return; }
     if (!child?.id) { onToast('아이를 먼저 등록해 주세요'); return; }
     if (!form.hospitalName.trim()) { onToast('병원명을 입력해주세요'); return; }
     try {
+      visitPending.current = true;
       setSaving(true);
       await api.createVisit({ patientId: child.id, ...form, hospitalName: form.hospitalName.trim(), department: form.department.trim(), visitStatus: 'DONE', version: null });
       setAdding(false); setForm({ visitedOn: new Date().toLocaleDateString('sv-SE'), hospitalName: '', department: '', memo: '' });
       await onDataChange?.(); onToast('병원 방문 기록을 저장했어요');
     } catch (error) { onToast(error.message || '방문 기록을 저장하지 못했어요'); }
-    finally { setSaving(false); }
+    finally { visitPending.current = false; setSaving(false); }
   };
   useBackLayer(!!selectedVisit, () => setSelectedVisit(null));
   if (!child?.id) return <ChildRequiredState icon={Stethoscope} title="병원 방문 기록" onChildOpen={onChildOpen}/>;
   if (selectedVisit) return <VisitItemDetail visit={selectedVisit} child={child} documents={documents} backendOnline={backendOnline} onBack={()=>setSelectedVisit(null)} onSaved={async(updated)=>{await onDataChange?.();setSelectedVisit(updated)}} onToast={onToast} onDataChange={onDataChange}/>;
   const visibleVisits = selectedDate ? visits.filter(v=>v.visitedOn===selectedDate) : visits;
-  return <div className="page padded detail-page"><div className="detail-hero"><span className="detail-icon"><Stethoscope/></span><div><h2>병원 방문 기록</h2><p>진료 내용과 다음 예약을 잊지 않도록 정리해드려요.</p></div></div>
+  return <div className="page padded detail-page care-typography"><div className="detail-hero"><span className="detail-icon"><Stethoscope/></span><div><h2>병원 방문 기록</h2><p>진료 내용과 다음 예약을 잊지 않도록 정리해드려요.</p></div></div>
     <VisitCalendar visits={visits} month={month} setMonth={setMonth} selectedDate={selectedDate} setSelectedDate={setSelectedDate}/>
     <div className="list-header"><h3>{selectedDate ? `${selectedDate.replaceAll('-','.')} 기록` : '전체 방문 기록'}</h3>{selectedDate&&<button onClick={()=>setSelectedDate(null)}>전체보기</button>}</div>
-    <div className="record-list">{visibleVisits.length ? visibleVisits.map(v=><button type="button" onClick={()=>setSelectedVisit(v)} key={v.visitId}><span className="record-date">{v.visitedOn}</span><span><b>{v.department || '병원 방문'}</b><small>{v.hospitalName || '병원 정보 없음'}</small></span><ChevronRight/></button>) : <div className="empty-record">{selectedDate?'이 날짜에는 방문 기록이 없어요.':'아직 저장된 병원 방문 기록이 없어요.'}</div>}</div>
-    {!adding ? <button className="primary-button" onClick={()=>setAdding(true)}><Plus/> 새 기록 추가</button> : <div className="inline-panel visit-compose"><div className="panel-title"><div><b>새 병원 방문 기록</b><p>아이의 진료 정보를 남겨보세요.</p></div><button onClick={()=>setAdding(false)}><X/></button></div><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" placeholder="예: 도담소아청소년과" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" placeholder="예: 영유아 건강검진" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" placeholder="진료 내용을 간단히 남겨보세요" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={submit}><CheckCircle2/> {saving?'저장 중…':'방문 기록 저장'}</button></div>}
+    <div className="record-list visit-record-list">{visibleVisits.length ? visibleVisits.map(v=><button type="button" onClick={()=>setSelectedVisit(v)} key={v.visitId}><span className="record-date">{v.visitedOn}</span><span><b>{v.department || '병원 방문'}</b><small>{v.hospitalName || '병원 정보 없음'}</small></span><ChevronRight/></button>) : <div className="empty-record">{selectedDate?'이 날짜에는 방문 기록이 없어요.':'아직 저장된 병원 방문 기록이 없어요.'}</div>}</div>
+    <button className="primary-button" onClick={()=>setAdding(true)}><Plus/> 새 기록 추가</button>
+    {adding && <ProfileEditSheet appearance="upload" title="새 병원 방문 기록" description="아이의 진료 정보를 남겨보세요." icon={Stethoscope} pending={visitPending} onClose={()=>setAdding(false)}>
+      <form className="visit-compose visit-registration-form" onSubmit={event=>{event.preventDefault();submit();}}>
+        <label className="field-label">방문 날짜<input className="select-field" type="date" required disabled={saving} value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" required disabled={saving} placeholder="예: 도담소아청소년과" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" disabled={saving} placeholder="예: 영유아 건강검진" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" disabled={saving} placeholder="진료 내용을 간단히 남겨보세요" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" type="submit" disabled={saving}><CheckCircle2/> {saving?'저장 중…':'방문 기록 저장'}</button>
+      </form>
+    </ProfileEditSheet>}
   </div>;
 }
 
@@ -738,8 +749,18 @@ function VisitCalendar({ visits, month, setMonth, selectedDate, setSelectedDate 
   const firstDay=new Date(year,monthNo,1).getDay(), days=new Date(year,monthNo+1,0).getDate();
   const marked=new Set(visits.map(v=>v.visitedOn));
   const cells=[...Array(firstDay).fill(null),...Array.from({length:days},(_,i)=>i+1)];
-  const move=(offset)=>setMonth(new Date(year,monthNo+offset,1));
-  return <div className="calendar-card visit-calendar"><div className="calendar-head"><button onClick={()=>move(-1)} aria-label="이전 달"><ChevronLeft/></button><b>{year}년 {monthNo+1}월</b><button onClick={()=>move(1)} aria-label="다음 달"><ChevronRight/></button></div><div className="week-row">{['일','월','화','수','목','금','토'].map(d=><span key={d}>{d}</span>)}</div><div className="date-grid">{cells.map((day,i)=>day===null?<span key={`blank-${i}`}/>:<button key={day} className={`${selectedDate===`${year}-${String(monthNo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`?'selected':''} ${marked.has(`${year}-${String(monthNo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`)?'has-event':''}`} onClick={()=>setSelectedDate(`${year}-${String(monthNo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`)}>{day}</button>)}</div><p className="calendar-legend"><i/> 방문 기록이 있는 날</p></div>;
+  const move=(offset)=>{setMonth(new Date(year,monthNo+offset,1));setSelectedDate(null);};
+  return <div className="calendar-card visit-calendar care-date-calendar">
+    <div className="calendar-head"><button onClick={()=>move(-1)} aria-label="이전 달"><ChevronLeft/></button><b>{year}년 {monthNo+1}월</b><button onClick={()=>move(1)} aria-label="다음 달"><ChevronRight/></button></div>
+    <div className="week-row">{['일','월','화','수','목','금','토'].map(d=><span key={d}>{d}</span>)}</div>
+    <div className="date-grid">{cells.map((day,i)=>{
+      if(day===null) return <span key={`blank-${i}`} aria-hidden="true"/>;
+      const date=`${year}-${String(monthNo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const count=visits.filter(v=>v.visitedOn===date).length;
+      return <button key={day} type="button" aria-label={`${year}년 ${monthNo+1}월 ${day}일, 방문 기록 ${count}건`} aria-pressed={selectedDate===date} className={`${selectedDate===date?'selected':''} ${marked.has(date)?'has-event':''}`} onClick={()=>setSelectedDate(selectedDate===date?null:date)}><span>{day}</span></button>;
+    })}</div>
+    <p className="calendar-legend"><i aria-hidden="true"/> 방문 기록이 있는 날</p>
+  </div>;
 }
 
 function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, onSaved, onToast, onDataChange }) {
@@ -756,7 +777,7 @@ function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, 
   const save=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 수정할 수 있어요');return;}try{setSaving(true);const updated=await api.updateVisit(visit.visitId,{patientId:visit.patientId||child?.id,...form,visitStatus:visit.visitStatus||'DONE',version:visit.version});await onSaved(updated);setEditing(false);onToast('방문 기록을 수정했어요');}catch(error){onToast(error.message||'수정하지 못했어요');}finally{setSaving(false)}};
   const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}if(!window.confirm('이 방문 기록을 삭제할까요?'))return;try{setSaving(true);await api.deleteVisit(visit.visitId);onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
   if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={()=>onDataChange?.()} onReanalyzed={onDataChange}/>;
-  return <div className="nested-detail visit-detail"><button type="button" className="detail-back" onClick={onBack}><ChevronLeft aria-hidden="true"/> 방문 기록으로</button><div className="detail-title-row"><div><span className="eyebrow">방문 기록 상세</span><h2>{form.department||form.hospitalName||'병원 방문'}</h2><p>{[form.hospitalName,form.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={saving} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel visit-compose"><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={save}><Save/>{saving?'저장 중…':'수정 내용 저장'}</button></div>:<><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
+  return <div className="nested-detail visit-detail care-typography"><button type="button" className="detail-back" onClick={onBack}><ChevronLeft aria-hidden="true"/> 방문 기록으로</button><div className="detail-title-row"><div><span className="eyebrow">방문 기록 상세</span><h2>{form.department||form.hospitalName||'병원 방문'}</h2><p>{[form.hospitalName,form.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={saving} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel visit-compose"><label className="field-label">방문 날짜<input className="select-field" type="date" value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" disabled={saving} onClick={save}><Save/>{saving?'저장 중…':'수정 내용 저장'}</button></div>:<><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
     <div className="visit-docs"><div className="visit-docs-head"><b>연결된 문서</b><span>{linkedDocs.length}건</span></div>
       {docsLoading ? <p role="status">문서를 불러오는 중이에요.</p> : docsError ? <p role="alert">{docsError}</p> : linkedDocs.length ? <div className="visit-doc-list">{linkedDocs.map(doc=>(
         <button className="visit-doc visit-doc-link" key={doc.documentId} onClick={()=>setSelectedDocument(doc)}><span className="visit-doc-icon"><FileText/></span><span className="visit-doc-text"><b>{documentDisplayName(doc)}</b><small>문서 상세 및 원본 보기</small></span><ChevronRight size={18}/></button>
@@ -896,7 +917,7 @@ function DocumentDetail({ onChat, onToast, visits = [], documents = [], document
     : expanded ? allDocs : allDocs.slice(0,5);
   const canMore = !q && !kindFilter && (allDocs.length > 5 || !!documentsCursor);
   const checkingMore = !!documentsCursor && (q || kindFilter || expanded) && (more.key !== moreKey || moreNow.loading);
-  return <div className="page padded detail-page">
+  return <div className="page padded detail-page care-typography">
     <div className="detail-hero"><span className="detail-icon"><FileText/></span><div><h2>건강 문서</h2><p>진료·검사 문서를 방문 기록과 연결해 맥락까지 함께 보관해요.</p></div></div>
     <div className="link-info"><Link2/><div><b>문서와 방문 기록을 연결하세요</b><p>진료별 문서와 AI 설명을 한 화면에서 다시 확인할 수 있어요.</p></div></div>
     {tracked && <div className="upload-done" role="status"><div><b>{trackedReady?'문서 분석이 완료됐어요.':trackedFailed?'문서 분석을 완료하지 못했어요.':'문서를 분석하고 있어요.'}</b><p>{trackedReady?'AI 도담에서 이 문서에 대해 물어볼 수 있어요.':trackedFailed?'문서 상세에서 상태를 확인한 뒤 다시 업로드해 주세요.':'완료되면 자동으로 표시가 바뀌고 AI 질문에 사용할 수 있어요.'}</p></div>{trackedReady&&onChat&&<button type="button" onClick={onChat}>AI에게 물어보기<ChevronRight/></button>}</div>}
@@ -1017,8 +1038,8 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
   const save=()=>{const name=meta.name.trim()||document.documentName||'';const next=saveDocumentNote(document.documentId,{name,note:meta.note,...(meta.kind?{kind:meta.kind}:{})});setMeta({...meta,...next});setEditing(false);onToast('문서 정보를 수정했어요');};
   const remove=async()=>{if(!window.confirm('이 문서를 삭제할까요?'))return;try{setRemoving(true);await api.deleteDocument(document.documentId);forget();onToast('문서를 삭제했어요');onBack();}catch(e){onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
   // 삭제된 문서(404): 문구와 뒤로 가기만. 다른 오류는 아래 기본 화면에서 버튼을 그대로 둔다.
-  if(detailError===DOCUMENT_GONE) return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><p className="empty-record" role="alert">{DOCUMENT_GONE}</p></div>;
-  return <div className="nested-detail"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{analysisControls}{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
+  if(detailError===DOCUMENT_GONE) return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><p className="empty-record" role="alert">{DOCUMENT_GONE}</p></div>;
+  return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><div className="detail-title-row document-title-row"><div><span className="eyebrow">건강 문서 상세</span><h2>{meta.name||detail.documentName}</h2><p className="document-meta-line">{String(detail.visitedOn||detail.createdAt||'').slice(0,10)}<KindChip kind={kind}/></p></div><span className="detail-actions"><button className="edit-button" onClick={()=>setEditing(!editing)}>{editing?<X/>:<Pencil/>}{editing?' 취소':' 수정'}</button><button className="edit-button danger" disabled={removing} onClick={remove}><Trash2/> 삭제</button></span></div>{editing?<div className="inline-panel"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label><button className="primary-button compact" onClick={save}><Save/> 수정 내용 저장</button></div>:<><div className="detail-info-card"><InfoRow label="연결된 방문" value={linked?`${linked.visitedOn} · ${linked.hospitalName||'병원 방문'}`:'연결된 방문 기록 없음'}/><InfoRow label="업로드 상태" value="업로드 완료"/><InfoRow label="메모" value={meta.note||'작성된 메모가 없어요.'}/></div>{analysisControls}{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}</>}</div>;
 }
 
 
@@ -1167,6 +1188,8 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
   const [codeOpen,setCodeOpen] = useState(false);
   const [joinOpen,setJoinOpen] = useState(false);
   const [code,setCode] = useState('');
+  const [joinError,setJoinError] = useState('');
+  const familyPending = React.useRef(false);
   const [busy,setBusy] = useState(false);
   const [accounts,setAccounts] = useState([]);
   const [relations,setRelations] = useState([]);
@@ -1175,12 +1198,22 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
 
   React.useEffect(() => {
     if (!child?.id || !backendOnline) { setParents([]); return; }
-    let active = true;
+    if (hidden) return;
+    let active = true, fetching = false;
     setParents(null);
-    api.childParents(child.id).then(result => { if (active) setParents(result); })
-      .catch(() => { if (active) setParents([]); });
-    return () => { active = false; };
-  }, [child?.id, child?.inviteCode, backendOnline]);
+    const refresh = async () => {
+      if (fetching || document.visibilityState === 'hidden') return;
+      fetching = true;
+      try { const result = await api.childParents(child.id); if (active) setParents(result); }
+      catch { if (active) setParents(current => current ?? []); }
+      finally { fetching = false; }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, [child?.id, child?.inviteCode, child?.parentCount, backendOnline, hidden]);
 
   React.useEffect(() => {
     setDisconnecting(null);
@@ -1222,29 +1255,32 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
       setParents(current => current?.filter(parent => parent.userId !== target.userId) ?? null);
       setDisconnecting(null);
       setCodeOpen(false);
-      await onJoined?.(child.id);
-      onToast('가족 연결을 해제했어요');
+      const refreshed = await onJoined?.(target.me ? undefined : child.id);
+      if (target.me) onClose();
+      onToast(refreshed === false ? '연결은 해제됐어요. 목록을 다시 불러와 주세요.' : target.me ? '이 아이의 기록 공유에서 나왔어요.' : '가족 연결을 해제했어요');
     } catch (error) {
       setDisconnectError(errorMessage(error, '연결을 해제하지 못했어요. 다시 시도해 주세요.'));
     } finally { setBusy(false); }
   };
   const join = async () => {
+    if (familyPending.current) return;
+    setJoinError('');
     if (!code.trim()) { onToast('연결 코드를 입력해주세요'); return; }
     if (me?.role && me.role !== 'CAREGIVER') { onToast('아이 기록은 보호자 계정에서 연결할 수 있어요'); return; }
-    try { setBusy(true); const linked = await api.joinChild(code.trim().toUpperCase());
-      onToast('가족 기록을 연결했어요.'); setCode(''); setJoinOpen(false); await onJoined?.(linked.id); }
-    catch (e) { onToast(e.message || '연결 코드가 올바르지 않아요'); }
-    finally { setBusy(false); }
+    try { familyPending.current = true; setBusy(true); const linked = await api.joinChild(code.trim().toUpperCase());
+      setCode(''); setJoinOpen(false);
+      const refreshed = await onJoined?.(linked.id);
+      const family = await api.childParents(linked.id).catch(() => null);
+      if (family) setParents(family);
+      onToast(refreshed === false ? '연결은 완료됐어요. 목록을 다시 불러와 주세요.' : '가족 기록을 연결했어요.'); }
+    catch (e) { setJoinError(e.message || '연결 코드가 올바르지 않아요'); }
+    finally { familyPending.current = false; setBusy(false); }
   };
 
-  return <div className="modal-backdrop profile-backdrop" hidden={hidden} onMouseDown={onClose}><div className="sheet profile-sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-header"><SheetHandle onClose={onClose}/><button className="sheet-close" aria-label="프로필 닫기" onClick={onClose}><X/></button>
+  return <><div className="modal-backdrop profile-backdrop" hidden={hidden || codeOpen || joinOpen} onMouseDown={onClose}><div className="sheet profile-sheet" onMouseDown={e=>e.stopPropagation()}><div className="sheet-header"><SheetHandle onClose={onClose}/><button className="sheet-close" aria-label="프로필 닫기" onClick={onClose}><X/></button>
     <div className="profile-head"><span className="big-avatar">{(me?.name||'도').slice(0,1)}</span><div><h3>{me?.name || '내 프로필'}</h3><p>{relation} · {name}</p></div></div>
   </div>
 
-    <div className="profile-edit-actions">
-      <button className="outline-button" onClick={() => onEditProfile(true)}>내 프로필 수정</button>
-      {child?.id && <button className="outline-button" onClick={onEditChild}>아이 정보 수정 · {child.name || child.fullName}</button>}
-    </div>
     <div className="family-block">
       <div className="family-block-head"><b>연결된 가족</b><span>{parents===null?'…':`${parents.length}명`}</span></div>
       {parents===null ? <p className="family-empty">불러오는 중…</p>
@@ -1254,19 +1290,24 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
               <span className="family-text"><b>{displayName}{p.me && ' (나)'}</b><small>보호자</small></span>
               {p.canDisconnect && <button type="button" className="family-disconnect"
                 disabled={busy} aria-label={`${displayName} 연결 해제`}
-                onClick={() => { setDisconnectError(''); setDisconnecting(p); }}>연결 해제</button>}
+                onClick={() => { setDisconnectError(''); setDisconnecting(p); }}>{p.me ? '내 연결 해제' : '연결 해제'}</button>}
             </div>;
           })}</div>
         : <p className="family-empty">아직 연결된 가족이 없어요.</p>}
       {disconnecting && <div className="withdrawal-panel" role="group" aria-label="가족 연결 해제 확인">
-        <strong>{disconnecting.name}님과 연결을 해제할까요?</strong>
-        <p>이 아이의 기록 공유가 즉시 종료되고 기존 공유 코드는 새 코드로 바뀌어요.</p>
+        <strong>{disconnecting.me ? '이 아이의 기록 공유에서 나갈까요?' : `${disconnecting.name}님과 연결을 해제할까요?`}</strong>
+        <p>{disconnecting.me ? '내 계정에서 이 아이의 기록을 볼 수 없게 됩니다. 다른 가족의 기록은 그대로 유지돼요.' : '이 보호자의 기록 접근이 종료됩니다. 다른 가족의 연결은 유지돼요.'} 기존 공유 코드는 새 코드로 바뀌어요.</p>
         {disconnectError && <p role="alert">{disconnectError}</p>}
         <div className="child-form-actions">
           <button type="button" disabled={busy} onClick={() => setDisconnecting(null)}>취소</button>
           <button type="button" className="child-save" disabled={busy} onClick={disconnectParent}>{busy ? '해제 중…' : '연결 해제 확인'}</button>
         </div>
       </div>}
+    </div>
+
+    <div className="profile-edit-actions">
+      <button className="outline-button" onClick={() => onEditProfile(true)}>내 프로필 수정</button>
+      {child?.id && <button className="outline-button" onClick={onEditChild}>아이 정보 수정 · {child.name || child.fullName}</button>}
     </div>
 
     {pendingRelations.length > 0 && <div className="family-block relation-block">
@@ -1280,26 +1321,30 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
       </div>)}
     </div>}
 
-    {child?.inviteCode && <>
-      <button className="outline-button" onClick={()=>setCodeOpen(v=>!v)}><Link2/> {codeOpen?'연결 코드 숨기기':'연결 코드 보기'}</button>
-      {codeOpen && <div className="invite-code-box">
-        <small>{name}의 가족 연결 코드</small>
-        <b>{child.inviteCode}</b>
-        <p>가족에게 이 코드를 알려주세요. 도담에 가입한 뒤 <em>코드로 연결하기</em>에 입력하면 같은 아이의 기록을 함께 볼 수 있어요.</p>
-        <button className="primary-button compact" onClick={copyCode}>코드 복사</button>
-      </div>}
-    </>}
+    {child?.inviteCode && <button className="outline-button" onClick={()=>setCodeOpen(true)}><Link2/> 연결 코드 보기</button>}
+    <button className="outline-button" onClick={()=>{setJoinError('');setJoinOpen(true);}}><UserRoundPlus/> 코드로 연결하기</button>
 
-    <button className="outline-button" onClick={()=>setJoinOpen(v=>!v)}><UserRoundPlus/> {joinOpen?'입력 취소':'코드로 연결하기'}</button>
-    {joinOpen && <div className="new-child-form">
-      <input placeholder="전달받은 연결 코드" value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/>
-      <button className="primary-button compact" disabled={busy} onClick={join}>{busy?'연결 중…':'이 코드로 연결'}</button>
-    </div>}
-
-    <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 추가 · 전환</button>
+    <button className="outline-button" onClick={onChildOpen}><Plus/> 아이 프로필 등록 · 전환</button>
     <button className="logout-button" onClick={onLogout}>로그아웃</button>
     {backendOnline && me?.id && <button type="button" className="withdrawal-link" onClick={onWithdraw}>회원 탈퇴</button>}
-  </div></div>;
+  </div></div>
+  {!hidden && codeOpen && <ProfileEditSheet appearance="upload" title="가족 연결 코드" description={`${name}의 기록을 가족과 함께 관리해요.`} icon={Link2} pending={familyPending} onClose={()=>setCodeOpen(false)}>
+    <div className="invite-code-box family-code-content">
+      <small>가족에게 아래 코드를 알려주세요</small><b>{child?.inviteCode}</b>
+      <p>가족이 도담에 로그인한 뒤 ‘코드로 연결하기’에 입력하면 같은 아이의 기록을 볼 수 있어요.</p>
+      <button type="button" className="primary-button" onClick={copyCode}>코드 복사</button>
+    </div>
+  </ProfileEditSheet>}
+  {!hidden && joinOpen && <ProfileEditSheet appearance="upload" title="코드로 가족 연결" description="가족에게 받은 연결 코드를 입력해 주세요." icon={UserRoundPlus} pending={familyPending} onClose={()=>setJoinOpen(false)}>
+    <form className="family-code-form" onSubmit={event=>{event.preventDefault();join();}}>
+      <label htmlFor="family-invite-code">연결 코드</label>
+      <input id="family-invite-code" required autoComplete="off" autoCapitalize="characters" spellCheck={false} disabled={busy} placeholder="전달받은 연결 코드" value={code} onChange={e=>{setCode(e.target.value.toUpperCase());setJoinError('');}}/>
+      <p>연결하면 가족이 공유한 아이의 건강 기록을 함께 확인할 수 있어요.</p>
+      {joinError && <p className="child-form-error" role="alert">{joinError}</p>}
+      <button type="submit" className="primary-button" disabled={busy}>{busy?'연결 중…':'이 코드로 연결'}</button>
+    </form>
+  </ProfileEditSheet>}
+  </>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
