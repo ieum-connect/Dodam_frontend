@@ -1104,11 +1104,13 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
   const kindField = !canSwitchKind
     ? (declaredKind ? <KindChip kind={declaredKind}/> : <KindSegment value={meta.kind||kind} onChange={value=>setMeta({...meta,kind:value})}/>)
     : <>
-      <KindSegment value={kindDraft} onChange={setKindDraft} disabledKinds={analysisPending ? ['MEDICAL','MEDICATION'] : declaredKind === 'MEDICATION' ? ['MEDICAL'] : []}/>
+      <KindSegment value={kindDraft} onChange={setKindDraft} disabledKinds={analysisPending || reanalysisSubmitting ? ['MEDICAL','MEDICATION'] : declaredKind === 'MEDICATION' ? ['MEDICAL'] : []}/>
       {analysisPending ? <p className="doc-kind-hint muted">분석이 끝난 뒤 바꿀 수 있어요.</p>
         : declaredKind === 'MEDICATION' ? <p className="doc-kind-hint muted">복약문서는 의료문서로 바꿀 수 없어요.</p>
         : toMedication && <p className="doc-kind-hint">복약문서로 바꾸면 문서를 다시 분석해요. 1~2분 걸릴 수 있어요.</p>}
     </>;
+  // 재분석 응답을 기다리는 동안 입력을 잠근다(고쳐도 모달이 닫히며 저장되지 않으므로). 비활성 입력 규칙이 없어 opacity만 낮춘다.
+  const editLocked = reanalysisSubmitting ? { disabled: true, style: { opacity: .55 } } : {};
   const remove=async()=>{try{setRemoving(true);await api.deleteDocument(document.documentId);forget();onToast('문서를 삭제했어요');onBack();}catch(e){setDeleting(false);onToast(e.message||'문서를 삭제하지 못했어요');}finally{setRemoving(false)}};
   // 삭제된 문서(404): 문구와 뒤로 가기만. 다른 오류는 아래 기본 화면에서 버튼을 그대로 둔다.
   if(detailError===DOCUMENT_GONE) return <div className="nested-detail care-typography"><button className="detail-back" onClick={onBack}><ChevronLeft/> {backLabel}</button><p className="empty-record" role="alert">{DOCUMENT_GONE}</p></div>;
@@ -1119,7 +1121,7 @@ function DocumentItemDetail({ document, visits, onBack, onToast, onDeleted, onRe
     </div>{ai&&<div className="detail-info-card ai-evidence-card"><InfoRow label="AI 설명 상태" value={ai.status?.status||ai.status?.explanationStatus||'확인 완료'}/><InfoRow label="근거 사실" value={`${ai.facts?.items?.length||ai.facts?.facts?.length||0}건`}/><InfoRow label="출처 인용" value={`${ai.citations?.items?.length||ai.citations?.citations?.length||0}건`}/><InfoRow label="설명 섹션" value={`${ai.sections?.items?.length||ai.sections?.sections?.length||0}개`}/></div>}{detailLoading?<p role="status">원본 문서 정보를 불러오는 중이에요.</p>:detailError?<div role="alert"><p>{detailError}</p><button className="primary-button" onClick={()=>setDetailRetry(value=>value+1)}>다시 불러오기</button></div>:!detail.signedUrl?<p>원본 문서 주소를 불러올 수 없어요.</p>:null}{!detailLoading&&!detailError&&detail.signedUrl&&<a className="primary-button document-open" href={detail.signedUrl}><FileText/> 원본 문서 보기</a>}
     {deleting && <RecordDialog title="이 문서를 삭제할까요?" description="문서와 분석 결과가 목록에서 사라져요." busy={removing} confirmLabel="문서 삭제" onClose={() => setDeleting(false)} onConfirm={remove}/>}
     {editing && <RecordDialog title="문서 정보 수정" confirmLabel={reanalysisSubmitting ? '저장 중…' : '변경사항 저장'} busy={reanalysisSubmitting} onClose={() => { setMeta(readMeta()); setEditing(false); }} onConfirm={save}>
-      <div className="record-dialog-fields"><label className="field-label">문서 이름<input className="select-field" value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{kindField}<label className="field-label">메모<textarea className="visit-memo" placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label></div>
+      <div className="record-dialog-fields"><label className="field-label">문서 이름<input className="select-field" {...editLocked} value={meta.name} onChange={e=>setMeta({...meta,name:e.target.value})}/></label><span className="field-label">문서 종류</span>{kindField}<label className="field-label">메모<textarea className="visit-memo" {...editLocked} placeholder="이 문서에 대한 메모를 남겨보세요" value={meta.note} onChange={e=>setMeta({...meta,note:e.target.value})}/></label></div>
     </RecordDialog>}
   </div>;
 }
