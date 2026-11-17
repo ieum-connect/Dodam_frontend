@@ -665,6 +665,8 @@
 
 .chat-conversation .selected-documents{position:sticky;top:0;z-index:8;box-shadow:0 8px 18px #6e354112}
 .chat-conversation .selected-documents{cursor:pointer}
+.chat-conversation .doc-picker{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;width:min(520px,calc(100% - 32px));max-height:min(68dvh,560px);margin:0;overflow:auto;box-shadow:0 24px 70px #38252d44}
+@media(min-width:821px){.chat-conversation .doc-picker{right:max(0px,calc((100vw - 1280px)/2));left:auto;transform:none;width:min(460px,calc(100% - 32px))}}
 
 /* Keep modal surfaces inside the app viewport on phones, short screens, and landscape. */
 .modal-backdrop{padding:max(16px,env(safe-area-inset-top)) 16px 0}
