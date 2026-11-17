@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ChevronRight, CheckCircle2, UserRoundPlus, UsersRound } from 'lucide-react';
 import { api, errorMessage } from './api';
 import ProfileEditSheet from './ProfileEditSheet';
+import { childProfileEmoji } from './childProfile';
 
 const seoulDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
 
@@ -62,7 +63,7 @@ export default function ChildSheet({ active, children: childrenProp, backendOnli
   return <ProfileEditSheet title={title} description={description} icon={UsersRound} pending={pending} onClose={onClose}>
       {mode === 'list' ? <>
         <div className="child-list">{children.map(child => <button key={child.id} onClick={() => onSelect(child)} className={active?.id === child.id ? 'selected' : ''}>
-          <span className="child-face">{child.emoji || '👶🏻'}</span><span><b>{child.fullName || child.name}</b><small>{child.age}{child.gender === 'MALE' ? ' · 남아' : child.gender === 'FEMALE' ? ' · 여아' : ''}</small></span>{active?.id === child.id ? <CheckCircle2/> : <ChevronRight/>}
+          <span className="child-face">{child.emoji || childProfileEmoji(child)}</span><span><b>{child.fullName || child.name}</b><small>{child.age || '생년월일 미등록'}{child.gender === 'MALE' ? ' · 남아' : child.gender === 'FEMALE' ? ' · 여아' : ' · 성별 미선택'}</small></span>{active?.id === child.id ? <CheckCircle2/> : <ChevronRight/>}
         </button>)}</div>
         <div className="child-sheet-options"><button onClick={() => changeMode('create')}><UserRoundPlus size={20}/> 아이 프로필 등록 <ChevronRight size={18}/></button></div>
       </> : <>

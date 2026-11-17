@@ -31,6 +31,7 @@ import './care-theme.css';
 import ChatInput from './ChatInput';
 import useMobileViewport from './useMobileViewport';
 import './chat-layout.css';
+import { childAgeInMonths, childProfileEmoji } from './childProfile';
 
 const INQUIRY_FORM_URL = 'https://forms.gle/ET2UWzbq2udWJmmw7';
 const DOCUMENT_ACTIVE_STATUSES = new Set(['UPLOADED', 'PROCESSING']);
@@ -186,13 +187,13 @@ function App() {
   };
 
   const childAge = (birthDate) => {
-    if (!birthDate) return '';
-    const months = Math.max(0, (new Date().getFullYear() - Number(birthDate.slice(0,4))) * 12 + new Date().getMonth() + 1 - Number(birthDate.slice(5,7)));
+    const months = childAgeInMonths(birthDate);
+    if (months === null) return '';
     return months < 24 ? `생후 ${months}개월` : `만 ${Math.floor(months/12)}세`;
   };
   const normalizeChild = (child, index=0) => {
     const displayName = child.name || child.fullName || child.displayName || (index === 0 ? '박도윤' : `아이 ${index + 1}`);
-    return { id: child.id, name: displayName, fullName: displayName, age: childAge(child.birthDate), birthDate: child.birthDate, gender: child.gender, inviteCode: child.inviteCode, parentCount: child.parentCount, emoji: index % 2 ? '👧🏻' : '👶🏻' };
+    return { id: child.id, name: displayName, fullName: displayName, age: childAge(child.birthDate), birthDate: child.birthDate, gender: child.gender, inviteCode: child.inviteCode, parentCount: child.parentCount, emoji: childProfileEmoji(child) };
   };
 
   const isCompleteChild = (child) => Boolean(
@@ -536,10 +537,14 @@ function LoginScreen({ onDemoLogin, authConfig }) {
         <a className="kakao-button" href={chooseAccount ? api.kakaoAccountLoginUrl : api.kakaoLoginUrl}>
           <span aria-hidden="true">💬</span> 카카오로 시작하기
         </a>
-        {authConfig?.demoLogin && <>
-          <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('MINJI')}>김민지로 시작하기</button>
-          <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('JIHUN')}>박지훈으로 시작하기</button>
-        </>}
+        {authConfig?.demoLogin && <section className="demo-account-panel" aria-labelledby="demo-account-title">
+          <div className="demo-account-heading"><span aria-hidden="true">✨</span><div><b id="demo-account-title">테스트 계정으로 체험하기</b><small>가입 없이 준비된 데이터로 도담의 주요 기능을 둘러볼 수 있어요.</small></div></div>
+          <div className="demo-account-buttons">
+            <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('MINJI')}><span>김민지</span><small>보호자 계정으로 시작</small></button>
+            <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('JIHUN')}><span>박지훈</span><small>보호자 계정으로 시작</small></button>
+          </div>
+          <p>테스트용 계정이며 입력한 내용은 시연 환경에 저장될 수 있어요.</p>
+        </section>}
       </div>
       <p>처음 이용하시면 카카오 로그인으로 가입할 수 있어요.</p><p className="login-terms">계속하면 도담의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
     </div>
