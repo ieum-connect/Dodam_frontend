@@ -30,6 +30,16 @@
 .chat-composer .chat-input textarea:disabled { opacity: .55; }
 .chat-conversation .message { min-width: 0; overflow-wrap: anywhere; }
 .chat-conversation .message.user > span { white-space: pre-wrap; }
+.chat-lobby,
+.chat-history-section,
+.chat-session-list,
+.chat-session-list button {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.chat-lobby { overflow-x: hidden; }
+.chat-session-list button { overflow: hidden; }
 .chat-scroll { display: contents; }
 .chat-documents-dialog .doc-picker { position: static; width: 100%; max-width: 100%; max-height: none; margin: 0; transform: none; box-shadow: none; }
 .chat-documents-dialog .doc-picker-list { max-height: none; }
@@ -48,7 +58,12 @@
   .chat-viewport .phone-frame { height: 100%; min-height: 0; }
   .chat-viewport .screen-content { display: flex; min-height: 0; overflow: hidden; padding-bottom: 0; }
   .chat-viewport .chat-page { width: 100%; min-width: 0; min-height: 0; }
-  .chat-viewport .chat-lobby { overflow-y: auto; overscroll-behavior: contain; }
+  .chat-viewport .chat-lobby {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
   .chat-viewport .chat-lobby-hero,
   .chat-viewport .chat-history-section,
   .chat-viewport .chat-lobby-note { flex-shrink: 0; }
