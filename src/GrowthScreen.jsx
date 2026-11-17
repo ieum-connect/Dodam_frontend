@@ -62,8 +62,8 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
   };
   return <>
     {children}
-    <div className="growth-period-summary"><div><span>기간 내 {metrics[metric].name} 변화</span><strong>{allPoints.length > 1 ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)}` : '—'} <small>{metrics[metric].unit}</small></strong></div><span>{allPoints.length}회 측정<br/>{allPoints.length > 1 ? '첫 측정 → 마지막 측정' : '비교할 기록을 더 남겨주세요'}</span></div>
-    <p className="growth-aggregation-note">측정 기록 {points.length}개 · 모든 기록 표시</p>
+    <div className="growth-period-summary"><div><span>기간 내 {metrics[metric].name} 변화</span><strong>{allPoints.length > 1 ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)}` : '—'} <small>{metrics[metric].unit}</small></strong></div><span>{period === 0 ? '전체 기간' : period === 12 ? '최근 1년' : `최근 ${period}개월`} · {allPoints.length}회 측정<br/>{allPoints.length > 1 ? '첫 측정 → 마지막 측정' : '비교할 기록을 더 남겨주세요'}</span></div>
+
     <div className="growth-chart-legend"><span><i/>우리 아이</span>{references.some(value => value != null) && <span><i className="peer"/>또래 기준 (같은 월령·성별)</span>}</div>
     <div className="growth-chart-viewport">
     {inspecting && <div className="growth-inspection-tooltip" aria-hidden="true"><span>{selected.measuredOn.replaceAll('-', '.')}</span><strong>{Number(selected[metric]).toFixed(1)} {metrics[metric].unit}</strong></div>}
