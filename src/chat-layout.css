@@ -1,5 +1,6 @@
 .chat-composer .chat-input {
   grid-template-columns: 34px minmax(0, 1fr) 36px;
+  column-gap: clamp(6px, 1.5vw, 10px);
   align-items: end;
   min-width: 0;
   height: auto;
