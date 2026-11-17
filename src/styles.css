@@ -610,6 +610,17 @@
 .profile-sheet::-webkit-scrollbar { width: 7px; }
 .profile-sheet::-webkit-scrollbar-thumb { background: #e6cbd4; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
 .profile-sheet::-webkit-scrollbar-track { background: transparent; }
+@media (max-width: 820px) {
+  .modal-backdrop.profile-backdrop { overflow: hidden; }
+  .modal-backdrop.profile-backdrop > .profile-sheet { width: calc(100% - 8px); margin-inline: 4px; overflow-y: auto; overflow-x: hidden; }
+}
+/* Shared app scrollbar: subtle, narrow, and matched to the Dodam pink palette. */
+html { scrollbar-width: thin; scrollbar-color: #e4b8c7 transparent; }
+* { scrollbar-width: thin; scrollbar-color: #e4b8c7 transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #e4b8c7; border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: #d88da7; border-width: 1px; }
 .profile-sheet .profile-head { padding-inline-end: 44px; }
 .profile-sheet .profile-head > div { min-width: 0; overflow-wrap: anywhere; }
 .profile-sheet .big-avatar { flex: none; }
