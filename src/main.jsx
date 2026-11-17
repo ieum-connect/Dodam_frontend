@@ -28,6 +28,9 @@ import { enablePush, disablePush, pushEnabled } from './push';
 import PushOnboarding from './PushOnboarding';
 import SheetHandle from './SheetHandle';
 import './care-theme.css';
+import ChatInput from './ChatInput';
+import useMobileViewport from './useMobileViewport';
+import './chat-layout.css';
 
 const INQUIRY_FORM_URL = 'https://forms.gle/ET2UWzbq2udWJmmw7';
 const DOCUMENT_ACTIVE_STATUSES = new Set(['UPLOADED', 'PROCESSING']);
@@ -118,11 +121,33 @@ function App() {
   const [authConfig, setAuthConfig] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
   const [{tab, detail, calendarFocus}, setScreen] = useState(() => currentBackScreen() ?? {tab:'home', detail:null});
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [childOpen, setChildOpen] = useState(false);
-  const [childEditing, setChildEditing] = useState(false);
-  const [profileEditing, setProfileEditing] = useState(false);
-  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState(null);
+  // One visible modal. Profile sub-sheets retain a return destination, not a
+  // second independent open state; switching to notifications/documents clears it.
+  const setModalOpen = (kind, open) => setActiveModal(current => {
+    const next = typeof open === 'function' ? open(current?.kind === kind) : open;
+    if (next) return { kind, returnTo: ['child', 'childEdit', 'profileEdit', 'withdrawal'].includes(kind)
+      && (current?.kind === 'profile' || current?.returnTo === 'profile') ? 'profile' : null };
+    if (current?.kind !== kind) return current;
+    return current.returnTo ? { kind: current.returnTo } : null;
+  });
+  const profileOpen = activeModal?.kind === 'profile' || activeModal?.returnTo === 'profile';
+  const childOpen = activeModal?.kind === 'child';
+  const childEditing = activeModal?.kind === 'childEdit';
+  const profileEditing = activeModal?.kind === 'profileEdit';
+  const withdrawalOpen = activeModal?.kind === 'withdrawal';
+  const notiOpen = activeModal?.kind === 'notifications';
+  const setProfileOpen = value => setModalOpen('profile', value);
+  const setChildOpen = value => setModalOpen('child', value);
+  const setChildEditing = value => setModalOpen('childEdit', value);
+  const setProfileEditing = value => setModalOpen('profileEdit', value);
+  const setWithdrawalOpen = value => setModalOpen('withdrawal', value);
+  const setNotiOpen = value => setModalOpen('notifications', value);
+  const chatViewport = !detail && tab === 'chat';
+  const appRef = useMobileViewport(chatViewport);
+  React.useEffect(() => {
+    if (!chatViewport) setActiveModal(current => current?.kind === 'chatDocuments' ? null : current);
+  }, [chatViewport]);
   const activeChildRef = React.useRef(null);
   const familyRequest = React.useRef(0);
   const [dataRevision, setDataRevision] = useState(0);
@@ -141,7 +166,6 @@ function App() {
   const [children, setChildren] = useState([]);
   const [me, setMe] = useState(null);
   const [notis, setNotis] = useState({ items: [], unreadCount: 0 });
-  const [notiOpen, setNotiOpen] = useState(false);
   const [medicationDraft, setMedicationDraft] = useState(null);
   const screenRef = React.useRef(null);
   const [visits, setVisits] = useState([]);
@@ -394,7 +418,7 @@ function App() {
   });
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${chatViewport ? ' chat-viewport' : ''}`} ref={appRef}>
       <aside className="desktop-rail">
         <Logo />
         <div className="rail-copy">
@@ -432,7 +456,7 @@ function App() {
             <HomeScreen onOpen={openFeature} child={activeChild} onChildOpen={() => setChildOpen(true)} />
           ) : tab === 'medical' ? <MedicalHub onOpen={openFeature} visits={visits} documents={documents} />
             : tab === 'calendar' ? <LiveCalendarScreen key={`${activeChild?.id || 'none'}-${calendarFocus || ''}`} initialDate={calendarFocus} child={activeChild} onToast={showToast} onChildOpen={() => setChildOpen(true)} renderVisit={(visit,back,saved)=><VisitItemDetail key={visit.visitId} visit={visit} child={activeChild} documents={documents} backendOnline={backendOnline} onBack={back} onSaved={saved} onToast={showToast} onDataChange={loadFamilyData}/>} />
-            : tab === 'chat' ? <ChatScreen child={activeChild} documents={documents} backendOnline={backendOnline} onToast={showToast} />
+            : tab === 'chat' ? <ChatScreen child={activeChild} documents={documents} backendOnline={backendOnline} onToast={showToast} docPicker={activeModal?.kind === 'chatDocuments'} setDocPicker={value => setModalOpen('chatDocuments', value)} />
             : tab === 'records' ? <DetailScreen type="records" onToast={showToast} visits={visits} documents={documents} documentsCursor={documentsCursor} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
             : tab === 'documents' ? <DetailScreen type="documents" onChat={()=>navigate('chat')} onToast={showToast} visits={visits} documents={documents} documentsCursor={documentsCursor} child={activeChild} onDataChange={loadFamilyData} backendOnline={backendOnline} onChildOpen={() => setChildOpen(true)} />
             : <MoreScreen onOpen={openFeature} me={me} child={activeChild} onProfile={()=>setProfileOpen(true)} onChild={()=>setChildOpen(true)} onLogout={logout} />}
@@ -443,7 +467,7 @@ function App() {
       </main>
 
       {loggedIn && backendOnline && me?.id && <PushOnboarding key={me.id} userId={me.id}
-        blocked={notiOpen || profileOpen || childOpen || childEditing} />}
+        blocked={Boolean(activeModal)} />}
       {notiOpen && <NotificationSheet notis={notis} userId={me?.id} onClose={() => setNotiOpen(false)} onToast={showToast}
         onOpen={notification => {
           if (notification.type.startsWith('RELATION_')) {
@@ -569,7 +593,7 @@ function BottomNav({ tab, setTab }) {
 
 function Schedule({icon:Icon,time,title,note,color}) { return <div className="schedule"><span className={`feature-icon ${color}`}><Icon/></span><div><small>{time}</small><b>{title}</b><p>{note}</p></div><ChevronRight/></div> }
 
-function ChatScreen({ child, documents, backendOnline, onToast }) {
+function ChatScreen({ child, documents, backendOnline, onToast, docPicker, setDocPicker }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [sessions, setSessions] = useState([]);
@@ -578,9 +602,14 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [chatError, setChatError] = useState(null);
-  const [docPicker, setDocPicker] = useState(false);
+  const pickerPending = React.useRef(false);
+  const scrollRef = React.useRef(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
-  useBackLayer(!historyOpen, () => setHistoryOpen(true));
+  useBackLayer(!historyOpen, () => { setDocPicker(false); setHistoryOpen(true); });
+  React.useLayoutEffect(() => {
+    const scroll = scrollRef.current;
+    if (scroll) scroll.scrollTop = scroll.scrollHeight;
+  }, [messages, sending, historyOpen]);
 
   const chatDocuments = useMemo(() => (documents || []).filter(documentReadyForChat), [documents]);
 
@@ -605,10 +634,12 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
     setChatError(null);
     setHistoryOpen(true);
     setSelectedDocumentIds([]);
+    setDocPicker(false);
     refreshSessions().catch(error => onToast(errorMessage(error, '이전 채팅을 불러오지 못했어요.')));
   }, [refreshSessions]);
 
   const newChat = () => {
+    setDocPicker(false);
     setActiveSession(null);
     setMessages([]);
     setChatError(null);
@@ -684,10 +715,13 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
   </div>;
 
   return <div className="chat-page chat-conversation">
-    <div className="chat-conversation-bar"><button onClick={()=>setHistoryOpen(true)}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
+    <div className="chat-scroll" ref={scrollRef}>
+    <div className="chat-conversation-bar"><button onClick={()=>{setDocPicker(false);setHistoryOpen(true)}}><ChevronLeft/> 이전 대화</button><button onClick={newChat}><Plus/> 새 채팅</button></div>
     <div className="chat-hero"><span className="ai-orb"><Sparkles/></span><div><span className="eyebrow">AI CARE ASSISTANT</span><h2>{activeSession?.title || '새 채팅'}</h2><p>{activeSession ? '이전 대화 내용을 이어서 질문할 수 있어요.' : '아이의 건강 기록을 바탕으로 궁금한 점을 쉽게 설명해드릴게요.'}</p></div></div>
      <div className="selected-documents" role="button" tabIndex="0" aria-label="답변에 사용할 문서 선택" onClick={()=>setDocPicker(true)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setDocPicker(true)}}}><div><span className="eyebrow">REFERENCE DOCUMENTS</span><b>이번 답변에 사용할 문서</b></div><button type="button" className="document-select-button" onClick={event=>{event.stopPropagation();setDocPicker(v=>!v)}}><FileText/> {selectedDocumentIds.length}개 선택 <ChevronRight/></button></div>
-    {docPicker && <div className="doc-picker"><div className="doc-picker-head"><div><b>답변 근거를 선택하세요</b><small>선택한 문서만 AI가 참고합니다.</small></div><button onClick={()=>setDocPicker(false)} aria-label="닫기"><X/></button></div>
+    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.chatFailure?'error':message.role==='USER'?'user':'ai'}`}>{message.chatFailure?<><b>AI 답변을 만들지 못했어요</b><span>{message.content}</span><button onClick={()=>setInput(messages.filter(item=>item.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></>:message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><b>{chatError.title || (chatError.code==='DOCUMENT_SELECTION_REQUIRED' ? '문서를 선택해 주세요' : '요청을 완료하지 못했어요')}</b><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
+    </div>
+    {docPicker && <ProfileEditSheet title="답변 근거 문서 선택" description="선택한 문서만 AI가 참고합니다." icon={FileText} pending={pickerPending} onClose={()=>setDocPicker(false)} appearance="upload"><div className="chat-documents-dialog"><div className="doc-picker">
       {documents?.length ? <div className="doc-picker-list">{documents.map(doc=>(
         <button className={selectedDocumentIds.includes(doc.documentId)?'selected':''} key={doc.documentId} disabled={sending || !documentReadyForChat(doc)} onClick={()=>setSelectedDocumentIds(ids=>ids.includes(doc.documentId)?ids.filter(id=>id!==doc.documentId):[...ids,doc.documentId])}>
           <span className="doc-picker-check">{selectedDocumentIds.includes(doc.documentId)?'✓':''}</span><span className="doc-picker-icon"><FileText/></span>
@@ -695,10 +729,9 @@ function ChatScreen({ child, documents, backendOnline, onToast }) {
         </button>))}</div>
       : <p className="doc-picker-empty">등록된 건강 문서가 없어요. 의료 &gt; 건강 문서에서 먼저 업로드해주세요.</p>}
       <div className="doc-picker-footer"><span>{selectedDocumentIds.length}개 문서 선택됨</span><button onClick={()=>setDocPicker(false)}>선택 완료</button></div>
-    </div>}
-    <div className="messages">{loadingHistory ? <div className="message ai">대화 기록을 불러오고 있어요…</div> : !messages.length && <div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={item.label} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{messages.map(message=><div key={message.messageId || `${message.role}-${message.createdAt}-${message.content}`} className={`message ${message.chatFailure?'error':message.role==='USER'?'user':'ai'}`}>{message.chatFailure?<><b>AI 답변을 만들지 못했어요</b><span>{message.content}</span><button onClick={()=>setInput(messages.filter(item=>item.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button></>:message.role==='USER'?<span>{message.content}</span>:<MarkdownText text={message.content}/>} {message.warnings?.map(warning=><small className="chat-rag-warning" key={warning.code}>{warning.message}</small>)}</div>)}{!loadingHistory&&!sending&&messages.length>0&&<div className="message ai chat-starter"><b>문서에서 궁금한 내용을 골라보세요.</b><p>아래 질문을 선택하거나 직접 물어볼 수 있어요.</p><div className="chat-starter-questions">{CHAT_QUESTION_SUGGESTIONS.map(item=><button type="button" key={`followup-${item.label}`} disabled={sending} onClick={()=>ask(item.question)}>{item.label}<ChevronRight/></button>)}</div></div>}{chatError&&<div className="message error"><b>{chatError.title || (chatError.code==='DOCUMENT_SELECTION_REQUIRED' ? '문서를 선택해 주세요' : '요청을 완료하지 못했어요')}</b><span>{chatError.message}</span>{messages.some(message=>message.role==='USER')&&<button onClick={()=>setInput(messages.filter(m=>m.role==='USER').at(-1)?.content || '')}>마지막 질문 다시 불러오기</button>}</div>}{sending&&<div className="message ai">도담이가 의료 기록을 살펴보고 있어요…</div>}</div>
+    </div></div></ProfileEditSheet>}
     <div className="chat-composer">
-      <div className="chat-input"><button type="button" className="chat-document-button" aria-label={`답변 문서 선택, 현재 ${selectedDocumentIds.length}개`} onClick={()=>setDocPicker(true)}><Paperclip/>{selectedDocumentIds.length>0&&<span aria-hidden="true">{selectedDocumentIds.length}</span>}</button><input value={input} disabled={sending} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="도담이에게 물어보세요"/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
+      <div className="chat-input"><button type="button" className="chat-document-button" aria-label={`답변 문서 선택, 현재 ${selectedDocumentIds.length}개`} onClick={()=>setDocPicker(true)}><Paperclip/>{selectedDocumentIds.length>0&&<span aria-hidden="true">{selectedDocumentIds.length}</span>}</button><ChatInput value={input} disabled={sending} onChange={setInput} onSend={send}/><button type="button" className="send" disabled={sending||!input.trim()} onClick={send} aria-label="질문 보내기"><Send/></button></div>
       <p className="disclaimer">AI 답변은 참고용이며, 진단을 대신하지 않습니다.</p>
     </div>
   </div>;
