@@ -38,7 +38,9 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
   const [selectedId, setSelectedId] = useState(null);
   const [inspecting, setInspecting] = useState(false);
   const selected = points.find(row => row.id === selectedId) || points.at(-1);
-  if (!points.length) return <><div className="growth-empty"><TrendingUp/><p>이 기간의 {metrics[metric].name} 기록이 없어요.</p><small>측정값을 등록하거나 조회 기간을 바꿔보세요.</small></div>{children}</>;
+  const periodLabel = period === 0 ? '전체 기간' : period === 12 ? '최근 1년' : `최근 ${period}개월`;
+  const rangeLabel = <p className="growth-range-label"><span>{range.from.replaceAll('-', '.')}</span><span aria-hidden="true">—</span><span>{range.to.replaceAll('-', '.')}</span></p>;
+  if (!points.length) return <>{children}<div className="growth-range-summary"><div className="growth-range-heading"><span>{periodLabel}</span><span className="growth-measurement-count">0회 측정</span></div>{rangeLabel}</div><div className="growth-empty"><TrendingUp/><p>이 기간의 {metrics[metric].name} 기록이 없어요.</p><small>측정값을 등록하거나 조회 기간을 바꿔보세요.</small></div></>;
   const references = points.map(row => growthPositionByAge(metric, child.gender, child.birthDate, row.measuredOn, Number(row[metric]))?.median ?? null);
   const linePoints = growthLinePoints(rows, metric, range);
   const peerRows = rows.filter(row => row[metric] != null).map(row => ({
@@ -62,7 +64,11 @@ function GrowthChart({ rows, metric, range, child, period, children }) {
   };
   return <>
     {children}
-    <div className="growth-period-summary"><div><span>기간 내 {metrics[metric].name} 변화</span><strong>{allPoints.length > 1 ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)}` : '—'} <small>{metrics[metric].unit}</small></strong></div><span>{period === 0 ? '전체 기간' : period === 12 ? '최근 1년' : `최근 ${period}개월`} · {allPoints.length}회 측정</span></div>
+    <div className="growth-range-summary">
+      <div className="growth-range-heading"><span>{periodLabel}</span><span className="growth-measurement-count">{allPoints.length}회 측정</span></div>
+      {rangeLabel}
+      <div className="growth-period-summary"><span>기간 내 {metrics[metric].name} 변화</span><strong>{allPoints.length > 1 ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)}` : '—'} <small>{metrics[metric].unit}</small></strong></div>
+    </div>
 
     <div className="growth-chart-legend"><span><i/>우리 아이</span>{references.some(value => value != null) && <span><i className="peer"/>또래 기준 (같은 월령·성별)</span>}</div>
     <div className="growth-chart-viewport">
@@ -166,7 +172,6 @@ export default function GrowthScreen({ child, onToast }) {
         <section className="growth-graph-panel"><div className="growth-metric-tabs">{Object.entries(metrics).map(([key, info]) => <button key={key} aria-pressed={metric === key} onClick={() => setMetric(key)}>{info.name}</button>)}</div>
           <GrowthChart key={`${child?.id}-${metric}-${range.from}-${range.to}`} rows={records} period={period} metric={metric} range={range} child={child}>
             <div className="growth-periods" aria-label="조회 기간">{[[1,'1개월'],[6,'6개월'],[12,'1년'],[0,'전체']].map(([value,label]) => <button key={value} aria-pressed={period === value} onClick={() => setPeriod(value)}>{label}</button>)}</div>
-            <p className="growth-range-label">{range.from.replaceAll('-', '.')} — {range.to.replaceAll('-', '.')}</p>
           </GrowthChart>
         </section>
         <p className="growth-chart-note">
