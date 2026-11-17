@@ -492,6 +492,10 @@
 /* Keep the chat composer visible while the conversation scrolls. */
 .chat-composer{position:sticky;bottom:0;z-index:9;flex-shrink:0;padding:8px 0 1px;background:linear-gradient(180deg,#fffafc00 0,#fffafcf2 18%,#fffafc 42%);backdrop-filter:blur(10px)}
 .chat-composer .chat-input{box-shadow:0 8px 24px #6e354118}
+.chat-document-button{position:relative;width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#fff1f5;color:#c95778}
+.chat-document-button svg{width:18px;height:18px;stroke-width:2.2}
+.chat-document-button span{position:absolute;right:-3px;top:-4px;min-width:16px;height:16px;padding:0 4px;display:grid;place-items:center;border:2px solid #fff;border-radius:999px;background:#d85c80;color:#fff;font-size:8px;font-weight:800;line-height:1}
+.chat-document-button:focus-visible{outline:3px solid #b44873;outline-offset:2px}
 .chat-composer .disclaimer{margin-bottom:7px}
 .push-settings { background: #fff; border: 1px solid #f0e2e7; border-radius: 20px; margin: 0 0 20px; overflow: hidden; }
 .push-setting-row { display: flex; align-items: center; gap: 12px; padding: 18px 16px 16px; }
@@ -663,7 +667,13 @@
 .doc-more svg{width:16px;flex:none;color:var(--muted);transition:transform .2s}
 .doc-more[aria-expanded=true] svg{transform:rotate(-90deg)}
 
-.chat-conversation .selected-documents{position:sticky;top:0;z-index:8;box-shadow:0 8px 18px #6e354112}
+.chat-conversation .selected-documents{position:static;box-shadow:none}
+.chat-conversation .chat-conversation-bar{position:sticky;top:0;z-index:12}
+.chat-conversation .chat-hero{position:sticky;top:52px;z-index:11;box-shadow:0 10px 24px #6e35410f}
+.chat-conversation .messages{padding-bottom:72px}
+.chat-conversation .selected-documents{cursor:pointer}
+.chat-conversation .doc-picker{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;width:min(520px,calc(100% - 32px));max-height:min(68dvh,560px);margin:0;overflow:auto;box-shadow:0 24px 70px #38252d44}
+@media(min-width:821px){.chat-conversation .doc-picker{right:max(0px,calc((100vw - 1280px)/2));left:auto;transform:none;width:min(460px,calc(100% - 32px))}}
 
 /* Keep modal surfaces inside the app viewport on phones, short screens, and landscape. */
 .modal-backdrop{padding:max(16px,env(safe-area-inset-top)) 16px 0}
