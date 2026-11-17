@@ -222,7 +222,207 @@ sequenceDiagram
 
 ---
 
-## 5. 📲 PWA와 푸시 알림
+## 5. 🤝 개발 컨벤션
+
+Frontend와 Backend는 같은 Git 흐름을 사용합니다. 변경 이력을 추적할 수 있고 리뷰하기 쉬운 크기로 유지하는 것이 핵심 원칙입니다.
+
+```mermaid
+flowchart LR
+    ISSUE["📌 Issue"] --> SYNC["🔄 develop 최신화"] --> BRANCH["🌿 작업 Branch"]
+    BRANCH --> CODE["💻 구현"] --> CHECK["✅ Test · Build"]
+    CHECK --> COMMIT["📝 Commit"] --> PR["🔍 Pull Request"]
+    PR --> REVIEW["👀 Review · CI"] --> MERGE["🎉 Squash Merge"]
+```
+
+<details open>
+<summary><b>🌿 1. Branch Convention</b></summary>
+
+[브랜치 컨벤션 전체 문서](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/BRANCH_CONVENTION.md)
+
+```text
+main                         # 배포 가능한 안정 Branch
+ └─ develop                  # 기능 통합·검증 Branch
+     ├─ feat/12-short-name   # 새 기능
+     ├─ fix/18-short-name    # Bug 수정
+     ├─ refactor/23-name     # 구조 개선
+     ├─ docs/25-name         # 문서
+     ├─ test/29-name         # Test
+     └─ chore/31-name        # 설정·의존성·정리
+
+hotfix/35-short-name         # main 기준 긴급 운영 수정
+```
+
+| Type | 사용 시점 | 예시 |
+|---|---|---|
+| `feat` | 사용자 기능 추가 | `feat/12-child-care-memo-time` |
+| `fix` | 오류와 회귀 수정 | `fix/70-chat-mobile-layout` |
+| `refactor` | 동작 변화 없는 구조 개선 | `refactor/23-api-client` |
+| `docs` | README·문서 수정 | `docs/25-readme-preview` |
+| `test` | 테스트 추가·수정 | `test/29-timeline-pagination` |
+| `chore` | 도구·설정·의존성 정리 | `chore/31-vite-config` |
+
+- 형식은 `<type>/<issue-number>-<short-kebab-case-description>`입니다.
+- 새 작업은 최신 `develop`에서 분기하고 한 Branch에는 하나의 Issue만 담습니다.
+- `main`과 `develop`에는 직접 Push하지 않습니다.
+- 긴급 수정은 `main`에서 `hotfix/*`로 분기하고 병합 후 `develop`에도 반영합니다.
+</details>
+
+<details open>
+<summary><b>📝 2. Commit Convention</b></summary>
+
+[커밋 컨벤션 전체 문서](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/COMMIT_CONVENTION.md)
+
+```text
+<type>(<scope>): <english subject>
+
+<선택: 변경 이유와 구현 방식>
+<선택: Refs: #issue-number>
+```
+
+```text
+feat(memo): support recorded time selection
+fix(chat): keep mobile header sticky
+docs(readme): add product screen previews
+test(timeline): cover repeated cursor response
+```
+
+- Type·Scope·Subject는 소문자 영어로 쓰고 제목 끝에 마침표를 붙이지 않습니다.
+- Subject는 명령형 현재 시제로 간결하게 작성합니다.
+- 하나의 Commit에는 하나의 논리적 변경만 담고 포맷 수정과 기능 변경을 섞지 않습니다.
+- 권장 Scope: `auth`, `child`, `memo`, `schedule`, `document`, `chat`, `growth`, `welfare`, `push`, `pwa`, `ui`, `api`, `readme`.
+</details>
+
+<details open>
+<summary><b>🔀 3. Pull Request Convention</b></summary>
+
+[PR 컨벤션 전체 문서](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/PR_CONVENTION.md)
+
+```text
+PR 제목: <type>(<scope>): <한국어 변경 내용>
+예시: fix(chat): 모바일 채팅 헤더 고정 복원
+```
+
+| 필수 항목 | 작성 내용 |
+|---|---|
+| 무엇을 구현했나요? | 사용자 또는 시스템 관점의 변경 사항 |
+| 참고할 사항 | API·환경 변수·연동 저장소·UI 영향 |
+| 테스트 | 실행 명령, 수동 확인 결과, 미확인 항목과 사유 |
+| 화면 | UI 변경 전·후 이미지 또는 영상 |
+| 연결된 이슈 | `Closes #이슈번호` |
+
+- 대상 Branch는 원칙적으로 `develop`이며 Draft PR로 조기 공유할 수 있습니다.
+- UI 변경은 모바일·데스크톱 캡처와 재현 절차를 첨부합니다.
+- CI 통과와 1명 이상 Approve 후 Squash and merge하고 작업 Branch를 삭제합니다.
+</details>
+
+<details>
+<summary><b>🧩 4. Issue · Pull Request Templates</b></summary>
+
+| Template | 사용 시점 | 바로가기 |
+|---|---|---|
+| 기능 Issue | 신규 화면·기능·고도화 작업 | [기능 이슈 템플릿](https://github.com/ieum-connect/Dodam_backend/blob/develop/.github/ISSUE_TEMPLATE/%EA%B8%B0%EB%8A%A5-%EC%9D%B4%EC%8A%88-%ED%85%9C%ED%94%8C%EB%A6%BF.md) |
+| Bug Issue | 오류·회귀·환경별 문제 보고 | [버그 이슈 템플릿](https://github.com/ieum-connect/Dodam_backend/blob/develop/.github/ISSUE_TEMPLATE/%EB%B2%84%EA%B7%B8-%EC%9D%B4%EC%8A%88-%ED%85%9C%ED%94%8C%EB%A6%BF.md) |
+| Pull Request | 구현 완료 후 Review 요청 | [Frontend PR 템플릿](./.github/PULL_REQUEST_TEMPLATE.md) |
+
+> Frontend Issue도 팀 공통 Issue 형식을 사용하며, 작업 대상에는 Component·CSS·API Client·반응형 영향 범위를 작성합니다.
+
+<details>
+<summary><b>📌 기능 Issue 작성 골격</b></summary>
+
+```markdown
+## 🏷️ 기능 분류
+- 대분류 / 중분류 / 소분류 / 관련 기능 코드
+
+## 🎯 개발 목적 (Why)
+## 📌 구현 기능 요약 (What)
+## 📋 상세 요구사항 (Requirements)
+## 📂 작업 대상 Component · Style · API
+## 🔌 API 규격과 Backend 의존성
+## 🛠️ 세부 구현 체크리스트
+## 🏁 완료 조건 (Definition of Done)
+## 🧪 테스트 진행 상황
+## 📎 화면 설계·참고 자료
+```
+
+</details>
+
+<details>
+<summary><b>🐛 Bug Issue 작성 골격</b></summary>
+
+```markdown
+## 🏷️ 관련 기능 코드 · 실행 환경 · 우선순위
+## 🚨 발생 상황
+## 🔁 재현 방법 (Steps to Reproduce)
+## 📈 기대 동작 / 📉 실제 동작
+## 🛠️ 수정 범위 및 원인 추정
+## 🏁 완료 조건 (Definition of Done)
+## 📎 Console · Network Log · 화면 캡처
+```
+
+</details>
+
+<details>
+<summary><b>🔀 Pull Request 작성 골격</b></summary>
+
+```markdown
+## 무엇을 구현했나요?
+- 구현한 기능 또는 해결한 문제
+
+## 참고할 사항
+- 리뷰 지점, API·환경 변수·화면·연동 영향
+
+## 테스트
+- 실행한 명령어
+- 수동 확인 시나리오와 결과
+- 확인하지 못한 항목과 사유
+
+## 연결된 이슈
+- Closes #이슈번호
+
+## Definition of Done
+- [ ] 관련 테스트와 Build가 통과했다
+- [ ] 모바일·데스크톱·오류·빈 상태를 확인했다
+- [ ] 문서와 환경 변수 예시를 갱신했다
+- [ ] 최소 1명의 Review 승인을 받았다
+```
+
+</details>
+
+</details>
+
+<details>
+<summary><b>🎨 5. Frontend Code Style</b></summary>
+
+| 영역 | 규칙 |
+|---|---|
+| Component | 화면 책임 단위로 분리하고 이름은 `PascalCase`를 사용합니다. |
+| 함수·변수 | `camelCase`를 사용하며 Boolean은 `is`, `has`, `can`, `should`로 시작합니다. |
+| CSS | Mobile First로 작성하고 기존 Design Token과 Class naming을 재사용합니다. |
+| API | 화면에서 URL을 직접 조합하지 않고 공통 API Client를 사용합니다. |
+| 상태 | 서버·화면·입력 상태를 구분하고 파생 값은 중복 저장하지 않습니다. |
+| 접근성 | Icon Button에 접근 가능한 이름을 제공하고 Keyboard·Focus 흐름을 확인합니다. |
+| 보안 | Secret과 내부 Token을 `VITE_` 환경 변수나 Browser Storage에 넣지 않습니다. |
+
+- Loading·Empty·Error·Success 상태를 모두 고려합니다.
+- 모바일 키보드, Safe Area, 긴 텍스트, 작은 화면과 PWA 환경을 검증합니다.
+- 주석은 코드의 동작보다 제약과 결정 이유를 설명할 때 작성합니다.
+</details>
+
+<details>
+<summary><b>✅ 6. 리뷰 전 체크리스트</b></summary>
+
+- [ ] 최신 `develop`을 반영했고 불필요한 변경 파일이 없습니다.
+- [ ] `npm run build`와 관련 테스트가 통과합니다.
+- [ ] Browser Console 오류와 경고를 확인했습니다.
+- [ ] 모바일·데스크톱 반응형과 Loading·Empty·Error 상태를 확인했습니다.
+- [ ] 개인정보·Secret·Test Credential이 Commit에 포함되지 않았습니다.
+- [ ] API·환경 변수·PWA Cache 변경을 README와 PR 본문에 기록했습니다.
+- [ ] UI 변경 화면과 수동 검증 절차를 첨부했습니다.
+</details>
+
+---
+
+## 6. 📲 PWA와 푸시 알림
 
 ```mermaid
 flowchart LR
@@ -274,33 +474,56 @@ flowchart LR
 
 ---
 
-## 6. 🖼️ 화면 미리보기
+## 7. 🖼️ 화면 미리보기
 
 > 현재 Frontend와 Local Demo Data를 기준으로 직접 캡처한 화면입니다.
 
-### 📝 메모 · 📅 일정
+화면 설계서: [Claude Artifact에서 화면 설계서 열기](https://claude.ai/artifact/HbHHm56cdtbRuStCtJJt2T#page-dcb81aee8d83)
+
+<details>
+<summary><b>📝 육아 메모 화면 보기</b></summary>
+
+<br />
+
+![육아 메모](./docs/screenshots/readme-memo-reference.png)
+
+</details>
+
+<details>
+<summary><b>📅 일정 화면 보기</b></summary>
+
+<br />
 
 <table>
   <tr>
-    <td align="center"><b>육아 메모</b></td>
-    <td align="center"><b>가족 건강 일정</b></td>
-  </tr>
-  <tr>
-    **추후 추가**
+    <td align="center"><b>새 일정 추가</b><br><img src="./docs/screenshots/readme-schedule-create-reference.png" width="260" alt="새 일정 추가 화면" /></td>
+    <td align="center"><b>일정 캘린더</b><br><img src="./docs/screenshots/readme-schedule-calendar-reference.png" width="260" alt="일정 캘린더 화면" /></td>
   </tr>
 </table>
 
-### 📄 건강 문서 업로드
+</details>
 
-**추후 추가**
+<details>
+<summary><b>📄 건강 문서 업로드 화면 보기</b></summary>
 
-### 🤖 문서 기반 AI 채팅
+<br />
 
-**추후 추가**
+![건강 문서 업로드](./docs/screenshots/readme-document-upload-reference.png)
+
+</details>
+
+<details>
+<summary><b>🤖 문서 기반 AI 채팅 화면 보기</b></summary>
+
+<br />
+
+![문서 기반 AI 채팅](./docs/screenshots/readme-ai-chat-reference.png)
+
+</details>
 
 ---
 
-## 7. 🗂️ 프로젝트 구조
+## 8. 🗂️ 프로젝트 구조
 
 <details>
 <summary><b>📂 디렉터리 구조 펼쳐보기</b></summary>
@@ -346,7 +569,7 @@ Dodam_frontend
 
 ---
 
-## 8. 🚀 로컬 실행
+## 9. 🚀 로컬 실행
 
 <details open>
 <summary><b>▶️ 설치 및 실행</b></summary>
@@ -388,7 +611,7 @@ AI 서버가 없어도 일정, 메모와 성장 기록 같은 일반 기능은 �
 
 ---
 
-## 9. 🔐 환경 변수와 프록시
+## 10. 🔐 환경 변수와 프록시
 
 <details>
 <summary><b>⚙️ Frontend 환경 변수 예시</b></summary>
@@ -429,7 +652,7 @@ npm run dev
 
 ---
 
-## 10. ✅ 테스트와 빌드
+## 11. ✅ 테스트와 빌드
 
 <details open>
 <summary><b>🧪 검증 명령어</b></summary>
@@ -459,26 +682,6 @@ Production build: passed
 - 반복 Cursor 감지와 요청 취소 처리
 
 </details>
-
----
-
-## 11. 🤝 개발 컨벤션
-
-<details>
-<summary><b>📚 공통 컨벤션 문서</b></summary>
-
-- [브랜치 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/BRANCH_CONVENTION.md)
-- [커밋 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/COMMIT_CONVENTION.md)
-- [PR 컨벤션](https://github.com/ieum-connect/Dodam_backend/blob/develop/docs/convention/PR_CONVENTION.md)
-
-</details>
-
-```mermaid
-flowchart LR
-    ISSUE["📌 Issue"] --> BRANCH["🌿 Branch"] --> DEVELOP["💻 Develop"]
-    DEVELOP --> TEST["✅ Test"] --> COMMIT["📝 Commit"]
-    COMMIT --> PR["🔍 Pull Request"] --> REVIEW["👀 Code Review"] --> MERGE["🎉 Merge"]
-```
 
 ---
 
