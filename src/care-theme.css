@@ -273,7 +273,7 @@
 
 /* Sheet geometry and form headings follow the existing welfare/upload sheets. */
 .sheet.child-profile-sheet {
-  width:min(560px, calc(100% - 32px));
+  width:min(560px, 100%);
   max-height:78dvh;
   padding:28px 24px max(35px, env(safe-area-inset-bottom));
 }
@@ -503,8 +503,11 @@
 .care-upload-sheet :is(.family-code-content,.family-code-form) > .primary-button { width:100%; min-height:48px; margin:0; font-size:14px; }
 
 /* A calm writing surface with compact date fields and a clear save action. */
-.memo-writing.care-workspace { padding:20px; }
-.memo-writing .memo-compose { padding:0 18px 22px; border:1px solid var(--line); border-radius:24px; background:#fff; }
+.phone-frame:has(.memo-writing) > .screen-content { display:flex; flex-direction:column; padding-bottom:0; }
+.memo-writing.care-workspace { display:flex; flex:1; flex-direction:column; min-height:100dvh; padding:20px; }
+.memo-writing .memo-compose { display:flex; flex:1; flex-direction:column; padding:0 18px 22px; border:1px solid var(--line); border-radius:24px; background:#fff; }
+.memo-writing .memo-compose > fieldset { display:flex; flex:1; flex-direction:column; min-width:0; }
+.memo-writing .memo-compose > fieldset > :not(textarea) { flex-shrink:0; }
 .memo-writing .care-editor-bar { margin:0 0 20px; padding:16px 0; border-bottom:1px solid var(--line); }
 .memo-writing .care-editor-bar h2 { font-size:17px; font-weight:700; }
 .memo-writing .care-editor-bar > button:first-child { font-size:13px; color:var(--muted); }
@@ -515,7 +518,7 @@
 .memo-writing .date-picker > span, .memo-writing .memo-body-label { font-size:12px; font-weight:500; line-height:1.5; color:#81717a; }
 .memo-writing .date-picker input { display:block; width:100%; min-width:0; height:46px; padding:10px 8px; border:1px solid var(--line); border-radius:12px; background:#fff8fb; font-weight:400; }
 .memo-writing .memo-body-label { display:block; margin:0 0 8px; }
-.memo-writing .memo-compose textarea { display:block; width:100%; height:clamp(220px,32dvh,320px); min-height:220px; padding:14px; background:#fffafc; border:1px solid var(--line); border-radius:16px; line-height:1.8; }
+.memo-writing .memo-compose textarea { display:block; flex:1; width:100%; height:auto; min-height:220px; padding:14px; background:#fffafc; border:1px solid var(--line); border-radius:16px; line-height:1.8; }
 .memo-writing .memo-compose-hint { border:0; margin-top:14px; padding-top:0; font-size:11px; color:var(--muted); }
 .memo-writing .care-muted { font-size:11px; margin:10px 0 0; color:var(--muted); }
 @media(max-width:360px) { .memo-writing.care-workspace { padding:16px; } .memo-writing .memo-compose { padding-inline:16px; } .memo-writing .memo-datetime { grid-template-columns:minmax(0,1fr); gap:12px; } }
@@ -577,4 +580,28 @@
 .growth-live.care-workspace .growth-range-summary .growth-period-summary strong {
   font-size: 24px;
   line-height: 1.3;
+}
+
+.candidate-repeat-fields { border:0; padding:0; margin:16px 0; min-width:0; }
+
+/* Desktop dialogs share the right-hand app panel; mobile keeps bottom sheets. */
+@media (min-width:821px) {
+  body .modal-backdrop:has(> .sheet) {
+    inset:0 max(0px, calc((100vw - 1280px) / 2)) 0 auto;
+    width:460px;
+    padding:20px 16px;
+    justify-content:center;
+    align-items:center;
+  }
+  body .modal-backdrop > .sheet:is(.sheet) {
+    width:100%;
+    max-width:100%;
+    margin:0;
+    max-height:min(680px, calc(100dvh - 40px));
+    border-radius:28px;
+    overflow-y:auto;
+  }
+  body .modal-backdrop > .sheet.sheet-expanded {
+    max-height:calc(100dvh - 40px);
+  }
 }
