@@ -364,7 +364,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       const startsAt = dates[item.id] ?? localInput(item.dueAt);
       const rule = candidateRules[item.id] || { repeatMode: 'ONCE', endDate: '', weekdayMask: 0 };
       const repeats = item.type === 'MEDICATION' && rule.repeatMode !== 'ONCE';
-      const invalidRepeat = repeats && (!ruleWeekdays(rule) || !rule.endDate || startsAt.slice(0, 10) < localDate(new Date()) || rule.endDate < startsAt.slice(0, 10));
+      const invalidRepeat = repeats && (!ruleWeekdays(rule) || !rule.endDate || rule.endDate < startsAt.slice(0, 10));
       const decisionDisabled = busy || candidatesLoading || !!candidatesError;
       return <div className="calendar-editor" key={item.id}><b>{item.title}</b><p>{item.description}</p>
       <button disabled={busy} onClick={async()=>{try { const doc=await api.document(item.documentId); if(doc.signedUrl) setSource({id:item.id,url:doc.signedUrl}); else onToast('원본 문서를 불러올 수 없어요'); } catch(e) {onToast(errorMessage(e));}}}>근거 문서 확인</button>
@@ -376,7 +376,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       }}/></label>
       {item.type === 'MEDICATION' && <fieldset className="candidate-repeat-fields" disabled={decisionDisabled}>
         <RepeatFields rule={rule} requireEndDate startDate={startsAt.slice(0,10)} onChange={next => setCandidateRules(current => ({...current, [item.id]: next}))}/>
-        {invalidRepeat && <p role="alert">반복 시작일은 오늘 이후로, 종료일은 시작일 이후로 설정하고 복용 요일을 선택해 주세요.</p>}
+        {invalidRepeat && <p role="alert">종료일은 시작일과 같거나 이후로 설정하고 복용 요일을 선택해 주세요.</p>}
         <small className="medication-repeat-hint">처방 내용에 맞춰 직접 확인해 주세요. 하루 여러 번 복용한다면 시간별로 별도 등록해 주세요.</small>
       </fieldset>}
       <div className="candidate-buttons">
