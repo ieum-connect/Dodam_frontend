@@ -1,3 +1,5 @@
+import { documentDisplayName } from './documentName.js';
+
 export function localDay(value) {
   if (!value) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -22,7 +24,7 @@ export async function readTimelinePages(fetchPage, signal) {
   return items;
 }
 
-export function buildTimeline({ visits = [], documents = [], memos = [], schedules = [] }, month) {
+export function buildTimeline({ visits = [], documents = [], memos = [], schedules = [] }, month, order = 'desc') {
   const visitMap = new Map(visits.map(v => [v.visitId, v]));
   const linkedVisit = id => {
     const visit = visitMap.get(id);
@@ -34,7 +36,7 @@ export function buildTimeline({ visits = [], documents = [], memos = [], schedul
       body: [v.department, v.memo].filter(Boolean).join(' · '), route: 'records', routeLabel: '병원 방문 목록 열기', label: '방문일',
     })),
     ...documents.map(d => ({
-      id: `document-${d.documentId}`, kind: 'documents', date: d.createdAt, title: d.documentName || '건강 문서',
+      id: `document-${d.documentId}`, kind: 'documents', date: d.createdAt, title: documentDisplayName(d, '건강 문서'),
       body: linkedVisit(d.visitId), route: 'documents', routeLabel: '건강 문서 목록 열기', label: '업로드',
     })),
     ...memos.map(m => ({
@@ -49,6 +51,7 @@ export function buildTimeline({ visits = [], documents = [], memos = [], schedul
       route: s.scheduleType === 'MEDICATION' ? 'meds' : 'calendar', routeLabel: '일정 관리 열기', label: '예정 시각',
     })),
   ].map(row => ({ ...row, day: localDay(row.date) }));
+  const direction = order === 'asc' ? 1 : -1;
   return rows.filter(row => row.day.startsWith(month)).sort((a, b) =>
-    b.day.localeCompare(a.day) || new Date(b.date).getTime() - new Date(a.date).getTime() || a.id.localeCompare(b.id));
+    direction * (a.day.localeCompare(b.day) || new Date(a.date).getTime() - new Date(b.date).getTime()) || a.id.localeCompare(b.id));
 }

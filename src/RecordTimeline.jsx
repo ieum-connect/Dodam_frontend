@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, FileText, NotebookPen, Search, Stethoscope, RefreshCw, X, Clock3 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, FileText, NotebookPen, Search, Stethoscope, RefreshCw, X, Clock3 } from 'lucide-react';
 import { api, errorMessage } from './api';
+import CarePageHeader from './CarePageHeader';
 import { buildTimeline, readTimelinePages } from './timeline';
 
 const types = {
@@ -17,6 +18,7 @@ export default function RecordTimeline({ child, onOpen }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [revision, setRevision] = useState(0);
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
 
@@ -41,7 +43,7 @@ export default function RecordTimeline({ child, onOpen }) {
     return () => { active = false; controller.abort(); };
   }, [child?.id, month, revision]);
 
-  const rows = useMemo(() => buildTimeline(data, monthKey), [data, monthKey]);
+  const rows = useMemo(() => buildTimeline(data, monthKey, sortOrder), [data, monthKey, sortOrder]);
   const visible = rows.filter(row => (filter === 'all' || row.kind === filter) &&
     [row.title, row.body, row.detail].filter(Boolean).join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const groups = new Map();
@@ -50,16 +52,16 @@ export default function RecordTimeline({ child, onOpen }) {
     groups.get(row.day).push(row);
   });
 
-  return <div className="page padded detail-page record-timeline">
-    <div className="record-timeline-heading"><span className="record-timeline-kicker">우리 아이 건강 노트</span><h2>기록 모아보기</h2><p><b>{child?.fullName || child?.name || '아이'}</b>의 하루를 차곡차곡 살펴보세요.</p></div>
+  return <div className="page padded detail-page record-timeline care-workspace">
+    <CarePageHeader icon={CalendarDays} title="기록 모아보기" description={`${child?.fullName || child?.name || '아이'}의 병원 방문, 문서, 메모와 일정을 모았어요.`}/>
     {!child?.id ? <p className="empty-record">아이를 먼저 등록하거나 선택해주세요.</p> : <>
-      <div className="record-timeline-month"><button aria-label="이전 달" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft/></button><h3>{month.getFullYear()}년 {month.getMonth() + 1}월</h3><button aria-label="다음 달" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight/></button><button className="record-timeline-today" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>이번 달</button></div>
-      <div className="record-timeline-filters" aria-label="기록 종류">{[['all', '전체'], ...Object.entries(types).map(([key, value]) => [key, value.label])].map(([key, label]) => <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</div>
+      <div className="record-timeline-month"><div className="record-month-navigation"><button aria-label="이전 달" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft/></button><h3>{month.getFullYear()}년 {month.getMonth() + 1}월</h3><button aria-label="다음 달" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight/></button></div><button className="record-timeline-today" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>이번 달</button></div>
+      <div className="record-timeline-filters" role="group" aria-label="기록 종류">{[['all', '전체'], ...Object.entries(types).map(([key, value]) => [key, value.label])].map(([key, label]) => <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</div>
       <div className="record-timeline-search"><Search size={18} aria-hidden="true"/><input aria-label="기록 검색" placeholder="병원명, 문서명, 메모 내용 검색" value={query} onChange={e => setQuery(e.target.value)}/>{query && <button aria-label="검색어 지우기" onClick={() => setQuery('')}><X size={18}/></button>}</div>
-      <p className="record-timeline-help"><Clock3 size={14}/>최근 날짜부터 보여드려요</p>
+      <p className="record-timeline-help"><Clock3 size={14} aria-hidden="true"/>방문·기록·예정 날짜 기준이며, 앞으로의 예약도 포함돼요.</p>
       {errors.length > 0 && <div className="record-timeline-error" role="alert"><b>일부 기록을 불러오지 못했어요.</b>{errors.map(error => <p key={error}>{error}</p>)}<button onClick={() => setRevision(r => r + 1)}><RefreshCw size={15}/> 다시 불러오기</button></div>}
       {loading ? <p role="status" className="empty-record">아이의 기록을 모으고 있어요…</p> : <>
-        <div className="list-header"><h3>{filter === 'all' ? '모든 기록' : types[filter].label}</h3><span aria-live="polite">{visible.length}건{errors.length ? ' · 조회된 기록 기준' : ''}</span></div>
+        <div className="list-header record-timeline-toolbar"><div className="record-timeline-count"><h3>{filter === 'all' ? '모든 기록' : types[filter].label}</h3><span aria-live="polite">{visible.length}건{errors.length ? ' · 조회된 기록 기준' : ''}</span></div><button className="record-timeline-sort" type="button" aria-label={`날짜순 정렬: 현재 ${sortOrder === 'desc' ? '내림차순, 누르면 오름차순' : '오름차순, 누르면 내림차순'}`} onClick={() => setSortOrder(value => value === 'desc' ? 'asc' : 'desc')}>날짜순 {sortOrder === 'desc' ? <ChevronDown size={15} aria-hidden="true"/> : <ChevronUp size={15} aria-hidden="true"/>}</button></div>
         {!visible.length && <div className="empty-record">{errors.length ? '조회된 기록이 없어요. 위 안내를 확인하고 다시 불러와주세요.' : query || filter !== 'all' ? '조건에 맞는 기록이 없어요. 검색어나 종류를 바꿔보세요.' : '이 달에 등록된 기록이 없어요.'}{!errors.length && (query || filter !== 'all') && <button className="record-reset" onClick={() => {setQuery(''); setFilter('all');}}>필터 초기화</button>}</div>}
         {[...groups].map(([day, items]) => <section className="record-timeline-day" key={day}><h3><span className="record-day-number">{Number(day.slice(8))}</span><span>{Number(day.slice(5, 7))}월 · {new Date(`${day}T12:00:00`).toLocaleDateString('ko-KR', { weekday: 'long' })}</span><small>{items.length}건</small></h3><div>{items.map(row => {
           const Icon = types[row.kind].icon;

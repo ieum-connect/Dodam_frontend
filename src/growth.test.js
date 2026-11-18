@@ -1,6 +1,52 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { growthRange, growthPoints, growthPosition, newestGrowthFirst } from './growth.js';
+import { growthRange, growthPoints, growthLinePoints, growthPosition, newestGrowthFirst, growthAxis } from './growth.js';
+
+test('long histories use spaced year labels without changing measurement positions', () => {
+  for (const years of [4, 5, 10, 20]) {
+    const range = { from: `${2026 - years}-11-16`, to: '2026-11-17' };
+    const axis = growthAxis(range, 0);
+    assert.equal(axis.unit, 'year');
+    assert.ok(axis.labelDates.length >= 3 && axis.labelDates.length <= 6);
+    assert.equal(axis.labelDates[0], range.from);
+    assert.equal(axis.labelDates.at(-1), range.to);
+    assert.equal(new Set(axis.labelDates.map(date => date.slice(0, 4))).size, axis.labelDates.length);
+    axis.labelDates.slice(1).forEach((date, i) => assert.ok(growthPosition(date, range) - growthPosition(axis.labelDates[i], range) >= .15));
+  }
+  assert.equal(growthAxis({ from: '2024-11-16', to: '2026-11-17' }, 0).unit, 'month');
+});
+
+test('incoming line is clipped at the period boundary without adding a measurement', () => {
+  const rows = [
+    { id: 'new', measuredOn: '2026-11-11', heightCm: 90 },
+    { id: 'old', measuredOn: '2026-11-01', heightCm: 80 },
+    { id: 'older', measuredOn: '2026-10-01', heightCm: 60 },
+  ];
+  const before = structuredClone(rows);
+  const range = { from: '2026-11-06', to: '2026-11-17' };
+  const line = growthLinePoints(rows, 'heightCm', range);
+  assert.deepEqual(line[0], { measuredOn: '2026-11-06', heightCm: 85 });
+  assert.equal(line[1].id, 'new');
+  assert.equal(growthPoints(rows, 'heightCm', range).length, 1);
+  assert.deepEqual(rows, before);
+});
+
+test('incoming line uses the previous measurement of the selected metric', () => {
+  const rows = [
+    { measuredOn: '2026-11-01', weightKg: 10 },
+    { measuredOn: '2026-11-05', heightCm: 80 },
+    { measuredOn: '2026-11-11', weightKg: 12 },
+  ];
+  assert.equal(growthLinePoints(rows, 'weightKg', { from: '2026-11-06', to: '2026-11-17' })[0].weightKg, 11);
+});
+
+test('line never extrapolates before the first or after the last measurement', () => {
+  const rows = [{ measuredOn: '2026-11-05', heightCm: 80 }, { measuredOn: '2026-11-11', heightCm: 85 }];
+  for (const from of ['2026-11-01', '2026-11-05']) {
+    assert.deepEqual(growthLinePoints(rows, 'heightCm', { from, to: '2026-11-17' }), rows);
+  }
+  assert.deepEqual(growthLinePoints(rows, 'heightCm', { from: '2026-11-12', to: '2026-11-17' }), []);
+});
 
 test('same measurements occupy different positions for 3, 6 and 12 months', () => {
   const ranges = [3, 6, 12].map(months => growthRange(months, '2026-11-07'));
@@ -30,6 +76,21 @@ test('single-day or empty all-history ranges never divide by zero', () => {
   const range = growthRange(0, '2026-11-07', [{ measuredOn: '2026-11-07' }]);
   assert.equal(growthPosition('2026-11-07', range), 1);
   assert.ok(Number.isFinite(growthPosition('2026-11-07', growthRange(0, '2026-11-07'))));
+});
+
+test('all history includes the previous year even when records are recent or empty', () => {
+  const end = '2026-11-17';
+  for (const rows of [[], [{ measuredOn: end }], [{ measuredOn: '2026-11-02' }, { measuredOn: end }]]) {
+    assert.deepEqual(growthRange(0, end, rows), { from: '2025-11-17', to: end });
+  }
+});
+
+test('all history extends to older records without dropping any measurements', () => {
+  const rows = [{ measuredOn: '2026-11-17', heightCm: 90 }, { measuredOn: '2024-02-29', heightCm: 60 }];
+  const range = growthRange(0, '2026-11-17', rows);
+  assert.deepEqual(range, { from: '2024-02-29', to: '2026-11-17' });
+  assert.equal(growthPoints(rows, 'heightCm', range).length, 2);
+  assert.equal(growthRange(0, '2024-02-29', []).from, '2023-02-28');
 });
 
 test('latest cards and history use newest dates regardless of API order', () => {

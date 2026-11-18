@@ -28,3 +28,41 @@
 .condition-list{display:grid;gap:9px;margin:0;padding:0;list-style:none}.condition-list li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;padding:11px 12px;border:1px solid #f0dbe3;border-radius:13px;background:#fffafc}.condition-list li>b{font-size:12.5px;color:#51454a}.condition-list li>p{grid-column:1/-1;display:block;margin:0;font-size:11.5px;line-height:1.6;color:#8a7a80}.condition-flag{justify-self:end;padding:4px 9px;border-radius:99px;font-size:10.5px;font-weight:800;background:#f3e5ea;color:#8a7a80}.condition-list li.met{border-color:#e7d5e9;background:#fff7fa}.condition-list li.met .condition-flag{background:#ffe7ef;color:#c34e72}.condition-list li.unknown .condition-flag{background:#f4eafa;color:#8a5a9d}.condition-list li.unmet{border-color:#f0d9d9}.condition-list li.unmet .condition-flag{background:#fdeaea;color:#b4555a}.welfare-info-card>small{display:block;margin-top:10px;font-size:11px;line-height:1.6;color:#a2919a}
 .welfare-filter-note{display:flex;align-items:flex-start;gap:6px;margin:-2px 2px 12px;padding:10px 12px;border-radius:13px;background:#fff5f8;color:#96818a;font-size:11.5px;line-height:1.6}.welfare-filter-note svg{width:14px;min-width:14px;margin-top:2px;color:#d85c80}
 .welfare-detail-loading{margin:0 2px 12px;font-size:12px;color:#a2919a}.welfare-empty p{margin:6px 0 0;font-size:11.5px;line-height:1.6;color:#a2919a}
+
+/* Mobile interaction fixes: exclusive selects, draggable sheet, favorites, and long metadata. */
+.welfare-profile-sheet{overscroll-behavior:contain;padding-bottom:max(35px,env(safe-area-inset-bottom));scrollbar-width:none;-ms-overflow-style:none}
+.welfare-profile-sheet::-webkit-scrollbar{display:none}
+.welfare-sheet-header{position:sticky;top:-28px;z-index:20;margin:-28px -24px 18px;padding:28px 24px 12px;background:#fffafc;border-bottom:1px solid #f3e4e9}
+.welfare-sheet-header .sheet-heading{margin:9px 36px 0 0}
+.welfare-sheet-header .sheet-close{z-index:2}
+.welfare-confirm{max-width:100%;max-height:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain}
+.welfare-profile-sheet.dragging{user-select:none;overflow:hidden}
+.welfare-profile-sheet .sheet-handle{top:0;width:76px;height:30px;background:transparent;cursor:grab;touch-action:none;z-index:6}
+.welfare-profile-sheet .sheet-handle:active{cursor:grabbing}
+.welfare-profile-sheet .sheet-handle:after{content:"";position:absolute;left:50%;top:10px;width:40px;height:4px;border-radius:99px;background:#d8cbd0;transform:translateX(-50%)}
+.favorites-filter{min-height:38px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #f0dbe3;border-radius:12px;background:#fff;color:#8b7880;font-size:11px;font-weight:800;white-space:nowrap}
+.favorites-filter svg{width:15px;color:#d85c80}
+.favorites-filter.active{border-color:#ed9ab0;background:#fff0f5;color:#c65477}
+.program-top button,.welfare-detail-title>button{place-items:center}
+.program-top button svg,.welfare-detail-title>button svg{width:19px;height:19px;display:block}
+.program-top button.saved svg,.welfare-detail-title>button.saved svg{transform:scale(1.04)}
+.program-meta{display:grid;grid-template-columns:max-content minmax(0,1fr);justify-content:initial;align-items:start;gap:8px 14px}
+.program-meta span{min-width:0;line-height:1.5;overflow-wrap:anywhere;word-break:keep-all}
+.program-meta .program-region{font-weight:800;color:#5f5358}
+.program-meta .program-agency{justify-self:end;text-align:right}
+.program-meta .program-deadline{grid-column:1/-1;display:grid;grid-template-columns:14px auto minmax(0,1fr);align-items:start;gap:5px 7px;padding-top:10px;border-top:1px dashed #f0e2e7;color:#7e6f75}
+.program-meta .program-deadline svg{margin-top:2px;min-width:12px}
+.program-meta .program-deadline b{color:#685a60;font-size:11px;line-height:1.65;white-space:nowrap}
+.program-meta .program-deadline>span{font-weight:500;line-height:1.65;word-break:keep-all;overflow-wrap:anywhere}
+
+@media (max-width:420px){
+  .region-select-grid{grid-template-columns:1fr}
+  .region-select-grid>.welfare-select:last-child{grid-column:auto}
+  .welfare-list-head{align-items:flex-start;gap:10px}
+  .welfare-list-head>div{min-width:0;padding-top:8px}
+  .welfare-list-head b{line-height:1.35}
+  .favorites-filter{flex:none;max-width:124px;padding-inline:10px}
+  .program-meta{grid-template-columns:1fr}
+  .program-meta .program-agency{justify-self:start;text-align:left}
+  .program-meta .program-deadline{grid-column:auto}
+}
