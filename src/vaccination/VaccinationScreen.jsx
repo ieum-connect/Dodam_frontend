@@ -36,7 +36,7 @@ const dueInfo = (dose, group, asOf) => {
   }
   const n = days(dose.delayFrom, asOf);
   const left = Number.isFinite(n) && n > 0 ? n : 0; // 0 이하는 AI가 PAST로 보내야 하는 경우라 방어만 한다.
-  return { big: left ? `${left}일` : '오늘', small: '이 안에 맞으면 늦지 않아요', list: left ? `권장 기간 지남 · ${left}일 남음` : '권장 기간 지남', late: true };
+  return { big: left ? `${left}일` : '오늘', small: '추가 안내 기한까지', list: '권장 기간 지남', late: true };
 };
 
 // 동그라미는 세 가지(맞음·맞을 예정·남음)만 그린다.
@@ -220,10 +220,10 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
     const card = !isNow
       ? { status: '곧 시작돼요', date: `${dot(next.recFrom).slice(5)}부터`, badge: ['', info.big] }
       : info.late
-        ? { status: '권장 기간 지남', date: `${dot(next.delayFrom)} 전까지`, badge: info.big === '오늘' ? ['마감', '오늘'] : ['남은 기간', info.big] }
+        ? { status: '권장 기간 지남', date: `추가 안내 기한 ${dot(next.delayFrom)}`, badge: ['', ''] }
         : { status: '권장 기간이에요', date: `${dot(next.recTo)}까지`, badge: info.big === '오늘' ? ['마감', '오늘'] : ['마감까지', info.big] };
     return <div className="vax-next">
-      <div className="vax-next-meta"><span><Clock/>가장 가까운 접종</span><span>권장 {dot(next.recFrom).slice(5)} ~ {dot(next.recTo).slice(5)}</span></div>
+      <div className="vax-next-meta"><span><Clock/>가장 가까운 접종</span><span>권장 {dot(next.recFrom)} ~ {dot(next.recTo)}</span></div>
       <div className="vax-next-top">
         <div className="vax-next-main">
           <span className="vax-chip">{card.status}</span>
@@ -235,7 +235,7 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
       {prev && <p className="vax-next-prev">{prev.label} 접종 후 맞아주세요.{prev.state === 'PAST' && <><br/>이미 맞았다면 접종 기록을 확인해 주세요.</>}</p>}
       <div className="vax-next-actions">
         {renderCalendarButton(next, false, true)}
-        {now.length >= 2 && <button className="vax-next-more" type="button" onClick={openNow}>권장 시기 접종 {now.length - 1}건 더 보기<ChevronRight/></button>}
+        {now.length >= 2 && <button className="vax-next-more" type="button" onClick={openNow}>접종 {now.length - 1}건 더 보기<ChevronRight/></button>}
       </div>
       {calendarFor === `card-${next.doseId}` && !addedDate(next) && renderCalendarPanel(next)}
     </div>;
@@ -348,7 +348,7 @@ export function VaccinationScreen({ child, onToast, onCalendar, onChildOpen }) {
       <div><span>확인이 필요한 지난 접종</span><b>{counts.pastUnchecked ?? '-'}건</b></div>
     </div>
 
-    {renderList('now', '권장 시기예요', now, 'NOW', '권장 시기 접종이 없어요.')}
+    {renderList('now', '확인할 접종', now, 'NOW', '확인할 접종이 없어요.')}
     {groups.laterCount > 0 && <p className="vax-note">이후 일정 {groups.laterCount}건은 가까워지면 알려드려요.</p>}
 
     <section className="vax-section vax-progress">

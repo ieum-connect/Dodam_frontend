@@ -79,7 +79,25 @@ export function WelfarePrototype({ child, onChildOpen, onBackChange }) {
   const childId=child?.id, childName=child?.name||child?.fullName||'', childAge=ageLabel(child?.birthDate);
 
   useEffect(()=>{api.welfareProfileOptions().then(result=>{setIncomeBands(result?.incomeBands||[]);setChildcareOptions(result?.childcareOptions||[]);setIncomeGuide(result?.incomeGuide||null)}).catch(e=>setError(errorMessage(e,'복지 입력 선택지를 불러오지 못했어요.')));api.welfareRegions().then(result=>setProvinces(result?.items||[])).catch(e=>setError(errorMessage(e,'행정구역을 불러오지 못했어요.')));},[]);
-  useEffect(()=>{ if(!childId)return; api.welfareProfile(childId).then(remote=>{if(remote?.storageConsent){const next=profileFromApi(remote);setProfile(next);setDraft(next)}}).catch(()=>{setProfile(null);setDraft(EMPTY_PROFILE)}); api.welfareFavorites(childId).then(setFavorites).catch(()=>setFavorites([])); },[childId,revision]);
+  useEffect(() => {
+    if (!childId) return;
+    let active = true;
+    setProfile(null);
+    setDraft(EMPTY_PROFILE);
+    setFavorites([]);
+    api.welfareProfile(childId).then(remote => {
+      if (!active || !remote?.storageConsent) return;
+      const next = profileFromApi(remote);
+      setProfile(next);
+      setDraft(next);
+    }).catch(e => {
+      if (active) setError(errorMessage(e, '복지 맞춤정보를 불러오지 못했어요.'));
+    });
+    api.welfareFavorites(childId).then(items => {
+      if (active) setFavorites(items);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [childId, revision]);
   useEffect(()=>{ if(!childId){setRecommendations([]);setChildContext(null);setExcludedCount(0);setLoading(false);return} let active=true; setLoading(true);setError('');
     api.welfareRecommendations(childId,'SUGGESTIVE').then(result=>{ if(!active)return; setRecommendations((result?.items||[]).map(recommendationFromApi)); setChildContext(result?.child||null); setExcludedCount(result?.excludedCount||0); })
       .catch(e=>{ if(!active)return; setRecommendations([]);setChildContext(null);setError(errorMessage(e,'맞춤 추천을 불러오지 못했어요.')) }).finally(()=>active&&setLoading(false)); return()=>{active=false}; },[childId,revision]);
