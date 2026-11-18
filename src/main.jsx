@@ -32,6 +32,7 @@ import ChatInput from './ChatInput';
 import useMobileViewport from './useMobileViewport';
 import './chat-layout.css';
 import { childAgeInMonths, childProfileEmoji } from './childProfile';
+import { waOrGwa } from './koreanParticle';
 
 const INQUIRY_FORM_URL = 'https://forms.gle/ET2UWzbq2udWJmmw7';
 const DOCUMENT_ACTIVE_STATUSES = new Set(['UPLOADED', 'PROCESSING']);
@@ -541,6 +542,7 @@ function LoginScreen({ onDemoLogin, authConfig }) {
           <div className="demo-account-heading"><span aria-hidden="true">✨</span><div><b id="demo-account-title">테스트 계정으로 체험하기</b><small>가입 없이 준비된 데이터로 도담의 주요 기능을 둘러볼 수 있어요.</small></div></div>
           <div className="demo-account-buttons">
             <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('MINJI')}><span>김민지</span><small>보호자 계정으로 시작</small></button>
+            <button type="button" className="email-button" disabled={demoBusy} onClick={() => startDemo('JIHUN')}><span>이지훈</span><small>보호자 계정으로 시작</small></button>
           </div>
           <p>테스트용 계정이며 입력한 내용은 시연 환경에 저장될 수 있어요.</p>
         </section>}
@@ -559,7 +561,7 @@ function HomeScreen({ onOpen, child, onChildOpen }) {
   if (!child?.id) return <div className="page padded"><div className="page-title"><p>{todayLabel}</p><h2>도담에 오신 것을 환영해요</h2><p>아이 프로필을 등록하면 건강 기록 관리를 시작할 수 있어요.</p></div><div className="child-required"><Baby/><h3>아이 프로필을 등록해 주세요</h3><p>방문 기록, 건강 문서, AI 상담을<br/>아이별로 안전하게 관리할 수 있어요.</p><button className="primary-button" onClick={onChildOpen}><UserRoundPlus/> 아이 프로필 등록</button></div></div>;
   return <>
     <section className="welcome">
-      <div className="welcome-copy"><p className="muted">{todayLabel}</p><h2><strong>{child.name}</strong>와 오늘도<br/>건강한 하루 보내세요 <span>♡</span></h2></div>
+      <div className="welcome-copy"><p className="muted">{todayLabel}</p><h2><strong>{child.name}</strong>{waOrGwa(child.name)} 오늘도<br/>건강한 하루 보내세요 <span>♡</span></h2></div>
       <button className="child-chip" onClick={onChildOpen}><span className="child-face">{child.emoji}</span><span className="child-chip-copy"><b>{child.fullName}</b><small>{child.age || '생년월일 미등록'} · 아이 전환</small></span><ChevronRight size={17}/></button>
     </section>
 

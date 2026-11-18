@@ -24,7 +24,7 @@ export async function readTimelinePages(fetchPage, signal) {
   return items;
 }
 
-export function buildTimeline({ visits = [], documents = [], memos = [], schedules = [] }, month) {
+export function buildTimeline({ visits = [], documents = [], memos = [], schedules = [] }, month, order = 'desc') {
   const visitMap = new Map(visits.map(v => [v.visitId, v]));
   const linkedVisit = id => {
     const visit = visitMap.get(id);
@@ -51,6 +51,7 @@ export function buildTimeline({ visits = [], documents = [], memos = [], schedul
       route: s.scheduleType === 'MEDICATION' ? 'meds' : 'calendar', routeLabel: '일정 관리 열기', label: '예정 시각',
     })),
   ].map(row => ({ ...row, day: localDay(row.date) }));
+  const direction = order === 'asc' ? 1 : -1;
   return rows.filter(row => row.day.startsWith(month)).sort((a, b) =>
-    b.day.localeCompare(a.day) || new Date(b.date).getTime() - new Date(a.date).getTime() || a.id.localeCompare(b.id));
+    direction * (a.day.localeCompare(b.day) || new Date(a.date).getTime() - new Date(b.date).getTime()) || a.id.localeCompare(b.id));
 }

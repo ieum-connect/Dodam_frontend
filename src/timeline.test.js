@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTimeline, readTimelinePages } from './timeline.js';
 
+test('date order includes future appointments and reverses same-day times without dropping records', () => {
+  const data = {
+    visits: [{ visitId: 'future', visitedOn: '2026-11-25' }],
+    memos: [{ recordId: 'morning', recordedAt: '2026-11-18T01:00:00Z' }, { recordId: 'evening', recordedAt: '2026-11-18T09:00:00Z' }],
+  };
+  assert.deepEqual(buildTimeline(data, '2026-11').map(r => r.id), ['visit-future', 'memo-evening', 'memo-morning']);
+  assert.deepEqual(buildTimeline(data, '2026-11', 'asc').map(r => r.id), ['memo-morning', 'memo-evening', 'visit-future']);
+});
+
 test('uses the clinical visit date, upload date and memo date independently', () => {
   const rows = buildTimeline({
     visits: [{ visitId: 'v', visitedOn: '2026-11-01', createdAt: '2026-11-07', hospitalName: '소아과' }],

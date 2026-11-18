@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, FileText, NotebookPen, Search, Stethoscope, RefreshCw, X, Clock3 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, FileText, NotebookPen, Search, Stethoscope, RefreshCw, X, Clock3 } from 'lucide-react';
 import { api, errorMessage } from './api';
 import CarePageHeader from './CarePageHeader';
 import { buildTimeline, readTimelinePages } from './timeline';
@@ -18,6 +18,7 @@ export default function RecordTimeline({ child, onOpen }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [revision, setRevision] = useState(0);
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
 
@@ -42,7 +43,7 @@ export default function RecordTimeline({ child, onOpen }) {
     return () => { active = false; controller.abort(); };
   }, [child?.id, month, revision]);
 
-  const rows = useMemo(() => buildTimeline(data, monthKey), [data, monthKey]);
+  const rows = useMemo(() => buildTimeline(data, monthKey, sortOrder), [data, monthKey, sortOrder]);
   const visible = rows.filter(row => (filter === 'all' || row.kind === filter) &&
     [row.title, row.body, row.detail].filter(Boolean).join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const groups = new Map();
@@ -57,7 +58,8 @@ export default function RecordTimeline({ child, onOpen }) {
       <div className="record-timeline-month"><div className="record-month-navigation"><button aria-label="이전 달" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft/></button><h3>{month.getFullYear()}년 {month.getMonth() + 1}월</h3><button aria-label="다음 달" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight/></button></div><button className="record-timeline-today" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>이번 달</button></div>
       <div className="record-timeline-filters" role="group" aria-label="기록 종류">{[['all', '전체'], ...Object.entries(types).map(([key, value]) => [key, value.label])].map(([key, label]) => <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</div>
       <div className="record-timeline-search"><Search size={18} aria-hidden="true"/><input aria-label="기록 검색" placeholder="병원명, 문서명, 메모 내용 검색" value={query} onChange={e => setQuery(e.target.value)}/>{query && <button aria-label="검색어 지우기" onClick={() => setQuery('')}><X size={18}/></button>}</div>
-      <p className="record-timeline-help"><Clock3 size={14}/>최근 날짜부터 보여드려요</p>
+      <div className="record-timeline-sort"><button type="button" aria-label={`날짜 정렬: 현재 ${sortOrder === 'desc' ? '내림차순, 누르면 오름차순' : '오름차순, 누르면 내림차순'}`} onClick={() => setSortOrder(value => value === 'desc' ? 'asc' : 'desc')}>날짜 {sortOrder === 'desc' ? <ChevronDown size={16} aria-hidden="true"/> : <ChevronUp size={16} aria-hidden="true"/>}</button></div>
+      <p className="record-timeline-help"><Clock3 size={14} aria-hidden="true"/>방문·기록·예정 날짜 기준이며, 앞으로의 예약도 포함돼요.</p>
       {errors.length > 0 && <div className="record-timeline-error" role="alert"><b>일부 기록을 불러오지 못했어요.</b>{errors.map(error => <p key={error}>{error}</p>)}<button onClick={() => setRevision(r => r + 1)}><RefreshCw size={15}/> 다시 불러오기</button></div>}
       {loading ? <p role="status" className="empty-record">아이의 기록을 모으고 있어요…</p> : <>
         <div className="list-header"><h3>{filter === 'all' ? '모든 기록' : types[filter].label}</h3><span aria-live="polite">{visible.length}건{errors.length ? ' · 조회된 기록 기준' : ''}</span></div>
