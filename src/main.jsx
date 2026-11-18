@@ -866,7 +866,7 @@ function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, 
     return()=>{active=false;};
   },[visit.visitId,child?.id,selectedDocument]);
   const save=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 수정할 수 있어요');return;}try{setSaving(true);const updated=await api.updateVisit(visit.visitId,{patientId:visit.patientId||child?.id,...form,visitStatus:visit.visitStatus||'DONE',version:visit.version});await onSaved(updated);setEditing(false);onToast('방문 기록을 수정했어요');}catch(error){onToast(error.message||'수정하지 못했어요');}finally{setSaving(false)}};
-  const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}try{setSaving(true);await api.deleteVisit(visit.visitId);onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
+  const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}try{setSaving(true);await api.deleteVisit(visit.visitId);await onDataChange?.();onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
   if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={()=>onDataChange?.()} onReanalyzed={onDataChange}/>;
   return <div className="nested-detail visit-detail care-typography"><button type="button" className="detail-back" onClick={onBack}><ChevronLeft aria-hidden="true"/> 방문 기록으로</button><div className="detail-title-row"><div><span className="eyebrow">방문 기록 상세</span><h2>{visit.department||visit.hospitalName||'병원 방문'}</h2><p>{[visit.hospitalName,visit.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>{setForm({visitedOn:visit.visitedOn||'',hospitalName:visit.hospitalName||'',department:visit.department||'',memo:visit.memo||''});setEditing(true);}}><Pencil/> 수정</button><button className="edit-button danger" disabled={saving} onClick={() => setDeleting(true)}><Trash2/> 삭제</button></span></div><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
     <div className="visit-docs"><div className="visit-docs-head"><b>연결된 문서</b><span>{linkedDocs.length}건</span></div>
@@ -1423,7 +1423,7 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
       const family = await api.childParents(linked.id).catch(() => null);
       if (family) setParents(family);
       onToast(refreshed === false ? '연결은 완료됐어요. 목록을 다시 불러와 주세요.' : '가족 기록을 연결했어요.'); }
-    catch (e) { setJoinError(e.message || '연결 코드가 올바르지 않아요'); }
+    catch (e) { setJoinError(e.status === 404 ? '연결 코드를 찾을 수 없어요. 가족에게 최신 코드를 확인해 주세요.' : errorMessage(e, '가족 연결을 완료하지 못했어요. 다시 시도해 주세요.')); }
     finally { familyPending.current = false; setBusy(false); }
   };
 
