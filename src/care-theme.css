@@ -432,8 +432,12 @@
 .record-timeline .record-timeline-filters button[aria-pressed=true] { background:#fce8ef; border-color:#e6a1b9; color:#ac3f66; font-weight:600; }
 .record-timeline.care-workspace .record-timeline-search { min-height:48px; margin:0; padding:0 12px; border:0; border-radius:14px; background:#f5f3f5; }
 .record-timeline .record-timeline-help { margin:12px 0 20px; font-size:11px; color:var(--muted); }
-.record-timeline .record-timeline-sort { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
-.record-timeline .record-timeline-sort button { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:8px 14px; border:1px solid #eadde3; border-radius:20px; background:#fff; color:#77636f; font:inherit; font-size:13px; }
+.record-timeline .record-timeline-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.record-timeline .record-timeline-count { display:flex; align-items:center; gap:7px; flex-wrap:wrap; min-width:0; }
+.record-timeline .record-timeline-count > span { padding:3px 8px; border-radius:12px; background:#fff0f5; color:#b0476d; font-size:11px; line-height:1.5; }
+.record-timeline button.record-timeline-sort { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; gap:5px; min-height:40px; margin-left:auto; padding:8px 12px; border:1px solid #efdbe4; border-radius:12px; background:#fff7fa; color:#a74769; font:inherit; font-size:12px; font-weight:600; white-space:nowrap; }
+.record-timeline button.record-timeline-sort:hover { background:#fceaf1; border-color:#dfabc0; }
+.record-timeline button.record-timeline-sort:focus-visible { outline:2px solid #b74773; outline-offset:3px; }
 .record-timeline .record-timeline-help svg { flex-shrink:0; }
 .record-timeline .list-header { margin:0 0 18px; }
 .record-timeline .list-header > span { background:#fff0f5; color:#cc5c83; font-size:11px; padding:3px 9px; }
