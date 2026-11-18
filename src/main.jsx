@@ -822,7 +822,10 @@ function VisitRecordsDetail({ onToast, visits = [], documents = [], child, onDat
     <VisitCalendar visits={visits} month={month} setMonth={setMonth} selectedDate={selectedDate} setSelectedDate={setSelectedDate}/>
     <div className="list-header"><h3>{selectedDate ? `${selectedDate.replaceAll('-','.')} 기록` : '전체 방문 기록'}</h3>{selectedDate&&<button onClick={()=>setSelectedDate(null)}>전체보기</button>}</div>
     <div className="record-list visit-record-list">{visibleVisits.length ? visibleVisits.map(v=><button type="button" onClick={()=>setSelectedVisit(v)} key={v.visitId}><span className="record-date">{v.visitedOn}</span><span><b>{v.department || '병원 방문'}</b><small>{v.hospitalName || '병원 정보 없음'}</small></span><ChevronRight/></button>) : <div className="empty-record">{selectedDate?'이 날짜에는 방문 기록이 없어요.':'아직 저장된 병원 방문 기록이 없어요.'}</div>}</div>
-    <button className="primary-button" onClick={()=>setAdding(true)}><Plus/> 새 기록 추가</button>
+    <button className="primary-button" onClick={()=>{
+      setForm({ visitedOn: selectedDate || new Date().toLocaleDateString('sv-SE'), hospitalName: '', department: '', memo: '' });
+      setAdding(true);
+    }}><Plus/> 새 기록 추가</button>
     {adding && <ProfileEditSheet appearance="upload" title="새 병원 방문 기록" description="아이의 진료 정보를 남겨보세요." icon={Stethoscope} pending={visitPending} onClose={()=>setAdding(false)}>
       <form className="visit-compose visit-registration-form" onSubmit={event=>{event.preventDefault();submit();}}>
         <label className="field-label">방문 날짜<input className="select-field" type="date" required disabled={saving} value={form.visitedOn} onChange={e=>setForm({...form,visitedOn:e.target.value})}/></label><label className="field-label">병원명<input className="select-field" required disabled={saving} placeholder="예: 도담소아청소년과" value={form.hospitalName} onChange={e=>setForm({...form,hospitalName:e.target.value})}/></label><label className="field-label">진료 목적<input className="select-field" disabled={saving} placeholder="예: 영유아 건강검진" value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></label><label className="field-label">메모<textarea className="visit-memo" disabled={saving} placeholder="진료 내용을 간단히 남겨보세요" value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}/></label><button className="primary-button compact" type="submit" disabled={saving}><CheckCircle2/> {saving?'저장 중…':'방문 기록 저장'}</button>
@@ -863,7 +866,7 @@ function VisitItemDetail({ visit, child, documents = [], backendOnline, onBack, 
     return()=>{active=false;};
   },[visit.visitId,child?.id,selectedDocument]);
   const save=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 수정할 수 있어요');return;}try{setSaving(true);const updated=await api.updateVisit(visit.visitId,{patientId:visit.patientId||child?.id,...form,visitStatus:visit.visitStatus||'DONE',version:visit.version});await onSaved(updated);setEditing(false);onToast('방문 기록을 수정했어요');}catch(error){onToast(error.message||'수정하지 못했어요');}finally{setSaving(false)}};
-  const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}try{setSaving(true);await api.deleteVisit(visit.visitId);onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
+  const remove=async()=>{if(!backendOnline){onToast('백엔드에 연결된 뒤 삭제할 수 있어요');return;}try{setSaving(true);await api.deleteVisit(visit.visitId);await onDataChange?.();onToast('방문 기록을 삭제했어요');onBack();}catch(error){onToast(error.message||'방문 기록을 삭제하지 못했어요');}finally{setSaving(false)}};
   if(selectedDocument) return <DocumentItemDetail key={selectedDocument.documentId} document={selectedDocument} visits={[visit]} backLabel="방문 기록으로" onBack={()=>setSelectedDocument(null)} onToast={onToast} onDeleted={()=>onDataChange?.()} onReanalyzed={onDataChange}/>;
   return <div className="nested-detail visit-detail care-typography"><button type="button" className="detail-back" onClick={onBack}><ChevronLeft aria-hidden="true"/> 방문 기록으로</button><div className="detail-title-row"><div><span className="eyebrow">방문 기록 상세</span><h2>{visit.department||visit.hospitalName||'병원 방문'}</h2><p>{[visit.hospitalName,visit.visitedOn].filter(Boolean).join(' · ')}</p></div><span className="detail-actions"><button className="edit-button" onClick={()=>{setForm({visitedOn:visit.visitedOn||'',hospitalName:visit.hospitalName||'',department:visit.department||'',memo:visit.memo||''});setEditing(true);}}><Pencil/> 수정</button><button className="edit-button danger" disabled={saving} onClick={() => setDeleting(true)}><Trash2/> 삭제</button></span></div><div className="detail-info-card"><InfoRow label="방문 날짜" value={visit.visitedOn}/><InfoRow label="병원" value={visit.hospitalName||'병원 정보 없음'}/><InfoRow label="진료 목적" value={visit.department||'기록 없음'}/><InfoRow label="메모" value={visit.memo||'작성된 메모가 없어요.'}/></div>
     <div className="visit-docs"><div className="visit-docs-head"><b>연결된 문서</b><span>{linkedDocs.length}건</span></div>
@@ -1420,7 +1423,7 @@ function ProfileSheet({hidden,child,me,backendOnline,onClose,onToast,onLogout,on
       const family = await api.childParents(linked.id).catch(() => null);
       if (family) setParents(family);
       onToast(refreshed === false ? '연결은 완료됐어요. 목록을 다시 불러와 주세요.' : '가족 기록을 연결했어요.'); }
-    catch (e) { setJoinError(e.message || '연결 코드가 올바르지 않아요'); }
+    catch (e) { setJoinError(e.status === 404 ? '연결 코드를 찾을 수 없어요. 가족에게 최신 코드를 확인해 주세요.' : errorMessage(e, '가족 연결을 완료하지 못했어요. 다시 시도해 주세요.')); }
     finally { familyPending.current = false; setBusy(false); }
   };
 

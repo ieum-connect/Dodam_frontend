@@ -7,6 +7,7 @@ import { calendarVisits, visitLabel } from './calendarVisits';
 import ChildRequiredState from './ChildRequiredState';
 import CarePageHeader from './CarePageHeader';
 import ProfileEditSheet from './ProfileEditSheet';
+import { scheduleValidation } from './scheduleValidation';
 
 const medicationDescription = '복용 시간과 복약 알림을 관리해요.';
 const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -136,7 +137,9 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   const [candidatesError, setCandidatesError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState(null);
   const [form, setForm] = useState(null);
+  useEffect(() => { setActionError(null); }, [form?.id, form?.requestId, !!form, child?.id]);
   const [deleting, setDeleting] = useState(null);
   const [series, setSeries] = useState([]);
   const [calendarOpen,setCalendarOpen]=useState(!medicationOnly);
@@ -203,9 +206,10 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
   const marked = useMemo(()=>new Set([...rows.filter(row => row.status !== 'CANCELLED').map(row=>localDate(new Date(row.startsAt))),...visits.map(v=>v.visitedOn)]),[rows,visits]);
   const cells = [...Array(month.getDay()).fill(null),...Array.from({length:new Date(month.getFullYear(),month.getMonth()+1,0).getDate()},(_,i)=>i+1)];
   const move = (delta) => { const next=new Date(month.getFullYear(),month.getMonth()+delta,1); setMonth(next); setSelected(localDate(next)); };
-  const execute = async (work, message, { refreshOnFailure = false, closeForm = false } = {}) => {
+  const execute = async (work, message, { refreshOnFailure = false, closeForm = false, errorKey = 'page' } = {}) => {
     if (busy) return;
     setBusy(true);
+    setActionError(null);
     try {
       const result = await work();
       if (result?.startsAt) {
@@ -218,6 +222,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       onToast(message);
     }
     catch(e) {
+      setActionError({ key: errorKey, message: errorMessage(e) });
       if (refreshOnFailure) setRevision(n => n + 1);
       onToast(e.status === 409 ? '일정 정보가 갱신됐어요. 최신 내용을 확인한 뒤 다시 시도해주세요.' : errorMessage(e));
       if (e.status === 409) { setForm(null); setRevision(n => n + 1); }
@@ -246,6 +251,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
     endDate: ''
   })}><Plus size={18} aria-hidden="true"/>{medicationOnly ? '복약 등록' : '일정 추가'}</button>;
   return <div className={`page padded care-calendar-page care-workspace${medicationOnly ? ' medication-workspace' : ''}`}>
+    {actionError?.key === 'page' && <p role="alert">{actionError.message}</p>}
     <CarePageHeader
       icon={medicationOnly ? Pill : CalendarDays}
       title={medicationOnly ? '복용약' : '가족 건강 일정'}
@@ -290,14 +296,16 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       setDeleting(null);
     }, '일정을 삭제했어요')}/>}
     {form && <ProfileEditSheet appearance="upload" title={form.id ? '일정 수정' : medicationOnly ? '복약 일정 추가' : '새 일정 추가'} description={form.scheduleType === 'MEDICATION' ? '복용 시간과 반복 방식을 설정해 주세요.' : '가족의 건강 일정을 등록해 주세요.'} icon={form.scheduleType === 'MEDICATION' ? Pill : CalendarDays} pending={editorPending} onClose={() => setForm(null)}>
-    <form className="calendar-editor care-editor care-modal-editor" onSubmit={e => {
+    <form className="calendar-editor care-editor care-modal-editor" noValidate onSubmit={e => {
       e.preventDefault();
+      const validation = !form.title.trim() ? '일정 제목을 입력해 주세요.' : scheduleValidation(form.startsAt, form.id ? {} : form);
+      if (validation) { setActionError({ key: 'form', message: validation }); return; }
       const body = { ...form, patientId: child.id, startsAt: new Date(form.startsAt).toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
       if (!form.id && form.scheduleType==='MEDICATION' && form.repeatMode!=='ONCE') {
         const weekdayMask = ruleWeekdays(form);
         if (!weekdayMask) { onToast('복용 요일을 한 개 이상 선택해 주세요.'); return; }
-        execute(()=>api.createMedicationSeries({...body, weekdayMask, endDate: form.endDate || null}).then(()=>({startsAt:body.startsAt})), '반복 복약 일정을 저장했어요', {closeForm:true});
-      } else execute(() => form.id ? api.updateSchedule(form.id, body) : api.createScheduleBatch({...body,repeatDays:1}).then(result => result[0]), '일정을 저장했어요', { closeForm: true });
+        execute(()=>api.createMedicationSeries({...body, weekdayMask, endDate: form.endDate || null}).then(()=>({startsAt:body.startsAt})), '반복 복약 일정을 저장했어요', {closeForm:true, errorKey:'form'});
+      } else execute(() => form.id ? api.updateSchedule(form.id, body) : api.createScheduleBatch({...body,repeatDays:1}).then(result => result[0]), '일정을 저장했어요', { closeForm: true, errorKey:'form' });
     }}>
       {form.fromMemo && <p className="medication-preview">메모 내용을 복용 방법 메모로 가져왔어요{form.truncated?' (앞 500자)':''}. 약 이름과 시간은 직접 확인해 입력해주세요. 저장 전에는 일정이 생성되지 않아요.</p>}
       <label>일정 제목<input required placeholder={medicationOnly ? '예: 아침 식사 후 복약' : '예: 소아과 정기 검진'} maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
@@ -306,6 +314,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       <label>{form.scheduleType === 'MEDICATION' ? '용량·복용 방법 메모' : '메모'}<textarea maxLength={500} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="처방이나 안내받은 내용을 적어주세요"/></label>
       {!form.id && form.scheduleType === 'MEDICATION' && <RepeatFields rule={form} onChange={setForm} startDate={form.startsAt.slice(0, 10)}/>}
       {form.id && <p>선택한 날짜의 일정만 수정해요.</p>}
+      {actionError?.key === 'form' && <p role="alert">{actionError.message}</p>}
       <div className="care-editor-actions"><button type="button" disabled={busy} onClick={()=>setForm(null)}>취소</button><button className="primary-button" disabled={busy}>{busy ? '저장 중…' : '일정 저장하기'}</button></div>
     </form></ProfileEditSheet>}
     {medicationOnly && <details className="medication-rules">
@@ -364,7 +373,7 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       const startsAt = dates[item.id] ?? localInput(item.dueAt);
       const rule = candidateRules[item.id] || { repeatMode: 'ONCE', endDate: '', weekdayMask: 0 };
       const repeats = item.type === 'MEDICATION' && rule.repeatMode !== 'ONCE';
-      const invalidRepeat = repeats && (!ruleWeekdays(rule) || !rule.endDate || startsAt.slice(0, 10) < localDate(new Date()) || rule.endDate < startsAt.slice(0, 10));
+      const validation = scheduleValidation(startsAt, rule, repeats);
       const decisionDisabled = busy || candidatesLoading || !!candidatesError;
       return <div className="calendar-editor" key={item.id}><b>{item.title}</b><p>{item.description}</p>
       <button disabled={busy} onClick={async()=>{try { const doc=await api.document(item.documentId); if(doc.signedUrl) setSource({id:item.id,url:doc.signedUrl}); else onToast('원본 문서를 불러올 수 없어요'); } catch(e) {onToast(errorMessage(e));}}}>근거 문서 확인</button>
@@ -376,14 +385,15 @@ export default function CalendarScreen({ child, onToast, onChildOpen, medication
       }}/></label>
       {item.type === 'MEDICATION' && <fieldset className="candidate-repeat-fields" disabled={decisionDisabled}>
         <RepeatFields rule={rule} requireEndDate startDate={startsAt.slice(0,10)} onChange={next => setCandidateRules(current => ({...current, [item.id]: next}))}/>
-        {invalidRepeat && <p role="alert">반복 시작일은 오늘 이후로, 종료일은 시작일 이후로 설정하고 복용 요일을 선택해 주세요.</p>}
         <small className="medication-repeat-hint">처방 내용에 맞춰 직접 확인해 주세요. 하루 여러 번 복용한다면 시간별로 별도 등록해 주세요.</small>
       </fieldset>}
+      {validation && <p role="status">{validation}</p>}
+      {actionError?.key === item.id && <p role="alert">{actionError.message}</p>}
       <div className="candidate-buttons">
-        <button disabled={decisionDisabled || !startsAt || invalidRepeat} onClick={() => execute(
+        <button disabled={decisionDisabled || !!validation} onClick={() => execute(
           () => api.approveAction(item.id, new Date(startsAt).toISOString(), repeats ? { weekdayMask: ruleWeekdays(rule), endDate: rule.endDate, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } : {}),
           repeats ? '승인한 복약 정보를 반복 일정에 등록했어요' : '승인한 할 일을 일정에 등록했어요',
-          { refreshOnFailure: true }
+          { refreshOnFailure: true, errorKey: item.id }
         )}>승인하고 일정 등록</button>
         <button disabled={decisionDisabled} onClick={() => execute(
           () => api.rejectAction(item.id),
