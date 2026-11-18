@@ -793,7 +793,9 @@ html { scrollbar-width: thin; scrollbar-color: #e4b8c7 transparent; }
 .demo-account-buttons .email-button small { font-size: 9px; font-weight: 500; color: #a08e95; }
 .demo-account-panel > p { margin: 0; font-size: 9px; line-height: 1.45; color: #a18e95; text-align: center; }
 @media (max-width: 360px) {
-  .demo-account-buttons { grid-template-columns: 1fr; }
+  .demo-account-panel { padding:12px; }
+  .demo-account-buttons { gap:6px; }
+  .demo-account-buttons .email-button { padding:9px 4px; }
 }
 
 /* 문서 종류 안내(업로드 시트·문서 정보 수정). 모달 p 기본 스타일보다 우선하도록 두 번째 선택자를 둔다. */
