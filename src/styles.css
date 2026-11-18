@@ -776,7 +776,7 @@ html { scrollbar-width: thin; scrollbar-color: #e4b8c7 transparent; }
 .demo-account-heading > div { min-width: 0; display: grid; gap: 3px; }
 .demo-account-heading b { font-size: 13px; color: #493b41; }
 .demo-account-heading small { font-size: 10px; line-height: 1.5; color: #8f7e85; }
-.demo-account-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.demo-account-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .demo-account-buttons .email-button {
   min-width: 0;
   height: auto;
